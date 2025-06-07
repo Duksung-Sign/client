@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f907e5ac2f6429348808cc4953f28b4f, type: 3}
+  m_Name: TestDialogueDatabase
+  m_EditorClassIdentifier: 
+  dialogueSets:
+  - dialogueID: 1
+    npcName: "\uC544\uC800\uC528"
+    dialogueLines:
+    - text: "\uC548\uB155\uD558\uC2E0\uAC00."
+      speakerName: "\uC544\uC800\uC528"
+      characterSprite: {fileID: 0}
+    - text: "\uD760. \uC798 \uAC00\uC2DC\uAC8C."
+      speakerName: "\uC544\uC800\uC528"
+      characterSprite: {fileID: 0}
+    - text: "\uC218\uACE0\uD558\uC2DC\uAC8C\uB098."
+      speakerName: "\uC544\uC800\uC528"
+      characterSprite: {fileID: 0}
+    isRepeatable: 1
