@@ -1,29 +1,36 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
 
+    [Header("Dialogue UI")]
+    public GameObject dialoguePanel;
+    public TextMeshProUGUI dialogueText;
+    public TextMeshProUGUI speakerNameText;
+
+    [Header("Character Portraits")]
+    public Image leftPortrait;     // 플레이어 초상화 (고정)
+    public Image rightPortrait;    // NPC 초상화 (고정)
+
     [Header("Dialogue Data")]
     public DialogueDatabase dialogueDatabase;
 
-    [Header("UI")]
-    public GameObject dialogueUI;
-    public TMPro.TextMeshProUGUI dialogueText;
-    public TMPro.TextMeshProUGUI speakerText;
-
-    private DialogueSet currentDialogue;
-    private int currentLineIndex = 0;
-    private bool isDialogueActive = false;
-    private bool waitingForInput = false; // 입력 대기 상태 추가!
+    private int currentDialogueID;
+    private int currentLineIndex;
+    private Sprite playerPortrait;
+    private Sprite npcPortrait;
+    private bool isInDialogue = false;
 
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
         }
         else
         {
@@ -33,138 +40,144 @@ public class DialogueManager : MonoBehaviour
 
     void Start()
     {
-        if (dialogueUI != null)
-            dialogueUI.SetActive(false);
+        // 게임 시작 시 대화 UI 숨기기
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+    }
+
+    void Update()
+    {
+        // 대화 중일 때 스페이스바나 엔터키로 다음 라인
+        if (isInDialogue && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
+        {
+            NextLine();
+        }
+    }
+
+    // InteractionDetector에서 호출할 메서드
+    public void SetCharacterPortraits(Sprite player, Sprite npc)
+    {
+        playerPortrait = player;
+        npcPortrait = npc;
+
+        // UI 초상화 설정
+        if (leftPortrait != null)
+            leftPortrait.sprite = player;
+        if (rightPortrait != null)
+            rightPortrait.sprite = npc;
     }
 
     public void StartDialogue(int dialogueID)
     {
         if (dialogueDatabase == null)
         {
-            Debug.LogError("DialogueDatabase가 할당되지 않았습니다!");
+            Debug.LogError("DialogueDatabase가 설정되지 않았습니다!");
             return;
         }
 
-        currentDialogue = dialogueDatabase.GetDialogueSet(dialogueID);
-
-        if (currentDialogue == null)
-        {
-            Debug.LogWarning($"대화 ID {dialogueID}를 찾을 수 없습니다!");
-            return;
-        }
-
+        currentDialogueID = dialogueID;
         currentLineIndex = 0;
-        isDialogueActive = true;
-        waitingForInput = false; // 시작할 때는 입력 대기하지 않음
+        isInDialogue = true;
 
-        if (GameManager.Instance != null)
+        // 플레이어 움직임 제한
+        PlayerController playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
         {
-            GameManager.Instance.SetDialogueState(true);
+            playerController.SetCanMove(false);
         }
 
-        if (dialogueUI != null)
-            dialogueUI.SetActive(true);
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(true);
 
-        ShowCurrentLine();
-        StartCoroutine(WaitForInputDelay());
+        // 첫 번째 대화 라인 표시
+        DisplayCurrentLine();
     }
 
-    // 입력 지연을 위한 코루틴
-    System.Collections.IEnumerator WaitForInputDelay()
+    void DisplayCurrentLine()
     {
-        yield return new WaitForEndOfFrame(); // 한 프레임 대기
-        waitingForInput = true;
-    }
-
-    void ShowCurrentLine()
-    {
-        if (currentDialogue != null &&
-            currentLineIndex < currentDialogue.dialogueLines.Count)
+        if (dialogueDatabase.IsDialogueFinished(currentDialogueID, currentLineIndex))
         {
-            DialogueLine line = currentDialogue.dialogueLines[currentLineIndex];
-
-            if (dialogueText != null)
-                dialogueText.text = line.text;
-
-            if (speakerText != null)
-                speakerText.text = line.speakerName;
-
-            Debug.Log($"대화 표시: [{line.speakerName}] {line.text}");
+            EndDialogue();
+            return;
         }
+
+        // 현재 라인 데이터 가져오기
+        string text = dialogueDatabase.GetDialogueText(currentDialogueID, currentLineIndex);
+        string speakerName = dialogueDatabase.GetSpeakerName(currentDialogueID, currentLineIndex);
+        bool isPlayer = dialogueDatabase.IsPlayerSpeaking(currentDialogueID, currentLineIndex);
+
+        // UI 업데이트
+        if (dialogueText != null)
+            dialogueText.text = text;
+
+        SetCurrentSpeaker(speakerName, isPlayer);
     }
 
     public void NextLine()
     {
-        if (!isDialogueActive || !waitingForInput) return;
-
-        waitingForInput = false;
         currentLineIndex++;
-
-        if (currentLineIndex >= currentDialogue.dialogueLines.Count)
-        {
-            EndDialogue();
-        }
-        else
-        {
-            ShowCurrentLine();
-            StartCoroutine(WaitForInputDelay());
-        }
+        DisplayCurrentLine();
     }
 
-    void EndDialogue()
+    public void EndDialogue()
     {
-        isDialogueActive = false;
-        waitingForInput = false;
+        isInDialogue = false;
 
-        // GameManager에 대화 종료 알리기
-        if (GameManager.Instance != null)
+        // 플레이어 움직임 복구
+        PlayerController playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
         {
-            GameManager.Instance.SetDialogueState(false);
+            playerController.SetCanMove(true);
         }
 
-        if (dialogueUI != null)
-            dialogueUI.SetActive(false);
-
-        currentDialogue = null;
-        currentLineIndex = 0;
-
-        Debug.Log("대화 종료 - 플레이어 이동 재개");
-    }
-
-    void Update()
-    {
-        if (isDialogueActive && waitingForInput && Input.GetKeyDown(KeyCode.E))
-        {
-            NextLine();
-        }
-
-        if (isDialogueActive && Input.GetKeyDown(KeyCode.Escape))
-        {
-            EndDialogue();
-        }
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
     }
 
     public bool IsInDialogue()
     {
-        return isDialogueActive;
+        return isInDialogue;
     }
 
-    // 기존 코드와의 호환성을 위한 메서드들
-    public DialogueLine GetDialogueLine(int dialogueID, int lineIndex)
+    // 현재 말하는 캐릭터 강조 (고정 위치 방식)
+    public void SetCurrentSpeaker(string speakerName, bool isPlayer)
     {
-        if (dialogueDatabase == null) return null;
-        return dialogueDatabase.GetDialogueLine(dialogueID, lineIndex);
+        if (speakerNameText != null)
+            speakerNameText.text = speakerName;
+
+        if (isPlayer)
+        {
+            // 플레이어가 말할 때 - 왼쪽 강조, 오른쪽 흐리게
+            SetPortraitAlpha(leftPortrait, 1f);
+            SetPortraitAlpha(rightPortrait, 0.5f);
+        }
+        else
+        {
+            // NPC가 말할 때 - 오른쪽 강조, 왼쪽 흐리게
+            SetPortraitAlpha(leftPortrait, 0.5f);
+            SetPortraitAlpha(rightPortrait, 1f);
+        }
     }
 
-    public bool IsDialogueFinished(int dialogueID, int currentIndex)
+    void SetPortraitAlpha(Image portrait, float alpha)
     {
-        if (dialogueDatabase == null) return true;
-        return dialogueDatabase.IsDialogueFinished(dialogueID, currentIndex);
+        if (portrait != null)
+        {
+            Color color = portrait.color;
+            color.a = alpha;
+            portrait.color = color;
+        }
     }
 
-    public int GetDialogueLineCount(int dialogueID)
+    // 플레이어 정보를 PlayerStats에서 직접 가져오는 방법
+    public void SetPlayerInfo(PlayerStats playerStats)
     {
-        if (dialogueDatabase == null) return 0;
-        return dialogueDatabase.GetDialogueLineCount(dialogueID);
+        if (playerStats != null)
+        {
+            playerPortrait = playerStats.GetPlayerPortrait();
+
+            if (leftPortrait != null)
+                leftPortrait.sprite = playerPortrait;
+        }
     }
 }
