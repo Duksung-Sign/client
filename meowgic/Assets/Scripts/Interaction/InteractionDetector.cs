@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
+using UnityEngine.UI;
 
 public class InteractionDetector : MonoBehaviour
 {
@@ -10,10 +12,17 @@ public class InteractionDetector : MonoBehaviour
 
     [Header("UI")]
     public GameObject promptUI;
-    public TMPro.TextMeshProUGUI promptText;
+    public TextMeshProUGUI promptText;
+
+    [Header("UI References")]
+    public Image characterPortraitImage; // UI에서 초상화를 표시할 Image 컴포넌트
+
+    [Header("Player Reference")]
+    public PlayerStats playerStats;      // 플레이어 스탯 참조 (초상화 정보 포함)
 
     private GameObject currentTarget;
     private List<GameObject> nearbyObjects = new List<GameObject>();
+    private Sprite currentCharacterSprite;
 
     void Update()
     {
@@ -89,11 +98,34 @@ public class InteractionDetector : MonoBehaviour
 
             if (promptText != null)
                 promptText.text = $"[E] {actionText} {objectName}";
+
+            // NPC인 경우 초상화 미리보기 설정
+            UpdateCharacterPortrait();
         }
         else
         {
             if (promptUI != null)
                 promptUI.SetActive(false);
+        }
+    }
+
+    void UpdateCharacterPortrait()
+    {
+        if (characterPortraitImage == null) return;
+
+        NPCController npc = currentTarget?.GetComponent<NPCController>();
+        if (npc != null && npc.npcPortrait != null)
+        {
+            // NPC 초상화로 설정
+            characterPortraitImage.sprite = npc.npcPortrait;
+            currentCharacterSprite = npc.npcPortrait;
+        }
+        else
+        {
+            // 플레이어 초상화로 설정
+            Sprite playerPortrait = GetPlayerPortrait();
+            characterPortraitImage.sprite = playerPortrait;
+            currentCharacterSprite = playerPortrait;
         }
     }
 
@@ -142,10 +174,34 @@ public class InteractionDetector : MonoBehaviour
             NPCController npc = currentTarget.GetComponent<NPCController>();
             if (npc != null)
             {
+                // NPC와 대화 시작하면서 DialogueManager에 초상화 정보 전달
+                SetDialoguePortraits(npc);
                 npc.Interact();
                 return;
             }
         }
+    }
+
+    // DialogueManager에 대화 참여자들의 초상화 설정
+    void SetDialoguePortraits(NPCController npc)
+    {
+        if (DialogueManager.Instance != null)
+        {
+            Sprite playerPortrait = GetPlayerPortrait();
+            // DialogueManager에 플레이어와 NPC 초상화 전달
+            DialogueManager.Instance.SetCharacterPortraits(playerPortrait, npc.npcPortrait);
+        }
+    }
+
+    // 플레이어 초상화를 가져오는 메서드
+    Sprite GetPlayerPortrait()
+    {
+        if (playerStats != null && playerStats.playerPortrait != null)
+        {
+            return playerStats.playerPortrait;
+        }
+        Debug.LogWarning("플레이어 초상화를 찾을 수 없습니다!");
+        return null;
     }
 
     void OnDrawGizmosSelected()
