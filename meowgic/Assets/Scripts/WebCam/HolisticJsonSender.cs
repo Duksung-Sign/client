@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 using Mediapipe.Unity.Sample.Holistic;
@@ -21,9 +22,15 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         public int frame;
         public long time;
         public List<SimpleLandmark> pose = new List<SimpleLandmark>();
-        public List<SimpleLandmark> faceKey = new List<SimpleLandmark>(); // 주요 얼굴 포인트만
+        public List<SimpleLandmark> faceKey = new List<SimpleLandmark>();
         public List<SimpleLandmark> leftHand = new List<SimpleLandmark>();
         public List<SimpleLandmark> rightHand = new List<SimpleLandmark>();
+    }
+
+    [Serializable]
+    public class SequenceData
+    {
+        public float[][] sequence;
     }
 
     [Header("Target")]
@@ -33,7 +40,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
     public bool enableLogging = true;
     public bool sendToServer = false;
     public string serverUrl = "http://127.0.0.1:5000/pose";
-    public int frameSkip = 5;
+    public int frameSkip = 1;
 
     [Header("Data Collection")]
     public bool collectPose = true;
@@ -42,34 +49,40 @@ public class OptimizedHolisticExtractor : MonoBehaviour
 
     [Header("Face Optimization")]
     public FaceReductionMode faceMode = FaceReductionMode.KeyPointsOnly;
-    public int faceSkipRatio = 5; // 5개마다 1개씩만 선택
+    public int faceSkipRatio = 5;
 
     [Header("Test Mode")]
     public bool useDummyData = true;
 
+    [Header("Sequence Mode (Sign Language)")]
+    public bool useSequenceMode = true;
+    public int sequenceFrameCount = 30; // 30프레임씩 모아서 전송
+    public bool showSequenceDetails = false;
+
+    [Header("Debug")]
+    public bool saveToTextFile = true;
+    public string saveDirectory = "";
+
     public enum FaceReductionMode
     {
-        Disabled,           // Face 수집 안함
-        KeyPointsOnly,      // 주요 포인트만 (약 20개)
-        ReducedPoints,      // 일정 간격으로 건너뛰기 (약 94개)
-        FullFace           // 전체 468개 (주의!)
+        Disabled,
+        KeyPointsOnly,
+        ReducedPoints,
+        FullFace
     }
 
     private int frameCount = 0;
+    private string actualSaveDirectory;
+    private List<List<float>> frameSequence = new List<List<float>>();
 
-    // MediaPipe Face Landmark의 주요 포인트 인덱스 (468개 중 핵심만)
+    // MediaPipe Face Landmark의 주요 포인트 인덱스
     private readonly int[] faceKeyIndices = {
-        // 얼굴 윤곽 (Jaw line)
-        0, 17, 18, 200, 199, 175, 
-        // 눈썹 (Eyebrows)
+        0, 17, 18, 200, 199, 175,
         46, 53, 52, 65, 55, 70,
         276, 283, 282, 295, 285, 300,
-        // 눈 (Eyes)
         33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246,
         362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382,
-        // 코 (Nose)
         1, 2, 5, 4, 6, 168, 8, 9, 10, 151, 195, 197, 196, 3, 51, 48, 115, 131, 134, 102, 49, 220, 305, 281, 360, 279,
-        // 입 (Mouth)
         61, 84, 17, 314, 405, 320, 307, 375, 321, 308, 324, 318,
         78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308
     };
@@ -92,10 +105,24 @@ public class OptimizedHolisticExtractor : MonoBehaviour
             return;
         }
 
+        // 저장 디렉토리 설정
+        if (saveToTextFile)
+        {
+            actualSaveDirectory = string.IsNullOrEmpty(saveDirectory) ?
+                Application.persistentDataPath : saveDirectory;
+
+            if (!System.IO.Directory.Exists(actualSaveDirectory))
+            {
+                System.IO.Directory.CreateDirectory(actualSaveDirectory);
+            }
+
+            Debug.Log($"JSON files will be saved to: {actualSaveDirectory}");
+        }
+
         if (useDummyData)
         {
-            Debug.Log("Starting with optimized dummy data");
-            InvokeRepeating(nameof(GenerateOptimizedTestData), 0.2f, 0.2f);
+            Debug.Log($"Starting with dummy data - Sequence mode: {useSequenceMode}");
+            InvokeRepeating(nameof(GenerateOptimizedTestData), 0.1f, 0.1f);
         }
         else
         {
@@ -108,7 +135,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
     {
         yield return new WaitForSeconds(3f);
         Debug.Log("Starting optimized data extraction...");
-        InvokeRepeating(nameof(SafeExtractData), 0.2f, 0.2f);
+        InvokeRepeating(nameof(SafeExtractData), 0.1f, 0.1f);
     }
 
     private void GenerateOptimizedTestData()
@@ -135,12 +162,9 @@ public class OptimizedHolisticExtractor : MonoBehaviour
             frame.faceKey = GenerateOptimizedFaceData();
         }
 
-        // 손 데이터 (각각 21개)
-        if (collectHands)
-        {
-            frame.leftHand = GenerateDummyHand();
-            frame.rightHand = GenerateDummyHand();
-        }
+        // 손 데이터 (각각 21개) - 수어를 위해 항상 생성
+        frame.leftHand = GenerateDummyHand();
+        frame.rightHand = GenerateDummyHand();
 
         ProcessOptimizedFrame(frame);
     }
@@ -152,7 +176,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         switch (faceMode)
         {
             case FaceReductionMode.KeyPointsOnly:
-                // 주요 포인트만 (약 20-30개)
                 for (int i = 0; i < faceKeyIndices.Length; i++)
                 {
                     landmarks.Add(new SimpleLandmark
@@ -166,7 +189,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 break;
 
             case FaceReductionMode.ReducedPoints:
-                // 일정 간격으로 건너뛰기 (468개 → 약 94개)
                 for (int i = 0; i < 468; i += faceSkipRatio)
                 {
                     landmarks.Add(new SimpleLandmark
@@ -180,7 +202,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 break;
 
             case FaceReductionMode.FullFace:
-                // 전체 468개 (주의: 매우 큰 데이터!)
                 for (int i = 0; i < 468; i++)
                 {
                     landmarks.Add(new SimpleLandmark
@@ -217,7 +238,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
             Debug.LogWarning($"Optimized extraction failed: {e.Message}");
             useDummyData = true;
             CancelInvoke(nameof(SafeExtractData));
-            InvokeRepeating(nameof(GenerateOptimizedTestData), 0.2f, 0.2f);
+            InvokeRepeating(nameof(GenerateOptimizedTestData), 0.1f, 0.1f);
         }
     }
 
@@ -261,11 +282,9 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 }
             }
 
-            if (collectHands)
-            {
-                frame.leftHand = GenerateDummyHand();
-                frame.rightHand = GenerateDummyHand();
-            }
+            // 수어를 위해 손 데이터는 항상 처리
+            frame.leftHand = GenerateDummyHand();
+            frame.rightHand = GenerateDummyHand();
         }
         catch (Exception e)
         {
@@ -282,12 +301,10 @@ public class OptimizedHolisticExtractor : MonoBehaviour
 
         try
         {
-            // 실제 Face 데이터 추출 시도
             var fullFaceData = FindFaceDataSafely();
 
             if (fullFaceData != null && fullFaceData.Count > 0)
             {
-                // 모드에 따라 최적화
                 landmarks = OptimizeFaceData(fullFaceData);
             }
         }
@@ -306,7 +323,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         switch (faceMode)
         {
             case FaceReductionMode.KeyPointsOnly:
-                // 주요 인덱스만 선택
                 foreach (int index in faceKeyIndices)
                 {
                     if (index < fullFaceData.Count)
@@ -317,7 +333,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 break;
 
             case FaceReductionMode.ReducedPoints:
-                // 일정 간격으로 건너뛰기
                 for (int i = 0; i < fullFaceData.Count; i += faceSkipRatio)
                 {
                     optimized.Add(fullFaceData[i]);
@@ -325,7 +340,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 break;
 
             case FaceReductionMode.FullFace:
-                // 전체 데이터 (주의!)
                 optimized = fullFaceData;
                 break;
         }
@@ -335,18 +349,14 @@ public class OptimizedHolisticExtractor : MonoBehaviour
 
     private List<SimpleLandmark> FindFaceDataSafely()
     {
-        // 실제 Face annotation controller에서 데이터 추출
-        // (실제 구현은 FindPoseDataSafely와 비슷)
         return new List<SimpleLandmark>();
     }
 
     private List<SimpleLandmark> FindPoseDataSafely()
     {
-        // 기존 코드와 동일
         return new List<SimpleLandmark>();
     }
 
-    // 더미 데이터 생성 메서드들
     private List<SimpleLandmark> GenerateDummyPose()
     {
         var landmarks = new List<SimpleLandmark>();
@@ -379,28 +389,313 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         return landmarks;
     }
 
+    private string CreateManualSequenceJson(List<List<float>> sequence)
+    {
+        var json = new System.Text.StringBuilder();
+        json.Append("{\"sequence\":[");
+
+        for (int i = 0; i < sequence.Count; i++)
+        {
+            if (i > 0) json.Append(",");
+            json.Append("[");
+
+            var frame = sequence[i];
+            for (int j = 0; j < frame.Count; j++)
+            {
+                if (j > 0) json.Append(",");
+                json.Append(frame[j].ToString("F6", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            json.Append("]");
+        }
+
+        json.Append("]}");
+        return json.ToString();
+    }
+
     private void ProcessOptimizedFrame(SimpleFrame frame)
     {
-        string json = JsonUtility.ToJson(frame, true);
-
-        if (enableLogging)
+        if (useSequenceMode)
         {
-            var totalLandmarks = frame.pose.Count + frame.faceKey.Count + frame.leftHand.Count + frame.rightHand.Count;
-            Debug.Log($"Frame {frame.frame}: Total {totalLandmarks} landmarks " +
-                     $"(Pose:{frame.pose.Count}, Face:{frame.faceKey.Count}, " +
-                     $"LHand:{frame.leftHand.Count}, RHand:{frame.rightHand.Count})");
+            // 수어 시퀀스 모드: 148개 값의 평면 배열 생성
+            var flattenedFrame = FlattenFrameData(frame);
 
-            if (frameCount % 50 == 0)
+            // 디버깅: flattenedFrame이 실제로 데이터를 가지고 있는지 확인
+            if (flattenedFrame == null || flattenedFrame.Count == 0)
             {
-                Debug.Log($"JSON size: {json.Length} characters");
-                Debug.Log($"Face mode: {faceMode} ({frame.faceKey.Count} points)");
-                Debug.Log($"JSON Preview:\n{json.Substring(0, Math.Min(300, json.Length))}...");
+                Debug.LogError($"Frame {frame.frame}: FlattenFrameData returned empty data!");
+                return;
+            }
+
+            frameSequence.Add(flattenedFrame);
+
+            if (enableLogging && showSequenceDetails)
+            {
+                Debug.Log($"Frame {frame.frame}: Added to sequence ({frameSequence.Count}/{sequenceFrameCount})");
+                Debug.Log($"Flattened size: {flattenedFrame.Count} values");
+                if (flattenedFrame.Count > 0)
+                {
+                    Debug.Log($"Sample values: [{string.Join(", ", flattenedFrame.Take(5).Select(f => f.ToString("F3")))}...]");
+                }
+            }
+
+            if (frameSequence.Count >= sequenceFrameCount)
+            {
+                // 저장하기 전에 데이터 확인
+                Debug.Log($"Sequence ready: {frameSequence.Count} frames, first frame size: {(frameSequence.Count > 0 ? frameSequence[0].Count : 0)}");
+
+                // List<List<float>>를 float[][]로 변환
+                float[][] sequenceArray = new float[frameSequence.Count][];
+                for (int i = 0; i < frameSequence.Count; i++)
+                {
+                    sequenceArray[i] = frameSequence[i].ToArray();
+                }
+
+                var sequenceData = new SequenceData { sequence = sequenceArray };
+                string json = JsonUtility.ToJson(sequenceData, true);
+
+                // JSON 확인
+                if (string.IsNullOrEmpty(json) || json == "{}")
+                {
+                    Debug.LogError("JSON serialization failed! Trying manual JSON creation...");
+
+                    // 수동 JSON 생성 (fallback)
+                    json = CreateManualSequenceJson(frameSequence);
+                }
+
+                Debug.Log($"Final JSON length: {json.Length}");
+                Debug.Log($"JSON preview: {json.Substring(0, Math.Min(500, json.Length))}...");
+
+                // 파일 저장
+                if (saveToTextFile)
+                {
+                    SaveSequenceToFile(json);
+                }
+
+                // 서버 전송
+                if (sendToServer)
+                {
+                    StartCoroutine(SendSequence(json));
+                }
+
+                // 시퀀스 초기화
+                frameSequence.Clear();
+            }
+        }
+        else
+        {
+            // 기존 방식
+            string json = JsonUtility.ToJson(frame, true);
+
+            if (enableLogging)
+            {
+                var totalLandmarks = frame.pose.Count + frame.faceKey.Count + frame.leftHand.Count + frame.rightHand.Count;
+                Debug.Log($"Frame {frame.frame}: Total {totalLandmarks} landmarks " +
+                         $"(Pose:{frame.pose.Count}, Face:{frame.faceKey.Count}, " +
+                         $"LHand:{frame.leftHand.Count}, RHand:{frame.rightHand.Count})");
+
+                if (frameCount % 50 == 0)
+                {
+                    Debug.Log($"JSON size: {json.Length} characters");
+                    Debug.Log($"Face mode: {faceMode} ({frame.faceKey.Count} points)");
+                    Debug.Log($"JSON Preview:\n{json.Substring(0, Math.Min(300, json.Length))}...");
+                }
+            }
+
+            if (saveToTextFile)
+            {
+                SaveJsonToFile(json, frame.frame);
+            }
+
+            if (sendToServer)
+            {
+                StartCoroutine(SendFrame(json));
+            }
+        }
+    }
+
+    private List<float> FlattenFrameData(SimpleFrame frame)
+    {
+        var flattened = new List<float>();
+
+        // 왼손 21개 점 xyz = 63개 값
+        AddHandData(flattened, frame.leftHand, "Left");
+
+        // 오른손 21개 점 xyz = 63개 값
+        AddHandData(flattened, frame.rightHand, "Right");
+
+        // 포즈에서 필요한 부분 추가 (어깨, 팔꿈치 등)
+        AddPoseKeypoints(flattened, frame.pose);
+
+        // 총 148개 값이 되도록 조정
+        while (flattened.Count < 148)
+        {
+            flattened.Add(0f);
+        }
+
+        if (flattened.Count > 148)
+        {
+            flattened = flattened.GetRange(0, 148);
+        }
+
+        return flattened;
+    }
+
+    private void AddHandData(List<float> flattened, List<SimpleLandmark> handLandmarks, string handName)
+    {
+        for (int i = 0; i < 21; i++)
+        {
+            if (handLandmarks != null && i < handLandmarks.Count)
+            {
+                flattened.Add(handLandmarks[i].x);
+                flattened.Add(handLandmarks[i].y);
+                flattened.Add(handLandmarks[i].z);
+            }
+            else
+            {
+                // 데이터 없으면 0으로 채움
+                flattened.Add(0f);
+                flattened.Add(0f);
+                flattened.Add(0f);
+            }
+        }
+    }
+
+    private void AddPoseKeypoints(List<float> flattened, List<SimpleLandmark> pose)
+    {
+        // MediaPipe 포즈 랜드마크에서 필요한 부분만 추출
+        // 11: 왼쪽 어깨, 12: 오른쪽 어깨, 13: 왼쪽 팔꿈치, 14: 오른쪽 팔꿈치
+        // 15: 왼쪽 손목, 16: 오른쪽 손목, 23: 왼쪽 엉덩이, 24: 오른쪽 엉덩이
+        int[] poseIndices = { 11, 12, 13, 14, 15, 16, 23, 24 }; // 8개 포인트 = 24개 값
+
+        foreach (int index in poseIndices)
+        {
+            if (pose != null && index < pose.Count)
+            {
+                flattened.Add(pose[index].x);
+                flattened.Add(pose[index].y);
+                flattened.Add(pose[index].z);
+            }
+            else
+            {
+                flattened.Add(0f);
+                flattened.Add(0f);
+                flattened.Add(0f);
             }
         }
 
+        // 나머지 필요한 값들 (148 - 63 - 63 - 24 = -2)
+        // 실제로는 정확히 어떤 데이터가 필요한지 조정 필요
+    }
+
+    private void SendSequenceToServer()
+    {
+        if (frameSequence.Count == 0)
+        {
+            Debug.LogWarning("No frames in sequence to send");
+            return;
+        }
+
+        // List<List<float>>를 float[][]로 변환
+        float[][] sequenceArray = new float[frameSequence.Count][];
+        for (int i = 0; i < frameSequence.Count; i++)
+        {
+            sequenceArray[i] = frameSequence[i].ToArray();
+        }
+
+        var sequenceData = new SequenceData { sequence = sequenceArray };
+        string json = JsonUtility.ToJson(sequenceData, true);
+
+        // JSON 확인 및 fallback
+        if (string.IsNullOrEmpty(json) || json == "{}")
+        {
+            Debug.LogError("JSON serialization failed in SendSequenceToServer! Using manual creation...");
+            json = CreateManualSequenceJson(frameSequence);
+        }
+
+        if (enableLogging)
+        {
+            Debug.Log($"=== Sending Sequence ===");
+            Debug.Log($"Frames: {frameSequence.Count}, Each frame: 148 values");
+            Debug.Log($"Total data points: {frameSequence.Count * 148}");
+            Debug.Log($"JSON size: {json.Length} characters");
+
+            if (frameSequence.Count > 0 && frameSequence[0].Count > 0)
+            {
+                Debug.Log($"First frame sample: [{string.Join(", ", frameSequence[0].Take(10).Select(f => f.ToString("F3")))}...]");
+            }
+        }
+
+        // 파일 저장
+        if (saveToTextFile)
+        {
+            SaveSequenceToFile(json);
+        }
+
+        // 서버 전송
         if (sendToServer)
         {
-            StartCoroutine(SendFrame(json));
+            StartCoroutine(SendSequence(json));
+        }
+    }
+
+    private void SaveSequenceToFile(string json)
+    {
+        try
+        {
+            string fileName = $"sequence_{DateTimeOffset.Now.ToUnixTimeMilliseconds()}.json";
+            string filePath = System.IO.Path.Combine(actualSaveDirectory, fileName);
+
+            System.IO.File.WriteAllText(filePath, json);
+            Debug.Log($"Sequence JSON saved to: {filePath}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Failed to save sequence JSON: {e.Message}");
+        }
+    }
+
+    private void SaveJsonToFile(string json, int frameNumber)
+    {
+        try
+        {
+            string fileName = $"holistic_frame_{frameNumber:D6}.json";
+            string filePath = System.IO.Path.Combine(actualSaveDirectory, fileName);
+
+            System.IO.File.WriteAllText(filePath, json);
+
+            if (frameNumber <= 5 || frameNumber % 100 == 0)
+            {
+                Debug.Log($"JSON saved to: {filePath}");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Failed to save JSON file: {e.Message}");
+        }
+    }
+
+    private IEnumerator SendSequence(string json)
+    {
+        using var request = new UnityWebRequest(serverUrl, "POST")
+        {
+            uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(json)),
+            downloadHandler = new DownloadHandlerBuffer()
+        };
+
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.timeout = 10; // 더 큰 데이터이므로 타임아웃 증가
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            if (enableLogging)
+                Debug.Log("Sequence sent successfully!");
+        }
+        else if (enableLogging)
+        {
+            Debug.LogWarning($"Sequence send failed: {request.error}");
         }
     }
 
@@ -437,8 +732,52 @@ public class OptimizedHolisticExtractor : MonoBehaviour
     {
         useDummyData = true;
         CancelInvoke(nameof(SafeExtractData));
-        InvokeRepeating(nameof(GenerateOptimizedTestData), 0.2f, 0.2f);
+        InvokeRepeating(nameof(GenerateOptimizedTestData), 0.1f, 0.1f);
         Debug.Log("Switched to dummy data generation");
+    }
+
+    [ContextMenu("Toggle Sequence Mode")]
+    public void ToggleSequenceMode()
+    {
+        useSequenceMode = !useSequenceMode;
+        frameSequence.Clear();
+        Debug.Log($"Sequence mode: {useSequenceMode}");
+    }
+
+    [ContextMenu("Test Sequence Format")]
+    public void TestSequenceFormat()
+    {
+        var testFrame = new SimpleFrame
+        {
+            frame = 1,
+            time = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            leftHand = GenerateDummyHand(),
+            rightHand = GenerateDummyHand(),
+            pose = GenerateDummyPose()
+        };
+
+        var flattened = FlattenFrameData(testFrame);
+        Debug.Log($"=== Test Sequence Format ===");
+        Debug.Log($"Flattened frame size: {flattened.Count}");
+        Debug.Log($"Expected: 148, Actual: {flattened.Count}");
+        Debug.Log($"Left hand (0-62): [{string.Join(", ", flattened.Take(6).Select(f => f.ToString("F3")))}...]");
+        Debug.Log($"Right hand (63-125): [{string.Join(", ", flattened.Skip(63).Take(6).Select(f => f.ToString("F3")))}...]");
+        Debug.Log($"Pose data (126+): [{string.Join(", ", flattened.Skip(126).Take(6).Select(f => f.ToString("F3")))}...]");
+    }
+
+    [ContextMenu("Force Send Current Sequence")]
+    public void ForceSendCurrentSequence()
+    {
+        if (frameSequence.Count > 0)
+        {
+            Debug.Log($"Force sending sequence with {frameSequence.Count} frames");
+            SendSequenceToServer();
+            frameSequence.Clear();
+        }
+        else
+        {
+            Debug.LogWarning("No frames in current sequence");
+        }
     }
 
     [ContextMenu("Test Different Face Modes")]
@@ -457,7 +796,42 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         Debug.Log($"Frame count: {frameCount}");
         Debug.Log($"Face mode: {faceMode}");
         Debug.Log($"Using dummy data: {useDummyData}");
+        Debug.Log($"Sequence mode: {useSequenceMode}");
+        Debug.Log($"Current sequence frames: {frameSequence.Count}/{sequenceFrameCount}");
         Debug.Log($"Collect settings - Pose: {collectPose}, Face: {collectFace}, Hands: {collectHands}");
+        Debug.Log($"Save to file: {saveToTextFile}");
+        if (saveToTextFile)
+        {
+            Debug.Log($"Save directory: {actualSaveDirectory}");
+        }
+    }
+
+    [ContextMenu("Open Save Directory")]
+    public void OpenSaveDirectory()
+    {
+        if (!string.IsNullOrEmpty(actualSaveDirectory) && System.IO.Directory.Exists(actualSaveDirectory))
+        {
+            System.Diagnostics.Process.Start(actualSaveDirectory);
+            Debug.Log($"Opening directory: {actualSaveDirectory}");
+        }
+        else
+        {
+            Debug.LogWarning("Save directory not found or not set");
+        }
+    }
+
+    [ContextMenu("Clear Saved Files")]
+    public void ClearSavedFiles()
+    {
+        if (!string.IsNullOrEmpty(actualSaveDirectory) && System.IO.Directory.Exists(actualSaveDirectory))
+        {
+            var jsonFiles = System.IO.Directory.GetFiles(actualSaveDirectory, "*.json");
+            foreach (var file in jsonFiles)
+            {
+                System.IO.File.Delete(file);
+            }
+            Debug.Log($"Cleared {jsonFiles.Length} JSON files from {actualSaveDirectory}");
+        }
     }
 
     void OnDestroy()
