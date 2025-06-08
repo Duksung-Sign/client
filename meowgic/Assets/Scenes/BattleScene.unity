@@ -446,7 +446,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 296, y: -274}
+  m_AnchoredPosition: {x: 277, y: -256}
   m_SizeDelta: {x: 600, y: 600}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &302341910
@@ -2517,6 +2517,11 @@ MonoBehaviour:
   faceMode: 1
   faceSkipRatio: 5
   useDummyData: 0
+  useSequenceMode: 1
+  sequenceFrameCount: 30
+  showSequenceDetails: 0
+  saveToTextFile: 1
+  saveDirectory: C:\Users\a1vm5\Desktop\test
 --- !u!4 &2118140694
 Transform:
   m_ObjectHideFlags: 0
