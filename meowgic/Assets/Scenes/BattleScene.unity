@@ -2508,9 +2508,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   holisticSolution: {fileID: 479761099}
   enableLogging: 1
-  sendToServer: 0
-  serverUrl: http://127.0.0.1:5000/pose
-  frameSkip: 5
+  sendToServer: 1
+  serverUrl: http://3.39.24.148:8000/predict
+  frameSkip: 1
   collectPose: 1
   collectFace: 1
   collectHands: 1

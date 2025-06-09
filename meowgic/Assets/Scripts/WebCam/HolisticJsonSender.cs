@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +9,22 @@ using Mediapipe.Unity;
 
 public class OptimizedHolisticExtractor : MonoBehaviour
 {
+    [Serializable]
+    public class ServerResponse
+    {
+        public string prediction;
+        public ProbabilityData probabilities;
+    }
+
+    [Serializable]
+    public class ProbabilityData
+    {
+        public float hello;
+        public float sorry;
+        public float thank;
+        public float none;
+    }
+
     [Serializable]
     public class SimpleLandmark
     {
@@ -40,7 +56,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
     public bool enableLogging = true;
     public bool sendToServer = false;
     public string serverUrl = "http://127.0.0.1:5000/pose";
-    public int frameSkip = 1;
+    public int frameSkip = 5;
 
     [Header("Data Collection")]
     public bool collectPose = true;
@@ -389,44 +405,12 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         return landmarks;
     }
 
-    private string CreateManualSequenceJson(List<List<float>> sequence)
-    {
-        var json = new System.Text.StringBuilder();
-        json.Append("{\"sequence\":[");
-
-        for (int i = 0; i < sequence.Count; i++)
-        {
-            if (i > 0) json.Append(",");
-            json.Append("[");
-
-            var frame = sequence[i];
-            for (int j = 0; j < frame.Count; j++)
-            {
-                if (j > 0) json.Append(",");
-                json.Append(frame[j].ToString("F6", System.Globalization.CultureInfo.InvariantCulture));
-            }
-
-            json.Append("]");
-        }
-
-        json.Append("]}");
-        return json.ToString();
-    }
-
     private void ProcessOptimizedFrame(SimpleFrame frame)
     {
         if (useSequenceMode)
         {
             // 수어 시퀀스 모드: 148개 값의 평면 배열 생성
             var flattenedFrame = FlattenFrameData(frame);
-
-            // 디버깅: flattenedFrame이 실제로 데이터를 가지고 있는지 확인
-            if (flattenedFrame == null || flattenedFrame.Count == 0)
-            {
-                Debug.LogError($"Frame {frame.frame}: FlattenFrameData returned empty data!");
-                return;
-            }
-
             frameSequence.Add(flattenedFrame);
 
             if (enableLogging && showSequenceDetails)
@@ -439,46 +423,10 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 }
             }
 
+            // 30프레임 모이면 전송
             if (frameSequence.Count >= sequenceFrameCount)
             {
-                // 저장하기 전에 데이터 확인
-                Debug.Log($"Sequence ready: {frameSequence.Count} frames, first frame size: {(frameSequence.Count > 0 ? frameSequence[0].Count : 0)}");
-
-                // List<List<float>>를 float[][]로 변환
-                float[][] sequenceArray = new float[frameSequence.Count][];
-                for (int i = 0; i < frameSequence.Count; i++)
-                {
-                    sequenceArray[i] = frameSequence[i].ToArray();
-                }
-
-                var sequenceData = new SequenceData { sequence = sequenceArray };
-                string json = JsonUtility.ToJson(sequenceData, true);
-
-                // JSON 확인
-                if (string.IsNullOrEmpty(json) || json == "{}")
-                {
-                    Debug.LogError("JSON serialization failed! Trying manual JSON creation...");
-
-                    // 수동 JSON 생성 (fallback)
-                    json = CreateManualSequenceJson(frameSequence);
-                }
-
-                Debug.Log($"Final JSON length: {json.Length}");
-                Debug.Log($"JSON preview: {json.Substring(0, Math.Min(500, json.Length))}...");
-
-                // 파일 저장
-                if (saveToTextFile)
-                {
-                    SaveSequenceToFile(json);
-                }
-
-                // 서버 전송
-                if (sendToServer)
-                {
-                    StartCoroutine(SendSequence(json));
-                }
-
-                // 시퀀스 초기화
+                SendSequenceToServer();
                 frameSequence.Clear();
             }
         }
@@ -583,9 +531,6 @@ public class OptimizedHolisticExtractor : MonoBehaviour
                 flattened.Add(0f);
             }
         }
-
-        // 나머지 필요한 값들 (148 - 63 - 63 - 24 = -2)
-        // 실제로는 정확히 어떤 데이터가 필요한지 조정 필요
     }
 
     private void SendSequenceToServer()
@@ -596,7 +541,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
             return;
         }
 
-        // List<List<float>>를 float[][]로 변환
+        // List<List<float>>를 float[][]로 수동 변환
         float[][] sequenceArray = new float[frameSequence.Count][];
         for (int i = 0; i < frameSequence.Count; i++)
         {
@@ -606,11 +551,11 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         var sequenceData = new SequenceData { sequence = sequenceArray };
         string json = JsonUtility.ToJson(sequenceData, true);
 
-        // JSON 확인 및 fallback
+        // JSON이 비어있다면 수동으로 생성
         if (string.IsNullOrEmpty(json) || json == "{}")
         {
-            Debug.LogError("JSON serialization failed in SendSequenceToServer! Using manual creation...");
-            json = CreateManualSequenceJson(frameSequence);
+            Debug.LogWarning("JsonUtility failed, creating manual JSON...");
+            json = CreateManualJson(frameSequence);
         }
 
         if (enableLogging)
@@ -619,6 +564,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
             Debug.Log($"Frames: {frameSequence.Count}, Each frame: 148 values");
             Debug.Log($"Total data points: {frameSequence.Count * 148}");
             Debug.Log($"JSON size: {json.Length} characters");
+            Debug.Log($"JSON preview: {json.Substring(0, Math.Min(200, json.Length))}...");
 
             if (frameSequence.Count > 0 && frameSequence[0].Count > 0)
             {
@@ -626,17 +572,39 @@ public class OptimizedHolisticExtractor : MonoBehaviour
             }
         }
 
-        // 파일 저장
         if (saveToTextFile)
         {
             SaveSequenceToFile(json);
         }
 
-        // 서버 전송
         if (sendToServer)
         {
             StartCoroutine(SendSequence(json));
         }
+    }
+
+    private string CreateManualJson(List<List<float>> sequence)
+    {
+        var json = new System.Text.StringBuilder();
+        json.Append("{\"sequence\":[");
+
+        for (int i = 0; i < sequence.Count; i++)
+        {
+            if (i > 0) json.Append(",");
+            json.Append("[");
+
+            var frame = sequence[i];
+            for (int j = 0; j < frame.Count; j++)
+            {
+                if (j > 0) json.Append(",");
+                json.Append(frame[j].ToString("F6", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            json.Append("]");
+        }
+
+        json.Append("]}");
+        return json.ToString();
     }
 
     private void SaveSequenceToFile(string json)
@@ -684,18 +652,60 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         };
 
         request.SetRequestHeader("Content-Type", "application/json");
-        request.timeout = 10; // 더 큰 데이터이므로 타임아웃 증가
+        request.timeout = 10;
 
         yield return request.SendWebRequest();
 
         if (request.result == UnityWebRequest.Result.Success)
         {
+            // 서버 응답 받아서 처리
+            string responseText = request.downloadHandler.text;
+
+            if (!string.IsNullOrEmpty(responseText))
+            {
+                try
+                {
+                    ServerResponse response = JsonUtility.FromJson<ServerResponse>(responseText);
+                    ProcessServerResponse(response);
+                }
+                catch (Exception e)
+                {
+                    if (enableLogging)
+                        Debug.LogWarning($"Response parsing failed: {e.Message}");
+                }
+            }
+
             if (enableLogging)
                 Debug.Log("Sequence sent successfully!");
         }
         else if (enableLogging)
         {
             Debug.LogWarning($"Sequence send failed: {request.error}");
+        }
+    }
+
+    private void ProcessServerResponse(ServerResponse response)
+    {
+        if (enableLogging)
+        {
+            Debug.Log($"Server prediction: {response.prediction}");
+
+            // prediction에 따른 메시지 출력
+            switch (response.prediction)
+            {
+                case "hello":
+                    Debug.Log("hello 인식 완료!");
+                    break;
+                case "sorry":
+                    Debug.Log("sorry 인식 완료!");
+                    break;
+                case "thank":
+                    Debug.Log("thank 인식 완료!");
+                    break;
+                default:
+                    Debug.Log($"{response.prediction} 인식 완료!");
+                    break;
+            }
         }
     }
 
