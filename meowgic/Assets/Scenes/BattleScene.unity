@@ -2508,15 +2508,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   holisticSolution: {fileID: 479761099}
   enableLogging: 1
-  sendToServer: 0
-  serverUrl: http://127.0.0.1:5000/pose
-  frameSkip: 5
+  sendToServer: 1
+  serverUrl: http://3.39.24.148:8000/predict
+  frameSkip: 1
   collectPose: 1
   collectFace: 1
   collectHands: 1
   faceMode: 1
   faceSkipRatio: 5
   useDummyData: 0
+  useSequenceMode: 1
+  sequenceFrameCount: 30
+  showSequenceDetails: 0
+  saveToTextFile: 1
+  saveDirectory: C:\Users\a1vm5\Desktop\test
 --- !u!4 &2118140694
 Transform:
   m_ObjectHideFlags: 0
