@@ -14,6 +14,12 @@ public class PlayerStats : MonoBehaviour
     public int defense = 5;
     public string[] availableSkills = { "기본 공격 1" };
 
+    void Awake()
+    {
+        if (PlayerStatsManager.Instance != null)
+            PlayerStatsManager.Instance.RegisterBaseStats(this);
+    }
+
     public Sprite GetPlayerPortrait()
     {
         return playerPortrait;
