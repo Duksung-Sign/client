@@ -5,7 +5,7 @@ using System.Collections;
 public class MonsterController : MonoBehaviour
 {
     [Header("컴포넌트 참조")]
-    public MonsterStats monsterStats;
+    public MonsterDataSO monsterData;
     private Transform player;
     private Rigidbody2D rb;
 
@@ -32,21 +32,13 @@ public class MonsterController : MonoBehaviour
 
     void Start()
     {
-        // 초기 설정
         initialPosition = transform.position;
         rb = GetComponent<Rigidbody2D>();
 
-        // 플레이어 찾기
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
             player = playerObj.transform;
-        }
-
-        // MonsterStats 컴포넌트 확인
-        if (monsterStats == null)
-        {
-            monsterStats = GetComponent<MonsterStats>();
         }
 
         // 초기 상태 설정
@@ -88,7 +80,7 @@ public class MonsterController : MonoBehaviour
     void HandleIdleState(float distanceToPlayer)
     {
         // 플레이어가 감지 범위에 들어오면 추격 시작
-        if (distanceToPlayer <= monsterStats.chaseRange)
+        if (distanceToPlayer <= monsterData.chaseRange)
         {
             ChangeState(MonsterState.Chase);
             return;
@@ -104,7 +96,7 @@ public class MonsterController : MonoBehaviour
     void HandlePatrolState(float distanceToPlayer)
     {
         // 플레이어가 감지 범위에 들어오면 추격 시작
-        if (distanceToPlayer <= monsterStats.chaseRange)
+        if (distanceToPlayer <= monsterData.chaseRange)
         {
             ChangeState(MonsterState.Chase);
             return;
@@ -126,8 +118,8 @@ public class MonsterController : MonoBehaviour
         MoveTowards(player.position);
 
         // 플레이어가 너무 멀어지거나 초기 위치에서 너무 멀어지면 복귀
-        if (distanceToPlayer > monsterStats.chaseRange * 1.5f ||
-            distanceToInitial > monsterStats.patrolRange * 2f)
+        if (distanceToPlayer > monsterData.chaseRange * 1.5f ||
+            distanceToInitial > monsterData.patrolRange * 2f)
         {
             ChangeState(MonsterState.Return);
         }
@@ -145,7 +137,7 @@ public class MonsterController : MonoBehaviour
         }
 
         // 복귀 중에도 플레이어가 가까이 오면 다시 추격
-        if (distanceToPlayer <= monsterStats.chaseRange * 0.7f)
+        if (distanceToPlayer <= monsterData.chaseRange * 0.7f)
         {
             ChangeState(MonsterState.Chase);
         }
@@ -181,14 +173,14 @@ public class MonsterController : MonoBehaviour
     {
         // 초기 위치 주변에서 랜덤한 정찰 목표점 설정
         Vector2 randomDirection = Random.insideUnitCircle.normalized;
-        float randomDistance = Random.Range(1f, monsterStats.patrolRange);
+        float randomDistance = Random.Range(1f, monsterData.patrolRange);
         patrolTarget = initialPosition + (Vector3)(randomDirection * randomDistance);
     }
 
     void MoveTowards(Vector3 target)
     {
         Vector3 direction = (target - transform.position).normalized;
-        rb.velocity = direction * monsterStats.moveSpeed;
+        rb.velocity = direction * monsterData.moveSpeed;
 
         // 몬스터가 이동 방향을 바라보도록 회전 (옵션)
         if (direction.x != 0)
@@ -211,13 +203,19 @@ public class MonsterController : MonoBehaviour
 
     void StartBattle()
     {
-        // 임시로 몬스터 정보를 PlayerPrefs에 저장 (나중에 BattleManager로 교체)
-        PlayerPrefs.SetString("CurrentMonsterName", monsterStats.monsterName);
-        PlayerPrefs.SetInt("CurrentMonsterHP", monsterStats.maxHP);
-        PlayerPrefs.SetInt("CurrentMonsterAttack", monsterStats.attackPower);
-        PlayerPrefs.SetInt("CurrentMonsterDefense", monsterStats.defense);
+        // 현재 씬 이름 저장
+        PlayerPrefs.SetString("PreviousScene", SceneManager.GetActiveScene().name);
 
-        // 전투 씬 로드
+        // GameManager에 몬스터 정보 전달
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetBattleMonster(monsterData);
+            Debug.Log($"몬스터 설정 완료: {monsterData.monsterName}");
+        }
+        else
+        {
+            Debug.LogError("GameManager.Instance가 null입니다!");
+        }
         SceneManager.LoadScene("BattleScene");
     }
 
@@ -229,11 +227,11 @@ public class MonsterController : MonoBehaviour
 
         // 정찰 범위 (노란색)
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(center, monsterStats != null ? monsterStats.patrolRange : 3f);
+        Gizmos.DrawWireSphere(center, monsterData != null ? monsterData.patrolRange : 3f);
 
         // 추격 범위 (빨간색)
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(center, monsterStats != null ? monsterStats.chaseRange : 5f);
+        Gizmos.DrawWireSphere(center, monsterData != null ? monsterData.chaseRange : 5f);
 
         // 현재 상태 표시
         if (Application.isPlaying)

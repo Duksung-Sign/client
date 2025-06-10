@@ -4,19 +4,46 @@ using UnityEngine;
 
 public class NPCController : MonoBehaviour
 {
-    [Header("NPC Info")]
-    public string npcName;          // NPC 이름
-    public int dialogueID;          // 대화 ID
+    [Header("NPC 데이터")]
+    public NPCDataSO npcData;
 
-    [Header("Visual")]
-    public Sprite npcPortrait;      // NPC 초상화 (선택사항)
+    [Header("기본 정보")]
+    public string npcName;
+    public Sprite npcPortrait;
+    public Sprite npcSprite;
+
+    void Awake()
+    {
+        if (npcData != null)
+        {
+            npcName = npcData.npcName;
+            npcPortrait = npcData.npcPortrait;
+            npcSprite = npcData.npcSprite;
+        }
+    }
+
+    private int currentDialogueIndex = 0;
 
     public virtual void Interact()
     {
-        Debug.Log($"{npcName}와 대화 시작");
+        if (npcData == null)
+        {
+            Debug.LogError("NPCData가 할당되지 않았습니다!");
+            return;
+        }
 
-        // 대화 시스템 호출
-        DialogueManager.Instance.StartDialogue(dialogueID);
+        Debug.Log($"{npcData.npcName}와 대화 시작");
+
+        if (npcData.dialogues != null && npcData.dialogues.Length > 0)
+        {
+            int dialogueID = Mathf.Clamp(currentDialogueIndex, 0, npcData.dialogues.Length - 1);
+
+            DialogueManager.Instance.StartDialogue(npcData, dialogueID);
+
+            if (currentDialogueIndex < npcData.dialogues.Length - 1)
+            {
+                currentDialogueIndex++;
+            }
+        }
     }
 }
-
