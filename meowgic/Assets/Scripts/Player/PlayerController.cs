@@ -15,6 +15,14 @@ public class PlayerController : MonoBehaviour
     // 이동 제어용
     private bool canMove = true;
 
+    void Awake()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RegisterPlayer(this);
+        }
+    }
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
