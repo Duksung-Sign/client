@@ -7,7 +7,7 @@ using UnityEngine.Networking;
 using Mediapipe.Unity.Sample.Holistic;
 using Mediapipe.Unity;
 
-public class OptimizedHolisticExtractor : MonoBehaviour
+public class HolisticJsonSender : MonoBehaviour
 {
     [Serializable]
     public class ServerResponse
@@ -49,6 +49,11 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         public float[][] sequence;
     }
 
+    [Header("Battle Mode (배틀 전용)")]
+    private bool isCollectingForBattle = false; 
+    private int battleFramesCollected = 0;
+    private BattleManager battleManager;
+
     [Header("Target")]
     public HolisticTrackingSolution holisticSolution;
 
@@ -56,7 +61,7 @@ public class OptimizedHolisticExtractor : MonoBehaviour
     public bool enableLogging = true;
     public bool sendToServer = false;
     public string serverUrl = "http://127.0.0.1:5000/pose";
-    public int frameSkip = 5;
+    public int frameSkip = 1;
 
     [Header("Data Collection")]
     public bool collectPose = true;
@@ -144,6 +149,12 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         {
             Debug.Log("Starting optimized extraction method");
             StartCoroutine(SafeExtractionCoroutine());
+        }
+
+        battleManager = FindObjectOfType<BattleManager>();
+        if (battleManager != null)
+        {
+            Debug.Log("BattleManager found - 배틀 모드 활성화");
         }
     }
 
@@ -407,59 +418,59 @@ public class OptimizedHolisticExtractor : MonoBehaviour
 
     private void ProcessOptimizedFrame(SimpleFrame frame)
     {
-        if (useSequenceMode)
+        if (isCollectingForBattle)
         {
-            // 수어 시퀀스 모드: 148개 값의 평면 배열 생성
             var flattenedFrame = FlattenFrameData(frame);
             frameSequence.Add(flattenedFrame);
-
-            if (enableLogging && showSequenceDetails)
-            {
-                Debug.Log($"Frame {frame.frame}: Added to sequence ({frameSequence.Count}/{sequenceFrameCount})");
-                Debug.Log($"Flattened size: {flattenedFrame.Count} values");
-                if (flattenedFrame.Count > 0)
-                {
-                    Debug.Log($"Sample values: [{string.Join(", ", flattenedFrame.Take(5).Select(f => f.ToString("F3")))}...]");
-                }
-            }
-
-            // 30프레임 모이면 전송
-            if (frameSequence.Count >= sequenceFrameCount)
-            {
-                SendSequenceToServer();
-                frameSequence.Clear();
-            }
-        }
-        else
-        {
-            // 기존 방식
-            string json = JsonUtility.ToJson(frame, true);
+            battleFramesCollected++;
 
             if (enableLogging)
             {
-                var totalLandmarks = frame.pose.Count + frame.faceKey.Count + frame.leftHand.Count + frame.rightHand.Count;
-                Debug.Log($"Frame {frame.frame}: Total {totalLandmarks} landmarks " +
-                         $"(Pose:{frame.pose.Count}, Face:{frame.faceKey.Count}, " +
-                         $"LHand:{frame.leftHand.Count}, RHand:{frame.rightHand.Count})");
-
-                if (frameCount % 50 == 0)
-                {
-                    Debug.Log($"JSON size: {json.Length} characters");
-                    Debug.Log($"Face mode: {faceMode} ({frame.faceKey.Count} points)");
-                    Debug.Log($"JSON Preview:\n{json.Substring(0, Math.Min(300, json.Length))}...");
-                }
+                Debug.Log($"[배틀] 수어 프레임 수집: {battleFramesCollected}/{sequenceFrameCount}");
             }
 
-            if (saveToTextFile)
+            // 30프레임 모이면 즉시 서버 전송하고 수집 중지
+            if (battleFramesCollected >= sequenceFrameCount)
             {
-                SaveJsonToFile(json, frame.frame);
-            }
-
-            if (sendToServer)
-            {
-                StartCoroutine(SendFrame(json));
+                Debug.Log("30프레임 수집 완료! 서버로 전송합니다.");
+                SendSequenceToServer();
+                StopBattleCollection();
             }
         }
+    }
+
+    public void StartBattleSkillCollection()
+    {
+        frameSequence.Clear();
+        battleFramesCollected = 0;
+        isCollectingForBattle = true;
+
+        Debug.Log("=== 스킬 사용! 30프레임 수집 시작 ===");
+    }
+
+    // 수집 완료 후 호출
+    private void StopBattleCollection()
+    {
+        isCollectingForBattle = false;
+        battleFramesCollected = 0;
+
+        Debug.Log("=== 30프레임 수집 완료! 수집 중지 ===");
+    }
+
+    // 수집 상태 확인 메서드들
+    public bool IsCollectingForSkill()
+    {
+        return isCollectingForBattle;
+    }
+
+    public int GetCollectedFrameCount()
+    {
+        return battleFramesCollected;
+    }
+
+    public float GetCollectionProgress()
+    {
+        return (float)battleFramesCollected / sequenceFrameCount;
     }
 
     private List<float> FlattenFrameData(SimpleFrame frame)
@@ -658,21 +669,36 @@ public class OptimizedHolisticExtractor : MonoBehaviour
 
         if (request.result == UnityWebRequest.Result.Success)
         {
-            // 서버 응답 받아서 처리
             string responseText = request.downloadHandler.text;
 
             if (!string.IsNullOrEmpty(responseText))
             {
+                /*
                 try
-                {
+                {*/
                     ServerResponse response = JsonUtility.FromJson<ServerResponse>(responseText);
-                    ProcessServerResponse(response);
-                }
+                    if (response == null)
+                    {
+                        if (enableLogging)
+                            Debug.LogWarning("ServerResponse is null after parsing!");
+                    }
+                    else if (response.probabilities == null)
+                    {
+                        if (enableLogging)
+                            Debug.LogWarning("Probabilities is null after parsing!");
+                    }
+                    else
+                    {
+                        ProcessServerResponse(response);
+                    }
+                /*}
+                
                 catch (Exception e)
                 {
                     if (enableLogging)
                         Debug.LogWarning($"Response parsing failed: {e.Message}");
                 }
+                */
             }
 
             if (enableLogging)
@@ -686,27 +712,11 @@ public class OptimizedHolisticExtractor : MonoBehaviour
 
     private void ProcessServerResponse(ServerResponse response)
     {
-        if (enableLogging)
+        if (battleManager != null)
         {
-            Debug.Log($"Server prediction: {response.prediction}");
-
-            // prediction에 따른 메시지 출력
-            switch (response.prediction)
-            {
-                case "hello":
-                    Debug.Log("hello 인식 완료!");
-                    break;
-                case "sorry":
-                    Debug.Log("sorry 인식 완료!");
-                    break;
-                case "thank":
-                    Debug.Log("thank 인식 완료!");
-                    break;
-                default:
-                    Debug.Log($"{response.prediction} 인식 완료!");
-                    break;
-            }
+            battleManager.OnGestureRecognized(response.prediction);
         }
+
     }
 
     private IEnumerator SendFrame(string json)
@@ -726,6 +736,24 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         {
             Debug.LogWarning($"Send failed: {request.error}");
         }
+    }
+
+    /// <summary>
+    /// 배틀 매니저에서 호출할 수 있는 공개 메서드
+    /// </summary>
+    public void StartGestureCollection()
+    {
+        StartBattleSkillCollection();
+    }
+
+    public bool IsCollectingFrames()
+    {
+        return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
+    }
+
+    public int GetCurrentFrameCount()
+    {
+        return battleFramesCollected;
     }
 
     [ContextMenu("Switch to Real Data")]
@@ -780,13 +808,13 @@ public class OptimizedHolisticExtractor : MonoBehaviour
     {
         if (frameSequence.Count > 0)
         {
-            Debug.Log($"Force sending sequence with {frameSequence.Count} frames");
+            Debug.Log($"[배틀] 강제 전송: {frameSequence.Count}프레임");
             SendSequenceToServer();
-            frameSequence.Clear();
+            StopBattleCollection();
         }
         else
         {
-            Debug.LogWarning("No frames in current sequence");
+            Debug.LogWarning("[배틀] 전송할 프레임이 없습니다");
         }
     }
 
@@ -799,21 +827,14 @@ public class OptimizedHolisticExtractor : MonoBehaviour
         Debug.Log($"FullFace: 468 points (큰 데이터 주의!)");
     }
 
-    [ContextMenu("Show Stats")]
-    public void ShowStats()
+    [ContextMenu("Show Battle Stats")]
+    public void ShowBattleStats()
     {
-        Debug.Log($"=== Optimized Stats ===");
-        Debug.Log($"Frame count: {frameCount}");
-        Debug.Log($"Face mode: {faceMode}");
-        Debug.Log($"Using dummy data: {useDummyData}");
-        Debug.Log($"Sequence mode: {useSequenceMode}");
-        Debug.Log($"Current sequence frames: {frameSequence.Count}/{sequenceFrameCount}");
-        Debug.Log($"Collect settings - Pose: {collectPose}, Face: {collectFace}, Hands: {collectHands}");
-        Debug.Log($"Save to file: {saveToTextFile}");
-        if (saveToTextFile)
-        {
-            Debug.Log($"Save directory: {actualSaveDirectory}");
-        }
+        Debug.Log($"=== 배틀 모드 상태 ===");
+        Debug.Log($"스킬 수집 중: {isCollectingForBattle}");
+        Debug.Log($"수집된 프레임: {battleFramesCollected}/{sequenceFrameCount}");
+        Debug.Log($"수집 진행률: {GetCollectionProgress() * 100:F1}%");
+        Debug.Log($"BattleManager 연결: {(battleManager != null ? "연결됨" : "없음")}");
     }
 
     [ContextMenu("Open Save Directory")]

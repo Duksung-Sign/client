@@ -14,12 +14,13 @@ public class DialogueManager : MonoBehaviour
     public TextMeshProUGUI speakerNameText;
 
     [Header("Character Portraits")]
-    public Image leftPortrait;     // 플레이어 초상화 (고정)
-    public Image rightPortrait;    // NPC 초상화 (고정)
+    public Image leftPortrait; // 플레이어
+    public Image rightPortrait; // NPC
 
-    [Header("Dialogue Data")]
-    public DialogueDatabase dialogueDatabase;
+    [Header("NPC Data")]
+    public NPCDataSO npcData;
 
+    private DialogueDataSO currentDialogueData;
     private int currentDialogueID;
     private int currentLineIndex;
     private Sprite playerPortrait;
@@ -67,17 +68,23 @@ public class DialogueManager : MonoBehaviour
             rightPortrait.sprite = npc;
     }
 
-    public void StartDialogue(int dialogueID)
+    public void StartDialogue(NPCDataSO data, int dialogueID)
     {
-        if (dialogueDatabase == null)
-        {
-            Debug.LogError("DialogueDatabase가 설정되지 않았습니다!");
-            return;
-        }
+        npcData = data; 
 
         currentDialogueID = dialogueID;
         currentLineIndex = 0;
         isInDialogue = true;
+
+        if (npcData.dialogues != null && dialogueID >= 0 && dialogueID < npcData.dialogues.Length)
+        {
+            currentDialogueData = npcData.dialogues[dialogueID];
+        }
+        else
+        {
+            Debug.LogError($"npcData.dialogues[{dialogueID}]가 없습니다!");
+            currentDialogueData = null;
+        }
 
         // 플레이어 움직임 제한
         PlayerController playerController = FindObjectOfType<PlayerController>();
@@ -95,16 +102,17 @@ public class DialogueManager : MonoBehaviour
 
     void DisplayCurrentLine()
     {
-        if (dialogueDatabase.IsDialogueFinished(currentDialogueID, currentLineIndex))
+        if (currentDialogueData == null
+            || currentDialogueData.IsDialogueFinished(currentDialogueID, currentLineIndex))
         {
             EndDialogue();
             return;
         }
 
         // 현재 라인 데이터 가져오기
-        string text = dialogueDatabase.GetDialogueText(currentDialogueID, currentLineIndex);
-        string speakerName = dialogueDatabase.GetSpeakerName(currentDialogueID, currentLineIndex);
-        bool isPlayer = dialogueDatabase.IsPlayerSpeaking(currentDialogueID, currentLineIndex);
+        string text = currentDialogueData.GetDialogueText(currentDialogueID, currentLineIndex);
+        string speakerName = currentDialogueData.GetSpeakerName(currentDialogueID, currentLineIndex);
+        bool isPlayer = currentDialogueData.IsPlayerSpeaking(currentDialogueID, currentLineIndex);
 
         // UI 업데이트
         if (dialogueText != null)
