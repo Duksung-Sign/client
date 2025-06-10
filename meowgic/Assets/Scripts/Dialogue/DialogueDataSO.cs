@@ -32,7 +32,7 @@ public class DialogueSet
 }
 
 [CreateAssetMenu(fileName = "DialogueDatabase", menuName = "Game Data/Dialogue Database")]
-public class DialogueDatabase : ScriptableObject
+public class DialogueDataSO : ScriptableObject
 {
     [Header("NPC 대화 데이터")]
     public List<DialogueSet> dialogueSets = new List<DialogueSet>();

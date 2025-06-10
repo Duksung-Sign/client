@@ -15,10 +15,10 @@ public class InteractionDetector : MonoBehaviour
     public TextMeshProUGUI promptText;
 
     [Header("UI References")]
-    public Image characterPortraitImage; // UI에서 초상화를 표시할 Image 컴포넌트
+    public Image characterPortraitImage; 
 
     [Header("Player Reference")]
-    public PlayerStats playerStats;      // 플레이어 스탯 참조 (초상화 정보 포함)
+    public PlayerStats playerStats;
 
     private GameObject currentTarget;
     private List<GameObject> nearbyObjects = new List<GameObject>();
@@ -116,13 +116,11 @@ public class InteractionDetector : MonoBehaviour
         NPCController npc = currentTarget?.GetComponent<NPCController>();
         if (npc != null && npc.npcPortrait != null)
         {
-            // NPC 초상화로 설정
             characterPortraitImage.sprite = npc.npcPortrait;
             currentCharacterSprite = npc.npcPortrait;
         }
         else
         {
-            // 플레이어 초상화로 설정
             Sprite playerPortrait = GetPlayerPortrait();
             characterPortraitImage.sprite = playerPortrait;
             currentCharacterSprite = playerPortrait;
