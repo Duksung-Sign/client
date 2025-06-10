@@ -5,9 +5,14 @@ using UnityEngine;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+    public PlayerController Player
+    {
+        get;
+        private set;
+    }
 
-    [Header("플레이어 참조")]
-    public PlayerController playerController;
+    [HideInInspector]
+    public MonsterDataSO currentBattleMonster;
 
     // 게임 상태들
     private bool isInDialogue = false;
@@ -27,18 +32,9 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void Start()
+    public void RegisterPlayer(PlayerController pc)
     {
-        // 플레이어 컨트롤러를 찾기
-        if (playerController == null)
-        {
-            playerController = FindObjectOfType<PlayerController>();
-        }
-
-        if (playerController == null)
-        {
-            Debug.LogWarning("PlayerController를 찾을 수 없습니다!");
-        }
+        Player = pc;
     }
 
     // 대화 상태 제어
@@ -70,12 +66,27 @@ public class GameManager : MonoBehaviour
     // 플레이어 이동 가능 여부 업데이트
     void UpdatePlayerMovement()
     {
-        if (playerController != null)
+        if (Player != null)
         {
             // 대화 중이거나 메뉴 중이거나 일시정지 중이면 이동 불가
             bool canMove = !isInDialogue && !isInMenu && !isPaused;
-            playerController.SetCanMove(canMove);
+            Player.SetCanMove(canMove);
         }
+    }
+
+    /// <summary>
+    /// 몬스터 자동 할당, 필드에서 부딪히면 그 몬스터가 저장
+    /// </summary>
+    /// <param name="monster"></param>
+    public void SetBattleMonster(MonsterDataSO monster)
+    {
+        currentBattleMonster = monster;
+        Debug.Log($"배틀 몬스터 설정: {monster.monsterName}");
+    }
+
+    public void ClearBattleMonster()
+    {
+        currentBattleMonster = null;
     }
 
     // 상태 확인 메서드들
