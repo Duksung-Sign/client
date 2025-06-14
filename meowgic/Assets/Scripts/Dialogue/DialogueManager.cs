@@ -26,12 +26,14 @@ public class DialogueManager : MonoBehaviour
     private Sprite playerPortrait;
     private Sprite npcPortrait;
     private bool isInDialogue = false;
+    private bool isShowingItemDescription = false;
 
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
+            Debug.Log("DialogueManager Instance 설정됨");
         }
         else
         {
@@ -41,9 +43,27 @@ public class DialogueManager : MonoBehaviour
 
     void Start()
     {
+        // talkPanel을 자동으로 찾아서 연결
+        if (dialoguePanel == null)
+        {
+            GameObject foundTalkPanel = GameObject.Find("talkPanel");
+            if (foundTalkPanel != null)
+            {
+                dialoguePanel = foundTalkPanel;
+                Debug.Log("talkPanel을 자동으로 찾아서 연결했습니다!");
+            }
+            else
+            {
+                Debug.LogError("talkPanel을 찾을 수 없습니다! Hierarchy에서 talkPanel 이름을 확인해주세요.");
+            }
+        }
+
         // 게임 시작 시 대화 UI 숨기기
         if (dialoguePanel != null)
+        {
             dialoguePanel.SetActive(false);
+            Debug.Log($"대화창 초기화: {dialoguePanel.name} 비활성화");
+        }
     }
 
     void Update()
@@ -53,9 +73,124 @@ public class DialogueManager : MonoBehaviour
         {
             NextLine();
         }
+
+        // 아이템 설명 중일 때 E키, 스페이스바, 엔터키로 닫기
+        if (isShowingItemDescription &&
+            (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
+        {
+            HideItemDescription();
+        }
     }
 
-    // InteractionDetector에서 호출할 메서드
+    // 아이템 설명을 대화창에 표시하는 메서드
+    public void ShowItemDescription(string description)
+    {
+        Debug.Log($"ShowItemDescription 호출됨: {description}");
+
+        // talkPanel을 다시 한번 확인
+        if (dialoguePanel == null)
+        {
+            GameObject foundTalkPanel = GameObject.Find("talkPanel");
+            if (foundTalkPanel != null)
+            {
+                dialoguePanel = foundTalkPanel;
+                Debug.Log("talkPanel을 다시 찾아서 연결했습니다!");
+            }
+            else
+            {
+                Debug.LogError("talkPanel을 찾을 수 없습니다!");
+                return;
+            }
+        }
+
+        isShowingItemDescription = true;
+        isInDialogue = false; // 일반 대화가 아님
+
+        // 플레이어 움직임 제한
+        PlayerController playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(false);
+            Debug.Log("플레이어 움직임 제한됨");
+        }
+
+        // 대화창 활성화 전 로그
+        Debug.Log($"대화창 활성화 시도: {dialoguePanel.name}");
+        dialoguePanel.SetActive(true);
+
+        // 활성화 후 상태 확인
+        Debug.Log($"대화창 활성화 후 상태: {dialoguePanel.activeInHierarchy}");
+
+        // 텍스트 설정
+        if (dialogueText != null)
+        {
+            dialogueText.text = description;
+            Debug.Log($"대화 텍스트 설정됨: {description}");
+        }
+        else
+        {
+            Debug.LogError("dialogueText가 null입니다!");
+        }
+
+        // 화자 이름 설정 (플레이어)
+        var stats = FindObjectOfType<PlayerStats>();
+        string name = stats != null && !string.IsNullOrEmpty(stats.playerName)
+                      ? stats.playerName
+                      : "플레이어";
+
+        if (speakerNameText != null)
+            speakerNameText.text = name;
+
+        // 플레이어 초상화만 표시 (NPC 초상화는 숨김)
+        if (leftPortrait != null && playerPortrait != null)
+        {
+            leftPortrait.sprite = playerPortrait;
+            SetPortraitAlpha(leftPortrait, 1f);
+        }
+
+        if (rightPortrait != null)
+        {
+            SetPortraitAlpha(rightPortrait, 0f); // NPC 초상화 숨김
+        }
+
+        // 게임 상태 변경
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(true);
+            Debug.Log("게임 상태 변경: 대화 모드");
+        }
+    }
+
+    // 아이템 설명 숨기기
+    public void HideItemDescription()
+    {
+        Debug.Log("HideItemDescription 호출됨");
+
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(false);
+            Debug.Log("대화창 비활성화됨");
+        }
+
+        isShowingItemDescription = false;
+
+        // 플레이어 움직임 복원
+        PlayerController playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(true);
+            Debug.Log("플레이어 움직임 복원됨");
+        }
+
+        // 게임 상태 복원
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(false);
+            Debug.Log("게임 상태 복원됨");
+        }
+    }
+
+    // InteractionDetector에서 호출될 메서드
     public void SetCharacterPortraits(Sprite player, Sprite npc)
     {
         playerPortrait = player;
@@ -70,11 +205,12 @@ public class DialogueManager : MonoBehaviour
 
     public void StartDialogue(NPCDataSO data, int dialogueID)
     {
-        npcData = data; 
+        npcData = data;
 
         currentDialogueID = dialogueID;
         currentLineIndex = 0;
         isInDialogue = true;
+        isShowingItemDescription = false;
 
         if (npcData.dialogues != null && dialogueID >= 0 && dialogueID < npcData.dialogues.Length)
         {
@@ -130,6 +266,7 @@ public class DialogueManager : MonoBehaviour
     public void EndDialogue()
     {
         isInDialogue = false;
+        isShowingItemDescription = false;
 
         // 플레이어 움직임 복구
         PlayerController playerController = FindObjectOfType<PlayerController>();
@@ -144,10 +281,10 @@ public class DialogueManager : MonoBehaviour
 
     public bool IsInDialogue()
     {
-        return isInDialogue;
+        return isInDialogue || isShowingItemDescription;
     }
 
-    // 현재 말하는 캐릭터 강조 (고정 위치 방식)
+    // 현재 말하는 캐릭터 강조 (초상화 위치 변경)
     public void SetCurrentSpeaker(string speakerName, bool isPlayer)
     {
         if (speakerNameText != null)
