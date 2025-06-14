@@ -13,23 +13,44 @@ public class InteractionDetector : MonoBehaviour
     [Header("UI")]
     public GameObject promptUI;
     public TextMeshProUGUI promptText;
+    public Canvas promptCanvas; // 프롬프트 UI 캔버스
 
     [Header("UI References")]
-    public Image characterPortraitImage; 
+    public Image characterPortraitImage;
 
     [Header("Player Reference")]
     public PlayerStats playerStats;
 
+    [Header("Prompt Position Settings")]
+    public Vector3 promptOffset = new Vector3(0, 1.5f, 0); // 아이템 위쪽으로 얼마나 띄울지
+
     private GameObject currentTarget;
     private List<GameObject> nearbyObjects = new List<GameObject>();
     private Sprite currentCharacterSprite;
+    private Camera mainCamera;
+
+    void Start()
+    {
+        mainCamera = Camera.main;
+        if (mainCamera == null)
+            mainCamera = FindObjectOfType<Camera>();
+
+        // 프롬프트 캔버스를 월드 스페이스로 설정
+        if (promptCanvas != null)
+        {
+            promptCanvas.renderMode = RenderMode.WorldSpace;
+            promptCanvas.worldCamera = mainCamera;
+        }
+    }
 
     void Update()
     {
-        // 대화 중이 아닐 때만 상호작용 감지
-        if (DialogueManager.Instance != null && DialogueManager.Instance.IsInDialogue())
+        // 대화 중이거나 아이템 설명 중일 때는 상호작용 감지 중단
+        bool isInDialogue = DialogueManager.Instance != null && DialogueManager.Instance.IsInDialogue();
+
+        if (isInDialogue)
         {
-            // 대화 중에는 프롬프트 UI 숨기기
+            // 대화 중일 때는 프롬프트 UI 숨기기
             if (promptUI != null && promptUI.activeInHierarchy)
             {
                 promptUI.SetActive(false);
@@ -50,7 +71,7 @@ public class InteractionDetector : MonoBehaviour
 
         foreach (Collider2D col in colliders)
         {
-            if (col.GetComponent<ItemBase>() != null ||
+            if (col.GetComponent<ItemManager>() != null ||
                 col.GetComponent<NPCController>() != null)
             {
                 nearbyObjects.Add(col.gameObject);
@@ -97,15 +118,38 @@ public class InteractionDetector : MonoBehaviour
             string objectName = GetObjectName(currentTarget);
 
             if (promptText != null)
-                promptText.text = $"[E] {actionText} {objectName}";
+                promptText.text = $"[E] {objectName}";
 
-            // NPC인 경우 초상화 미리보기 설정
+            // 프롬프트 UI를 아이템 위쪽에 위치시키기
+            UpdatePromptPosition();
+
+            // NPC의 경우 초상화 미리보기 설정
             UpdateCharacterPortrait();
         }
         else
         {
             if (promptUI != null)
                 promptUI.SetActive(false);
+        }
+    }
+
+    void UpdatePromptPosition()
+    {
+        if (currentTarget == null || promptCanvas == null) return;
+
+        Vector3 worldPosition = currentTarget.transform.position + promptOffset;
+        promptCanvas.transform.position = worldPosition;
+
+        // 카메라를 향하도록 회전 (빌보드 효과)
+        if (mainCamera != null)
+        {
+            Vector3 directionToCamera = mainCamera.transform.position - promptCanvas.transform.position;
+            directionToCamera.y = 0; // Y축 회전만 적용
+
+            if (directionToCamera != Vector3.zero)
+            {
+                promptCanvas.transform.rotation = Quaternion.LookRotation(-directionToCamera);
+            }
         }
     }
 
@@ -129,10 +173,10 @@ public class InteractionDetector : MonoBehaviour
 
     string GetActionText(GameObject target)
     {
-        ItemBase item = target.GetComponent<ItemBase>();
-        if (item != null)
+        ItemManager item = target.GetComponent<ItemManager>();
+        if (item != null && item.itemData != null)
         {
-            return item.itemType == ItemType.Collectible ? "획득" : "조사";
+            return item.itemData.itemType == ItemType.Collectible ? "획득" : "조사";
         }
 
         NPCController npc = target.GetComponent<NPCController>();
@@ -146,11 +190,13 @@ public class InteractionDetector : MonoBehaviour
 
     string GetObjectName(GameObject target)
     {
-        ItemBase item = target.GetComponent<ItemBase>();
-        if (item != null) return item.displayName;
+        ItemManager item = target.GetComponent<ItemManager>();
+        if (item != null && item.itemData != null)
+            return item.itemData.displayName;
 
         NPCController npc = target.GetComponent<NPCController>();
-        if (npc != null) return npc.npcName;
+        if (npc != null)
+            return npc.npcName;
 
         return target.name;
     }
@@ -162,7 +208,13 @@ public class InteractionDetector : MonoBehaviour
         {
             Debug.Log($"상호작용 시작: {currentTarget.name}");
 
-            ItemBase item = currentTarget.GetComponent<ItemBase>();
+            // 상호작용 시작할 때 promptUI 숨기기
+            if (promptUI != null)
+            {
+                promptUI.SetActive(false);
+            }
+
+            ItemManager item = currentTarget.GetComponent<ItemManager>();
             if (item != null)
             {
                 item.Interact();
