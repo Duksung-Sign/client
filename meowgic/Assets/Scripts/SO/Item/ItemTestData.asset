@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemID: 0
   displayName: "\uB625"
-  itemDescription: "\uBA39\uC73C\uBA74 \uD798\uC774 \uB09C\uB2E4."
+  itemDescription: "\uC5B4\uCA50\uC9C0 \uB0C4\uC0C8\uAC00 \uB098\uB294 \uAC70 \uAC19\uC544..."
   itemType: 1
   isQuestItem: 0
   icon: {fileID: 21300000, guid: cc217fb0a3a816c4da2253270d6ed324, type: 3}

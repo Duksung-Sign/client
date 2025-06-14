@@ -325,27 +325,4 @@ public class DialogueManager : MonoBehaviour
                 leftPortrait.sprite = playerPortrait;
         }
     }
-
-    // 테스트용 메서드
-    [ContextMenu("Test Item Description")]
-    public void TestItemDescription()
-    {
-        ShowItemDescription("테스트 아이템이다.\n이것은 테스트용 아이템 설명입니다.");
-    }
-
-    // Unity Inspector에서 수동으로 talkPanel 연결할 수 있는 메서드
-    [ContextMenu("Find and Connect talkPanel")]
-    public void FindAndConnectTalkPanel()
-    {
-        GameObject foundTalkPanel = GameObject.Find("talkPanel");
-        if (foundTalkPanel != null)
-        {
-            dialoguePanel = foundTalkPanel;
-            Debug.Log($"talkPanel 연결 성공: {foundTalkPanel.name}");
-        }
-        else
-        {
-            Debug.LogError("talkPanel을 찾을 수 없습니다!");
-        }
-    }
 }
