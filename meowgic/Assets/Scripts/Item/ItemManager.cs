@@ -104,7 +104,7 @@ public class ItemManager : MonoBehaviour
         if (DialogueManager.Instance != null)
         {
             // 플레이어 혼잣말 형식으로 아이템 설명 표시
-            string itemMessage = $"{itemData.displayName}이다.\n{itemData.itemDescription}";
+            string itemMessage = $"{itemData.displayName}이다. {itemData.itemDescription}";
             DialogueManager.Instance.ShowItemDescription(itemMessage);
             Debug.Log($"DialogueManager.ShowItemDescription 호출됨: {itemMessage}");
         }
