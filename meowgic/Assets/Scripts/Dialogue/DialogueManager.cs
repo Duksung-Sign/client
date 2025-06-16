@@ -30,15 +30,16 @@ public class DialogueManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            Debug.Log("DialogueManager Instance 설정됨");
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        // 싱글톤 설정
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+
+        // talkPanel 찾기
+        if (dialoguePanel == null)
+            dialoguePanel = GameObject.Find("talkPanel");
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
     }
 
     void Start()
@@ -56,13 +57,6 @@ public class DialogueManager : MonoBehaviour
             {
                 Debug.LogError("talkPanel을 찾을 수 없습니다! Hierarchy에서 talkPanel 이름을 확인해주세요.");
             }
-        }
-
-        // 게임 시작 시 대화 UI 숨기기
-        if (dialoguePanel != null)
-        {
-            dialoguePanel.SetActive(false);
-            Debug.Log($"대화창 초기화: {dialoguePanel.name} 비활성화");
         }
     }
 
@@ -284,24 +278,87 @@ public class DialogueManager : MonoBehaviour
         return isInDialogue || isShowingItemDescription;
     }
 
-    // 현재 말하는 캐릭터 강조 (초상화 위치 변경)
     public void SetCurrentSpeaker(string speakerName, bool isPlayer)
     {
+        Debug.Log($"=== SetCurrentSpeaker 호출: Speaker={speakerName}, isPlayer={isPlayer} ===");
+
+        // 1) 화자 이름 설정
         if (speakerNameText != null)
             speakerNameText.text = speakerName;
 
-        if (isPlayer)
+        // 2) 포트레이트 디버깅 정보
+        Debug.Log($"leftPortrait null 여부: {leftPortrait == null}");
+        Debug.Log($"rightPortrait null 여부: {rightPortrait == null}");
+        Debug.Log($"playerPortrait null 여부: {playerPortrait == null}");
+        Debug.Log($"npcPortrait null 여부: {npcPortrait == null}");
+
+        // 3) 포트레이트 설정 및 활성화 (GameObject.SetActive 대신 alpha 사용)
+        if (leftPortrait != null)
         {
-            // 플레이어가 말할 때 - 왼쪽 강조, 오른쪽 흐리게
-            SetPortraitAlpha(leftPortrait, 1f);
-            SetPortraitAlpha(rightPortrait, 0.5f);
+            // 플레이어 포트레이트는 항상 활성화하고 스프라이트 재설정
+            leftPortrait.gameObject.SetActive(true);
+            if (playerPortrait != null)
+                leftPortrait.sprite = playerPortrait;
+
+            // 알파값으로 강조/비강조 표현
+            SetPortraitAlpha(leftPortrait, isPlayer ? 1f : 0.5f);
+            Debug.Log($"leftPortrait 알파값: {(isPlayer ? 1f : 0.5f)}");
         }
-        else
+
+        if (rightPortrait != null)
         {
-            // NPC가 말할 때 - 오른쪽 강조, 왼쪽 흐리게
-            SetPortraitAlpha(leftPortrait, 0.5f);
-            SetPortraitAlpha(rightPortrait, 1f);
+            // NPC 포트레이트도 항상 활성화하고 스프라이트 재설정
+            rightPortrait.gameObject.SetActive(true);
+            if (npcPortrait != null)
+                rightPortrait.sprite = npcPortrait;
+
+            // 알파값으로 강조/비강조 표현
+            SetPortraitAlpha(rightPortrait, !isPlayer ? 1f : 0.5f);
+            Debug.Log($"rightPortrait 알파값: {(!isPlayer ? 1f : 0.5f)}");
+            Debug.Log($"rightPortrait 스프라이트: {(rightPortrait.sprite != null ? rightPortrait.sprite.name : "null")}");
         }
+    }
+
+    public void StartQuestDialogue(DialogueDataSO questDialogueData, int questDialogueID)
+    {
+        Debug.Log($"StartQuestDialogue 호출: DialogueID {questDialogueID}");
+
+        // 퀘스트 다이얼로그 데이터 직접 설정
+        currentDialogueData = questDialogueData;
+        currentDialogueID = questDialogueID;
+        currentLineIndex = 0;
+        isInDialogue = true;
+        isShowingItemDescription = false;
+
+        // 해당 DialogueSet이 존재하는지 확인
+        DialogueSet dialogueSet = questDialogueData.GetDialogueSet(questDialogueID);
+        if (dialogueSet == null)
+        {
+            Debug.LogError($"questDialogueID {questDialogueID}에 해당하는 DialogueSet을 찾을 수 없습니다!");
+            EndDialogue();
+            return;
+        }
+
+        Debug.Log($"퀘스트 다이얼로그 시작: {dialogueSet.npcName}");
+
+        // 플레이어 움직임 제한
+        PlayerController playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(false);
+        }
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(true);
+
+        // 게임 상태 변경
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(true);
+        }
+
+        // 첫 번째 대화 라인 표시
+        DisplayCurrentLine();
     }
 
     void SetPortraitAlpha(Image portrait, float alpha)
