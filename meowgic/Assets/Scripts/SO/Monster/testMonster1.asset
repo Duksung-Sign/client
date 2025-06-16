@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: testMonster1
   m_EditorClassIdentifier: 
   monsterName: "\uB208\uAE4C\uB9AC"
-  monsterSprite: {fileID: 21300000, guid: 4a602250a54baa948adaa150745e5793, type: 3}
+  monsterSprite: {fileID: 21300000, guid: c3bf1522dad64544da4c80ceae07ddd2, type: 3}
   maxHP: 30
   attackPower: 8
   defense: 3
