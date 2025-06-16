@@ -8,8 +8,8 @@ public class BattleManager : MonoBehaviour
     public MonsterDataSO currentMonster;
 
     [Header("현재 배틀 상태")]
-    private int currentPlayerHP;        // 배틀 중 변화하는 HP만 별도 관리
-    private int currentMonsterHP;       // 배틀 중 변화하는 HP만 별도 관리
+    private int currentPlayerHP;
+    private int currentMonsterHP;
 
     [Header("UI 참조")]
     private BattleUIManager uiManager;
@@ -21,6 +21,10 @@ public class BattleManager : MonoBehaviour
     private bool isPlayerTurn = true;
     private bool waitingForGesture = false;
     private string selectedSkill = "";
+
+    // 배틀 결과 추적을 위한 추가 변수들
+    private string battleResult = ""; // "victory", "escape", "defeat"
+    private string defeatedMonsterID = ""; // 죽인 몬스터의 ID
 
     void Start()
     {
@@ -37,11 +41,10 @@ public class BattleManager : MonoBehaviour
         if (GameManager.Instance?.currentBattleMonster != null)
         {
             currentMonster = GameManager.Instance.currentBattleMonster;
-            currentMonsterHP = currentMonster.maxHP;  // HP만 별도 저장
+            currentMonsterHP = currentMonster.maxHP;
 
             Debug.Log($"몬스터 로드: {currentMonster.monsterName} (HP: {currentMonsterHP})");
 
-            // UI 설정
             if (uiManager != null && currentMonster.monsterSprite != null)
             {
                 uiManager.SetMonsterImage(currentMonster.monsterSprite);
@@ -71,21 +74,22 @@ public class BattleManager : MonoBehaviour
     void InitializeBattle()
     {
         isPlayerTurn = true;
+        battleResult = "";
+        defeatedMonsterID = "";
 
         if (uiManager != null)
         {
-            uiManager.ShowMainBattleUI(); // 간단하게 메인 UI 표시
+            uiManager.ShowMainBattleUI();
         }
 
         Debug.Log("배틀 초기화 완료");
     }
 
-    // UI 초기화를 위한 새로운 메서드
     void ResetBattleUI()
     {
         if (uiManager != null)
         {
-            uiManager.ShowMainBattleUI(); // 메인 배틀 UI로 돌아가기
+            uiManager.ShowMainBattleUI();
         }
     }
 
@@ -100,7 +104,7 @@ public class BattleManager : MonoBehaviour
 
         if (uiManager != null)
         {
-            uiManager.ShowResult($"{GetSkillDisplayName(skillName)}를 보여주세요!");
+            uiManager.ShowResult($"{GetSkillDisplayName(skillName)}을 보여주세요!");
         }
 
         StartCoroutine(WaitForGestureRecognition());
@@ -121,10 +125,8 @@ public class BattleManager : MonoBehaviour
     {
         if (holisticExtractor != null)
         {
-            // 미디어파이프에서 30프레임 수집하도록 신호
             holisticExtractor.StartGestureCollection();
 
-            // 30프레임 수집 대기 (약 3초, 10fps 기준)
             float waitTime = 5f;
             while (waitTime > 0 && holisticExtractor.IsCollectingFrames())
             {
@@ -132,15 +134,11 @@ public class BattleManager : MonoBehaviour
                 yield return null;
             }
 
-            // 30프레임이 모이면 자동으로 서버로 전송되고
-            // ProcessServerResponse에서 OnGestureRecognized가 호출됨
-            // 만약 시간이 초과되면 현재까지 수집된 데이터로 강제 전송
             if (waitTime <= 0 && holisticExtractor.GetCurrentFrameCount() > 0)
             {
                 holisticExtractor.ForceSendCurrentSequence();
             }
 
-            // 서버 응답 대기 (최대 5초)
             float responseWaitTime = 5f;
             while (responseWaitTime > 0 && waitingForGesture)
             {
@@ -148,7 +146,6 @@ public class BattleManager : MonoBehaviour
                 yield return null;
             }
 
-            // 응답이 없으면 실패 처리
             if (waitingForGesture)
             {
                 OnGestureRecognized("none");
@@ -164,12 +161,10 @@ public class BattleManager : MonoBehaviour
 
         if (prediction == selectedSkill)
         {
-            // 공격 성공
             ExecutePlayerAttack();
         }
         else
         {
-            // 공격 실패
             PlayerAttackFailed();
         }
     }
@@ -185,6 +180,11 @@ public class BattleManager : MonoBehaviour
         if (currentMonsterHP <= 0)
         {
             message += $"\n{currentMonster.monsterName}을(를) 물리쳤다!";
+
+            // 승리 처리
+            battleResult = "victory";
+            defeatedMonsterID = GetMonsterUniqueID(); // 몬스터 고유 ID 저장
+
             EndBattle(true);
         }
         else
@@ -230,6 +230,7 @@ public class BattleManager : MonoBehaviour
         if (currentPlayerHP <= 0)
         {
             message += "\n플레이어가 쓰러졌습니다...";
+            battleResult = "defeat";
             EndBattle(false);
         }
         else
@@ -237,7 +238,6 @@ public class BattleManager : MonoBehaviour
             message += $"\n플레이어 HP: {currentPlayerHP}";
             isPlayerTurn = true;
 
-            // 메시지를 보여준 후 잠시 기다렸다가 UI 초기화
             if (uiManager != null)
             {
                 uiManager.ShowResult(message);
@@ -248,14 +248,13 @@ public class BattleManager : MonoBehaviour
         Debug.Log(message);
     }
 
-    // 메시지를 보여준 후 잠시 기다렸다가 UI를 초기화하는 코루틴
     IEnumerator DelayedBattleUIReset()
     {
-        yield return new WaitForSeconds(3f); // 3초 기다린 후 (메시지를 읽을 시간)
+        yield return new WaitForSeconds(3f);
 
-        if (isPlayerTurn) // 아직 플레이어 턴이면
+        if (isPlayerTurn)
         {
-            ResetBattleUI(); // UI 초기화
+            ResetBattleUI();
         }
     }
 
@@ -263,22 +262,23 @@ public class BattleManager : MonoBehaviour
     {
         if (!isPlayerTurn) return;
 
-        // currentMonster에서 직접 참조
         if (!currentMonster.canEscape)
         {
             if (uiManager != null)
             {
                 uiManager.ShowResult($"{currentMonster.monsterName}에게서 벗어날 수 없다.");
-                StartCoroutine(DelayedBattleUIReset()); // 메시지 후 UI 초기화
+                StartCoroutine(DelayedBattleUIReset());
             }
             return;
         }
 
-        // 50% 확률로 도망 성공
         bool escapeSuccess = Random.Range(0f, 1f) > 0.5f;
 
         if (escapeSuccess)
         {
+            battleResult = "escape";
+            defeatedMonsterID = GetMonsterUniqueID(); // 도망쳤을 때도 몬스터 ID 저장
+
             if (uiManager != null)
             {
                 uiManager.ShowResult("무사히 도망쳤다!");
@@ -316,22 +316,79 @@ public class BattleManager : MonoBehaviour
     {
         if (isPlayerTurn && uiManager != null)
         {
-            uiManager.ShowMainBattleUI(); // 메인 배틀 UI로 돌아가기
+            uiManager.ShowMainBattleUI();
         }
+    }
+
+    // 몬스터 고유 ID 가져오기
+    string GetMonsterUniqueID()
+    {
+        // MonsterController에서 PlayerPrefs에 저장한 ID 가져오기
+        string monsterID = PlayerPrefs.GetString("CurrentMonsterID", "");
+
+        if (string.IsNullOrEmpty(monsterID) && currentMonster != null)
+        {
+            // 백업: 몬스터 데이터의 이름으로 ID 생성
+            monsterID = $"{currentMonster.monsterName}_backup_{System.DateTime.Now.Ticks}";
+            Debug.LogWarning($"몬스터 ID를 찾을 수 없어 백업 ID 생성: {monsterID}");
+        }
+
+        return monsterID;
     }
 
     IEnumerator ReturnToField()
     {
         yield return new WaitForSeconds(2f);
 
+        PlayerPrefs.SetInt("FirstBattleCompleted", 1);
+        PlayerPrefs.Save();
+        Debug.Log("첫 배틀 완료 상태 저장됨");
+
+        // GameManager에 배틀 결과 전달
+        if (GameManager.Instance != null)
+        {
+            // 배틀 결과에 따라 다른 처리
+            switch (battleResult)
+            {
+                case "victory":
+                    // 몬스터를 죽였으므로 해당 몬스터 제거
+                    GameManager.Instance.SetMonsterDefeated(defeatedMonsterID);
+                    Debug.Log($"몬스터 {defeatedMonsterID} 제거 설정 (승리)");
+                    break;
+
+                case "escape":
+                    // 도망쳤어도 몬스터 제거 (한 번 만난 몬스터는 사라짐)
+                    GameManager.Instance.SetMonsterDefeated(defeatedMonsterID);
+                    Debug.Log($"몬스터 {defeatedMonsterID} 제거 설정 (도망)");
+                    break;
+            }
+
+            // 배틀 상태 정리
+            GameManager.Instance.EndBattle();
+        }
+
+        // PlayerPrefs 정리
+        PlayerPrefs.DeleteKey("CurrentMonsterID");
+
         // 원래 씬으로 돌아가기
-        string previousScene = PlayerPrefs.GetString("PreviousScene", "MainScene");
+        string previousScene = PlayerPrefs.GetString("PreviousScene", "Maptest");
+        Debug.Log($"원래 씬으로 복귀: {previousScene}");
+
         SceneManager.LoadScene(previousScene);
     }
 
     IEnumerator GameOver()
     {
         yield return new WaitForSeconds(2f);
+
+        // GameManager에 패배 상태 전달
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.EndBattle();
+        }
+
+        // PlayerPrefs 정리
+        PlayerPrefs.DeleteKey("CurrentMonsterID");
 
         SceneManager.LoadScene("MainMenu");
     }
