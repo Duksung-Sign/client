@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d714834bf6cd0246b6e3e17e10e0596, type: 3}
+  m_Name: defeated1
+  m_EditorClassIdentifier: 
+  dialogueSets:
+  - dialogueID: 1
+    npcName: "\uD29C\uB098"
+    dialogueLines:
+    - text: "\uBB3C\uB9AC\uCCE4\uB2E4! \uC774\uAC8C \uBB18\uC5B4\uC758 \uD798?"
+      isPlayer: 1
+      customSpeakerName: 
+    - text: "\uD734\uC6B0, \uC798 \uD588\uC5B4!"
+      isPlayer: 0
+      customSpeakerName: 
+    - text: "\uC77C\uB2E8 \uBC16\uC73C\uB85C \uB098\uAC00\uC790!"
+      isPlayer: 0
+      customSpeakerName: 
+    - text: "\uC2DC\uC5F0\uC740 \uC5EC\uAE30\uAE4C\uC9C0 \uC778 \uAC70 \uAC19\uB2E4."
+      isPlayer: 1
+      customSpeakerName: 
+    isRepeatable: 0
