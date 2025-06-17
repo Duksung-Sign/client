@@ -64,6 +64,9 @@ public class HolisticJsonSender : MonoBehaviour
     public string serverUrl = "http://127.0.0.1:5000/pose";
     public int frameSkip = 1;
 
+    [Header("UI Integration")]
+    public bool enableUIFeedback = true;
+
     [Header("Data Validation")]
     [Tooltip("실제 데이터가 연속으로 몇 프레임 필요한지")]
     public int requiredConsecutiveFrames = 5;
@@ -214,6 +217,115 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
+    public bool IsMediaPipeStable()
+    {
+        return isMediaPipeStable;
+    }
+
+    public int GetConsecutiveRealDataFrames()
+    {
+        return consecutiveRealDataFrames;
+    }
+
+    public bool IsMediaPipeReady()
+    {
+        return isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames;
+    }
+
+    public bool IsCollectingFrames()
+    {
+        if (isDestroying || !isInitialized) return false;
+
+        lock (lockObject)
+        {
+            return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
+        }
+    }
+
+    public int GetCurrentFrameCount()
+    {
+        lock (lockObject)
+        {
+            return battleFramesCollected;
+        }
+    }
+
+    public float GetCollectionProgress()
+    {
+        lock (lockObject)
+        {
+            return sequenceFrameCount > 0 ? (float)battleFramesCollected / sequenceFrameCount : 0f;
+        }
+    }
+
+    public string GetStabilizationStatus()
+    {
+        if (isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames)
+            return "완전 준비됨";
+        else if (isMediaPipeStable)
+            return $"안정화 중 ({consecutiveRealDataFrames}/{requiredConsecutiveFrames})";
+        else
+            return "초기화 중...";
+    }
+
+    public bool IsReadyForGesture()
+    {
+        return isMediaPipeStable && consecutiveRealDataFrames >= 3; // 3프레임이면 충분
+    }
+
+    public float GetReadinessProgress()
+    {
+        return Mathf.Clamp01((float)consecutiveRealDataFrames / requiredConsecutiveFrames);
+    }
+
+    public void ForceSendCurrentSequence()
+    {
+        if (isDestroying || !isInitialized) return;
+
+        try
+        {
+            lock (lockObject)
+            {
+                if (frameSequence != null && frameSequence.Count > 0)
+                {
+                    Debug.Log($"[배틀] 강제 전송: {frameSequence.Count}프레임");
+                    SendSequenceToServer();
+                    StopBattleCollection();
+                }
+                else
+                {
+                    Debug.LogWarning("[배틀] 전송할 프레임이 없습니다");
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"강제 전송 오류: {e.Message}");
+        }
+    }
+
+    private void UpdateBattleManagerUI(string message)
+    {
+        if (enableUIFeedback && battleManager != null)
+        {
+            var uiManager = FindObjectOfType<BattleUIManager>();
+            if (uiManager != null)
+            {
+                uiManager.ShowResult(message);
+            }
+            Debug.Log($"[UI 업데이트] {message}");
+        }
+    }
+
+    private void UpdateCollectionProgress()
+    {
+        if (enableUIFeedback && isCollectingForBattle)
+        {
+            float progress = (float)battleFramesCollected / sequenceFrameCount * 100f;
+            UpdateBattleManagerUI($"제스처 인식 중...\n진행률: {battleFramesCollected}/{sequenceFrameCount} ({progress:F0}%)");
+        }
+    }
+
     private void InitializeDataQualityStats()
     {
         dataQualityStats["realData"] = 0;
@@ -228,6 +340,7 @@ public class HolisticJsonSender : MonoBehaviour
         StartCoroutine(WaitForMediaPipeStabilization());
     }
 
+    // *** 누락된 메서드 추가 ***
     private IEnumerator WaitForMediaPipeStabilization()
     {
         Debug.Log($"MediaPipe 안정화 대기 중... ({mediapipeStabilizationTime}초)");
@@ -240,11 +353,23 @@ public class HolisticJsonSender : MonoBehaviour
             isMediaPipeStable = true;
             useDummyData = false;
             Debug.Log("MediaPipe 안정화 완료 - 실제 데이터 사용 가능");
+
+            // *** BattleManager에 안정화 완료 알림 ***
+            if (battleManager != null)
+            {
+                Debug.Log("BattleManager에 안정화 완료 알림");
+            }
         }
         else
         {
             Debug.LogWarning("MediaPipe 데이터 불안정 - 더미 데이터 모드 유지");
             useDummyData = true;
+
+            // *** BattleManager에 안정화 실패 알림 ***
+            if (battleManager != null)
+            {
+                Debug.Log("BattleManager에 안정화 실패 알림");
+            }
         }
     }
 
@@ -421,7 +546,6 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-    // === 개선된 데이터 추출 메서드 ===
     private SimpleFrame ExtractOptimizedDataSafely()
     {
         try
@@ -918,9 +1042,16 @@ public class HolisticJsonSender : MonoBehaviour
                 frameSequence.Add(flattenedFrame);
                 battleFramesCollected++;
 
+                // *** UI 진행률 업데이트 (매 5프레임마다) ***
+                if (battleFramesCollected % 5 == 0)
+                {
+                    UpdateCollectionProgress();
+                }
+
                 if (battleFramesCollected >= sequenceFrameCount)
                 {
                     Debug.Log($"{sequenceFrameCount}프레임 수집 완료! 서버로 전송합니다.");
+                    UpdateBattleManagerUI("서버로 전송 중...\n잠시만 기다려 주세요!");
                     SendSequenceToServer();
                     StopBattleCollection();
                 }
@@ -960,48 +1091,6 @@ public class HolisticJsonSender : MonoBehaviour
             battleFramesCollected = 0;
             Debug.Log("=== 30프레임 수집 완료! 수집 중지 ===");
         }
-    }
-
-    public bool IsCollectingFrames()
-    {
-        if (isDestroying || !isInitialized) return false;
-
-        lock (lockObject)
-        {
-            return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
-        }
-    }
-
-    public int GetCurrentFrameCount()
-    {
-        lock (lockObject)
-        {
-            return battleFramesCollected;
-        }
-    }
-
-    public float GetCollectionProgress()
-    {
-        lock (lockObject)
-        {
-            return sequenceFrameCount > 0 ? (float)battleFramesCollected / sequenceFrameCount : 0f;
-        }
-    }
-
-    // === 새로운 메서드들 ===
-    public bool IsMediaPipeStable()
-    {
-        return isMediaPipeStable;
-    }
-
-    public int GetConsecutiveRealDataFrames()
-    {
-        return consecutiveRealDataFrames;
-    }
-
-    public bool IsMediaPipeReady()
-    {
-        return isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames;
     }
 
     private List<float> FlattenFrameData(SimpleFrame frame)
@@ -1286,32 +1375,6 @@ public class HolisticJsonSender : MonoBehaviour
         catch (System.Exception e)
         {
             Debug.LogError($"시퀀스 JSON 저장 실패: {e.Message}");
-        }
-    }
-
-    public void ForceSendCurrentSequence()
-    {
-        if (isDestroying || !isInitialized) return;
-
-        try
-        {
-            lock (lockObject)
-            {
-                if (frameSequence != null && frameSequence.Count > 0)
-                {
-                    Debug.Log($"[배틀] 강제 전송: {frameSequence.Count}프레임");
-                    SendSequenceToServer();
-                    StopBattleCollection();
-                }
-                else
-                {
-                    Debug.LogWarning("[배틀] 전송할 프레임이 없습니다");
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"강제 전송 오류: {e.Message}");
         }
     }
 
