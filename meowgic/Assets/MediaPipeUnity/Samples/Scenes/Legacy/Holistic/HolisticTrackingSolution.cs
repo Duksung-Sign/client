@@ -21,6 +21,13 @@ namespace Mediapipe.Unity.Sample.Holistic
 
     private Experimental.TextureFramePool _textureFramePool;
 
+    public HolisticTrackingGraph PublicGraphRunner => graphRunner;
+
+    public NormalizedLandmarkList CurrentFaceLandmarks { get; private set; }
+    public NormalizedLandmarkList CurrentPoseLandmarks { get; private set; }
+    public NormalizedLandmarkList CurrentLeftHandLandmarks { get; private set; }
+    public NormalizedLandmarkList CurrentRightHandLandmarks { get; private set; }
+    
     public HolisticTrackingGraph.ModelComplexity modelComplexity
     {
       get => graphRunner.modelComplexity;
@@ -190,6 +197,7 @@ namespace Mediapipe.Unity.Sample.Holistic
     {
       var packet = eventArgs.packet;
       var value = packet == null ? default : packet.Get(NormalizedLandmarkList.Parser);
+      CurrentFaceLandmarks = value; // 이 줄 추가
       _holisticAnnotationController.DrawFaceLandmarkListLater(value);
     }
 
@@ -197,6 +205,7 @@ namespace Mediapipe.Unity.Sample.Holistic
     {
       var packet = eventArgs.packet;
       var value = packet == null ? default : packet.Get(NormalizedLandmarkList.Parser);
+      CurrentPoseLandmarks = value; // 이 줄 추가
       _holisticAnnotationController.DrawPoseLandmarkListLater(value);
     }
 
@@ -204,6 +213,7 @@ namespace Mediapipe.Unity.Sample.Holistic
     {
       var packet = eventArgs.packet;
       var value = packet == null ? default : packet.Get(NormalizedLandmarkList.Parser);
+      CurrentLeftHandLandmarks = value; // 이 줄 추가
       _holisticAnnotationController.DrawLeftHandLandmarkListLater(value);
     }
 
@@ -211,6 +221,7 @@ namespace Mediapipe.Unity.Sample.Holistic
     {
       var packet = eventArgs.packet;
       var value = packet == null ? default : packet.Get(NormalizedLandmarkList.Parser);
+      CurrentRightHandLandmarks = value; // 이 줄 추가
       _holisticAnnotationController.DrawRightHandLandmarkListLater(value);
     }
 

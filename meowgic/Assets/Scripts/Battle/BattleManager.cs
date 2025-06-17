@@ -155,6 +155,7 @@ public class BattleManager : MonoBehaviour
 
     public void OnGestureRecognized(string prediction)
     {
+        if (!waitingForGesture) return;
         waitingForGesture = false;
 
         Debug.Log($"수어 인식 결과: {prediction}, 선택한 스킬: {selectedSkill}");
