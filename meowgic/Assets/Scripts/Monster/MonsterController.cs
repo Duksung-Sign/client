@@ -290,26 +290,27 @@ public class MonsterController : MonoBehaviour
     {
         try
         {
-            // 안전 상태 체크
             if (!isInitialized || battleStarted || isDestroyed || currentState == MonsterState.BattleStarted)
-            {
-                Debug.Log($"몬스터 {monsterUniqueID}: 충돌 무시 (안전 상태)");
                 return;
-            }
-
-            // 플레이어 태그 확인
             if (other == null || !other.CompareTag("Player"))
-            {
                 return;
-            }
 
             Debug.Log($"몬스터 {monsterUniqueID}: 플레이어와 충돌 감지");
-            StartBattleSafe();
+            // 즉시 호출하지 않고 코루틴으로 지연
+            StartCoroutine(DelayedBattleStart());
         }
         catch (System.Exception e)
         {
             Debug.LogError($"몬스터 충돌 처리 오류: {e.Message}");
         }
+    }
+
+    // 새로 추가할 코루틴
+    private IEnumerator DelayedBattleStart()
+    {
+        // 물리 업데이트가 완료된 다음 프레임까지 기다림
+        yield return new WaitForEndOfFrame();
+        StartBattleSafe();
     }
 
     void StartBattleSafe()
