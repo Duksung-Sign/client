@@ -5195,12 +5195,19 @@ MonoBehaviour:
   sendToServer: 1
   serverUrl: http://3.39.24.148:8000/predict
   frameSkip: 1
+  requiredConsecutiveFrames: 2
+  collectionStartDelay: 2
+  mediapipeStabilizationTime: 3
+  minHandVisibility: 0
   collectPose: 1
-  collectFace: 1
+  collectFace: 0
   collectHands: 1
   faceMode: 1
   faceSkipRatio: 5
+  poseMode: 3
+  poseSkipRatio: 1
   useDummyData: 0
+  forceDummyData: 0
   useSequenceMode: 1
   sequenceFrameCount: 30
   showSequenceDetails: 0

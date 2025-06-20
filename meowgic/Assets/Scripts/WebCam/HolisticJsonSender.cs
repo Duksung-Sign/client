@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using Mediapipe.Unity.Sample.Holistic;
 using Mediapipe.Unity;
+using Mediapipe;
 
 public class HolisticJsonSender : MonoBehaviour
 {
@@ -63,17 +64,36 @@ public class HolisticJsonSender : MonoBehaviour
     public string serverUrl = "http://127.0.0.1:5000/pose";
     public int frameSkip = 1;
 
+    [Header("UI Integration")]
+    public bool enableUIFeedback = true;
+
+    [Header("Data Validation")]
+    [Tooltip("실제 데이터가 연속으로 몇 프레임 필요한지")]
+    public int requiredConsecutiveFrames = 5;
+    [Tooltip("수집 시작 전 대기 시간 (초)")]
+    public float collectionStartDelay = 2f;
+    [Tooltip("MediaPipe 안정화 대기 시간 (초)")]
+    public float mediapipeStabilizationTime = 5f;
+    [Tooltip("최소 손 visibility 임계값")]
+    public float minHandVisibility = 0f;
+
     [Header("Data Collection")]
     public bool collectPose = true;
     public bool collectFace = true;
-    public bool collectHands = false;
+    public bool collectHands = true;
 
     [Header("Face Optimization")]
     public FaceReductionMode faceMode = FaceReductionMode.KeyPointsOnly;
     public int faceSkipRatio = 5;
 
+    [Header("Pose Optimization")]
+    public PoseReductionMode poseMode = PoseReductionMode.KeyPointsOnly;
+    public int poseSkipRatio = 3;
+
     [Header("Test Mode")]
     public bool useDummyData = false;
+    [Tooltip("더미 데이터 사용 강제 여부")]
+    public bool forceDummyData = false;
 
     [Header("Sequence Mode (Sign Language)")]
     public bool useSequenceMode = true;
@@ -92,6 +112,20 @@ public class HolisticJsonSender : MonoBehaviour
         FullFace
     }
 
+    public enum PoseReductionMode
+    {
+        Disabled,
+        KeyPointsOnly,
+        ReducedPoints,
+        FullPose
+    }
+
+    // === 새로운 안정성 관련 변수들 ===
+    private int consecutiveRealDataFrames = 0;
+    private bool isMediaPipeStable = false;
+    private float mediapipeStartTime;
+    private Dictionary<string, int> dataQualityStats = new Dictionary<string, int>();
+
     private int frameCount = 0;
     private string actualSaveDirectory;
     private List<List<float>> frameSequence = new List<List<float>>();
@@ -100,6 +134,11 @@ public class HolisticJsonSender : MonoBehaviour
     private bool isInitialized = false;
     private bool isDestroying = false;
     private readonly object lockObject = new object(); // 스레드 안전성
+
+    private bool gestureHandled = false;
+
+    // MediaPipe 랜드마크 데이터 캐싱용 변수들 (현재는 Current* 프로퍼티 직접 사용)
+    private readonly object landmarkLock = new object();
 
     // MediaPipe Face Landmark의 주요 포인트 인덱스
     private readonly int[] faceKeyIndices = {
@@ -113,6 +152,14 @@ public class HolisticJsonSender : MonoBehaviour
         78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308
     };
 
+    // MediaPipe Pose Landmark의 주요 포인트 인덱스 (수어에 중요한 부분)
+    private readonly int[] poseKeyIndices = {
+        11, 12,  // 어깨
+        13, 14,  // 팔꿈치
+        15, 16,  // 손목
+        23, 24,  // 엉덩이
+    };
+
     void Start()
     {
         try
@@ -120,6 +167,9 @@ public class HolisticJsonSender : MonoBehaviour
             if (isDestroying) return;
 
             Debug.Log("HolisticJsonSender 초기화 시작");
+
+            // 통계 초기화
+            InitializeDataQualityStats();
 
             // 기존 InvokeRepeating 모두 정리
             CancelInvoke();
@@ -133,12 +183,16 @@ public class HolisticJsonSender : MonoBehaviour
             if (holisticSolution != null)
             {
                 Debug.Log($"Found HolisticTrackingSolution: {holisticSolution.name}");
-                Debug.Log($"Face mode: {faceMode}");
+                Debug.Log($"Face mode: {faceMode}, Pose mode: {poseMode}");
+
+                SetupMediaPipeEventHandlers();
+                mediapipeStartTime = Time.time;
             }
             else
             {
                 Debug.LogWarning("HolisticTrackingSolution not found! 더미 데이터 모드로 전환");
                 useDummyData = true;
+                forceDummyData = true;
             }
 
             // 저장 디렉토리 설정
@@ -160,6 +214,180 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.LogError($"HolisticJsonSender 초기화 실패: {e.Message}");
             isInitialized = false;
+        }
+    }
+
+    public bool IsMediaPipeStable()
+    {
+        return isMediaPipeStable;
+    }
+
+    public int GetConsecutiveRealDataFrames()
+    {
+        return consecutiveRealDataFrames;
+    }
+
+    public bool IsMediaPipeReady()
+    {
+        return isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames;
+    }
+
+    public bool IsCollectingFrames()
+    {
+        if (isDestroying || !isInitialized) return false;
+
+        lock (lockObject)
+        {
+            return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
+        }
+    }
+
+    public int GetCurrentFrameCount()
+    {
+        lock (lockObject)
+        {
+            return battleFramesCollected;
+        }
+    }
+
+    public float GetCollectionProgress()
+    {
+        lock (lockObject)
+        {
+            return sequenceFrameCount > 0 ? (float)battleFramesCollected / sequenceFrameCount : 0f;
+        }
+    }
+
+    public string GetStabilizationStatus()
+    {
+        if (isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames)
+            return "완전 준비됨";
+        else if (isMediaPipeStable)
+            return $"안정화 중 ({consecutiveRealDataFrames}/{requiredConsecutiveFrames})";
+        else
+            return "초기화 중...";
+    }
+
+    public bool IsReadyForGesture()
+    {
+        return isMediaPipeStable && consecutiveRealDataFrames >= 3; // 3프레임이면 충분
+    }
+
+    public float GetReadinessProgress()
+    {
+        return Mathf.Clamp01((float)consecutiveRealDataFrames / requiredConsecutiveFrames);
+    }
+
+    public void ForceSendCurrentSequence()
+    {
+        if (isDestroying || !isInitialized) return;
+
+        try
+        {
+            lock (lockObject)
+            {
+                if (frameSequence != null && frameSequence.Count > 0)
+                {
+                    Debug.Log($"[배틀] 강제 전송: {frameSequence.Count}프레임");
+                    SendSequenceToServer();
+                    StopBattleCollection();
+                }
+                else
+                {
+                    Debug.LogWarning("[배틀] 전송할 프레임이 없습니다");
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"강제 전송 오류: {e.Message}");
+        }
+    }
+
+    private void UpdateBattleManagerUI(string message)
+    {
+        if (enableUIFeedback && battleManager != null)
+        {
+            var uiManager = FindObjectOfType<BattleUIManager>();
+            if (uiManager != null)
+            {
+                uiManager.ShowResult(message);
+            }
+            Debug.Log($"[UI 업데이트] {message}");
+        }
+    }
+
+    private void UpdateCollectionProgress()
+    {
+        if (enableUIFeedback && isCollectingForBattle)
+        {
+            float progress = (float)battleFramesCollected / sequenceFrameCount * 100f;
+            UpdateBattleManagerUI($"제스처 인식 중...\n진행률: {battleFramesCollected}/{sequenceFrameCount} ({progress:F0}%)");
+        }
+    }
+
+    private void InitializeDataQualityStats()
+    {
+        dataQualityStats["realData"] = 0;
+        dataQualityStats["dummyData"] = 0;
+        dataQualityStats["lowQuality"] = 0;
+    }
+
+    private void SetupMediaPipeEventHandlers()
+    {
+        Debug.Log("MediaPipe 연동 준비 완료 - Current 프로퍼티 사용");
+        // MediaPipe 안정화를 위한 코루틴 시작
+        StartCoroutine(WaitForMediaPipeStabilization());
+    }
+
+    // *** 누락된 메서드 추가 ***
+    private IEnumerator WaitForMediaPipeStabilization()
+    {
+        Debug.Log($"MediaPipe 안정화 대기 중... ({mediapipeStabilizationTime}초)");
+
+        yield return new WaitForSeconds(mediapipeStabilizationTime);
+
+        // 실제 데이터 체크
+        if (!forceDummyData && CheckMediaPipeDataAvailability())
+        {
+            isMediaPipeStable = true;
+            useDummyData = false;
+            Debug.Log("MediaPipe 안정화 완료 - 실제 데이터 사용 가능");
+
+            // *** BattleManager에 안정화 완료 알림 ***
+            if (battleManager != null)
+            {
+                Debug.Log("BattleManager에 안정화 완료 알림");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("MediaPipe 데이터 불안정 - 더미 데이터 모드 유지");
+            useDummyData = true;
+
+            // *** BattleManager에 안정화 실패 알림 ***
+            if (battleManager != null)
+            {
+                Debug.Log("BattleManager에 안정화 실패 알림");
+            }
+        }
+    }
+
+    private bool CheckMediaPipeDataAvailability()
+    {
+        try
+        {
+            bool hasLeftHand = holisticSolution?.CurrentLeftHandLandmarks?.Landmark != null
+                            && holisticSolution.CurrentLeftHandLandmarks.Landmark.Count > 0;
+            bool hasRightHand = holisticSolution?.CurrentRightHandLandmarks?.Landmark != null
+                             && holisticSolution.CurrentRightHandLandmarks.Landmark.Count > 0;
+
+            return hasLeftHand || hasRightHand;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"MediaPipe 데이터 가용성 체크 실패: {e.Message}");
+            return false;
         }
     }
 
@@ -193,7 +421,7 @@ public class HolisticJsonSender : MonoBehaviour
 
         try
         {
-            if (useDummyData)
+            if (useDummyData || forceDummyData)
             {
                 Debug.Log("더미 데이터 모드 시작");
                 InvokeRepeating(nameof(SafeGenerateTestData), 1f, 0.1f);
@@ -252,10 +480,10 @@ public class HolisticJsonSender : MonoBehaviour
                 time = DateTimeOffset.Now.ToUnixTimeMilliseconds()
             };
 
-            // 포즈 데이터 (33개)
-            if (collectPose)
+            // 최적화된 포즈 데이터
+            if (collectPose && poseMode != PoseReductionMode.Disabled)
             {
-                frame.pose = GenerateDummyPose();
+                frame.pose = GenerateOptimizedPoseData();
             }
 
             // 최적화된 얼굴 데이터
@@ -328,21 +556,41 @@ public class HolisticJsonSender : MonoBehaviour
                 time = DateTimeOffset.Now.ToUnixTimeMilliseconds()
             };
 
-            if (collectPose)
-            {
-                var poseData = FindPoseDataSafely();
-                frame.pose = poseData ?? GenerateDummyPose();
-            }
+            // 1) MediaPipe 로부터 포즈도 가져오기
+            var poseData = FindPoseDataSafely();
+            bool poseValid = poseData != null && poseData.Count > 5;     // 포인트 5개 이상이면 유효
 
-            if (collectFace && faceMode != FaceReductionMode.Disabled)
-            {
-                var faceData = FindOptimizedFaceDataSafely();
-                frame.faceKey = faceData ?? GenerateOptimizedFaceData();
-            }
+            // 2) 손 데이터 추출
+            var leftHandData = FindLeftHandDataSafely();
+            var rightHandData = FindRightHandDataSafely();
 
-            // 수어를 위해 손 데이터는 항상 처리 (실제 데이터 추출은 복잡하므로 더미 사용)
-            frame.leftHand = GenerateDummyHand();
-            frame.rightHand = GenerateDummyHand();
+            bool leftHandValid = IsValidHandData(leftHandData);
+            bool rightHandValid = IsValidHandData(rightHandData);
+
+            // 3) 손 OR 포즈 중 하나라도 있으면 실제 데이터로 인정
+            bool hasValidData = leftHandValid || rightHandValid || poseValid;
+
+            // 4) 품질 판정
+            DataQuality dataQuality = hasValidData
+                ? (leftHandValid && rightHandValid ? DataQuality.High : DataQuality.Medium)
+                : DataQuality.Low;
+            consecutiveRealDataFrames = hasValidData
+                ? consecutiveRealDataFrames + 1
+                : 0;
+
+            // 5) 실제 데이터 또는 더미 대입
+            frame.leftHand = leftHandValid ? leftHandData : GenerateDummyHand();
+            frame.rightHand = rightHandValid ? rightHandData : GenerateDummyHand();
+            // 포즈는 dummy 없이 무조건 넣어두기 (fallback)
+            frame.pose = poseData ?? new List<SimpleLandmark>();
+
+            // 6) 통계 갱신 & 로깅
+            UpdateDataQualityStats(dataQuality);
+            if (enableLogging && frameCount % 50 == 0)
+            {
+                Debug.Log($"[데이터 품질:{dataQuality}] Hands ok:{leftHandValid | rightHandValid}, Pose ok:{poseValid}");
+                LogDataQualityStats();
+            }
 
             return frame;
         }
@@ -350,6 +598,129 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.LogError($"데이터 추출 오류: {e.Message}");
             return null;
+        }
+    }
+
+
+    private enum DataQuality
+    {
+        Low,    // 더미 데이터만
+        Medium, // 한쪽 손만 실제 데이터
+        High    // 양손 모두 실제 데이터
+    }
+
+    private bool IsValidHandData(List<SimpleLandmark> handData)
+    {
+        return handData.Count >= 10;
+    }
+
+    private void UpdateDataQualityStats(DataQuality quality)
+    {
+        switch (quality)
+        {
+            case DataQuality.High:
+                dataQualityStats["realData"]++;
+                break;
+            case DataQuality.Medium:
+                dataQualityStats["realData"]++;
+                break;
+            case DataQuality.Low:
+                dataQualityStats["dummyData"]++;
+                break;
+        }
+    }
+
+    private void LogDataQualityStats()
+    {
+        int total = dataQualityStats["realData"] + dataQualityStats["dummyData"];
+        if (total > 0)
+        {
+            float realDataPercentage = (float)dataQualityStats["realData"] / total * 100f;
+            Debug.Log($"[통계] 실제 데이터: {realDataPercentage:F1}%, 더미 데이터: {100f - realDataPercentage:F1}%");
+        }
+    }
+
+    // === 개선된 배틀 수집 시작 메서드 ===
+    public void StartGestureCollection()
+    {
+        if (isDestroying || !isInitialized)
+        {
+            Debug.LogWarning("HolisticJsonSender가 초기화되지 않았거나 종료 중입니다");
+            return;
+        }
+
+        // 데이터 품질 체크
+        if (!forceDummyData && !useDummyData && consecutiveRealDataFrames < requiredConsecutiveFrames)
+        {
+            Debug.LogWarning($"실제 데이터가 불안정합니다. 연속 실제 데이터: {consecutiveRealDataFrames}/{requiredConsecutiveFrames}");
+            StartCoroutine(WaitForStableDataThenCollect());
+            return;
+        }
+
+        StartCoroutine(DelayedStartCollection());
+    }
+
+    private IEnumerator DelayedStartCollection()
+    {
+        Debug.Log($"스킬 버튼 누름 → {collectionStartDelay:F1}초 후에 수집 시작");
+        yield return new WaitForSeconds(collectionStartDelay);
+        StartCollectionImmediate();
+    }
+
+    private IEnumerator WaitForStableDataThenCollect()
+    {
+        Debug.Log($"안정적인 데이터 대기 중... (목표: {requiredConsecutiveFrames}프레임)");
+
+        float waitTime = 0f;
+        const float maxWaitTime = 5f; // 최대 5초 대기
+
+        while (waitTime < maxWaitTime && consecutiveRealDataFrames < requiredConsecutiveFrames)
+        {
+            yield return new WaitForSeconds(0.1f);
+            waitTime += 0.1f;
+        }
+
+        if (consecutiveRealDataFrames >= requiredConsecutiveFrames)
+        {
+            Debug.Log("안정적인 데이터 확보 완료!");
+            StartCollectionImmediate();
+        }
+        else
+        {
+            Debug.LogWarning("안정적인 데이터 확보 실패 - 강제로 수집 시작");
+            StartCollectionImmediate();
+        }
+    }
+
+    private void StartCollectionImmediate()
+    {
+        lock (lockObject)
+        {
+            ResetBattleCollection();
+            frameSequence = new List<List<float>>();
+            battleFramesCollected = 0;
+            isCollectingForBattle = true;
+
+            // 새 턴이 시작되면 응답 처리 플래그도 리셋
+            gestureHandled = false;
+
+            Debug.Log($"=== 스킬 사용! {sequenceFrameCount}프레임 수집 시작 === (데이터 품질: 연속 {consecutiveRealDataFrames}프레임)");
+        }
+    }
+
+    private List<SimpleLandmark> FindOptimizedPoseDataSafely()
+    {
+        try
+        {
+            var fullPoseData = FindPoseDataSafely();
+            return fullPoseData != null && fullPoseData.Count > 0
+                ? OptimizePoseData(fullPoseData)
+                : GenerateOptimizedPoseData();
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"포즈 데이터 추출 실패: {e.Message}");
+            return GenerateOptimizedPoseData();
         }
     }
 
@@ -367,6 +738,40 @@ public class HolisticJsonSender : MonoBehaviour
             Debug.LogWarning($"얼굴 데이터 추출 실패: {e.Message}");
             return GenerateOptimizedFaceData();
         }
+    }
+
+    private List<SimpleLandmark> OptimizePoseData(List<SimpleLandmark> fullPoseData)
+    {
+        var optimized = new List<SimpleLandmark>();
+        try
+        {
+            switch (poseMode)
+            {
+                case PoseReductionMode.KeyPointsOnly:
+                    foreach (int index in poseKeyIndices)
+                    {
+                        if (index < fullPoseData.Count)
+                        {
+                            optimized.Add(fullPoseData[index]);
+                        }
+                    }
+                    break;
+                case PoseReductionMode.ReducedPoints:
+                    for (int i = 0; i < fullPoseData.Count; i += poseSkipRatio)
+                    {
+                        optimized.Add(fullPoseData[i]);
+                    }
+                    break;
+                case PoseReductionMode.FullPose:
+                    optimized = new List<SimpleLandmark>(fullPoseData);
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"포즈 데이터 최적화 오류: {e.Message}");
+        }
+        return optimized;
     }
 
     private List<SimpleLandmark> OptimizeFaceData(List<SimpleLandmark> fullFaceData)
@@ -409,14 +814,90 @@ public class HolisticJsonSender : MonoBehaviour
 
     private List<SimpleLandmark> FindFaceDataSafely()
     {
-        // 실제 MediaPipe 데이터 추출 로직 (현재는 빈 리스트 반환)
-        return new List<SimpleLandmark>();
+        var faceData = new List<SimpleLandmark>();
+        try
+        {
+            var landmarks = holisticSolution?.CurrentFaceLandmarks?.Landmark;
+            if (landmarks != null)
+            {
+                foreach (var landmark in landmarks)
+                {
+                    faceData.Add(new SimpleLandmark
+                    {
+                        x = landmark.X,
+                        y = landmark.Y,
+                        z = landmark.Z,
+                        visibility = landmark.Visibility
+                    });
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"얼굴 데이터 추출 오류: {e.Message}");
+        }
+        return faceData;
     }
 
     private List<SimpleLandmark> FindPoseDataSafely()
     {
-        // 실제 MediaPipe 데이터 추출 로직 (현재는 빈 리스트 반환)
-        return new List<SimpleLandmark>();
+        var poseData = new List<SimpleLandmark>();
+        try
+        {
+            var landmarks = holisticSolution?.CurrentPoseLandmarks?.Landmark;
+            if (landmarks != null)
+            {
+                foreach (var landmark in landmarks)
+                {
+                    poseData.Add(new SimpleLandmark
+                    {
+                        x = landmark.X,
+                        y = landmark.Y,
+                        z = landmark.Z,
+                        visibility = landmark.Visibility
+                    });
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"포즈 데이터 추출 오류: {e.Message}");
+        }
+
+        return poseData;
+    }
+
+    private List<SimpleLandmark> GenerateOptimizedPoseData()
+    {
+        var landmarks = new List<SimpleLandmark>();
+
+        try
+        {
+            int pointCount = poseMode switch
+            {
+                PoseReductionMode.KeyPointsOnly => poseKeyIndices.Length,
+                PoseReductionMode.ReducedPoints => 33 / poseSkipRatio,
+                PoseReductionMode.FullPose => 33,
+                _ => 0
+            };
+
+            for (int i = 0; i < pointCount; i++)
+            {
+                landmarks.Add(new SimpleLandmark
+                {
+                    x = UnityEngine.Random.Range(0.2f, 0.8f),
+                    y = UnityEngine.Random.Range(0.2f, 0.8f),
+                    z = UnityEngine.Random.Range(-0.3f, 0.3f),
+                    visibility = UnityEngine.Random.Range(0.7f, 1.0f)
+                });
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"포즈 더미 데이터 생성 오류: {e.Message}");
+        }
+
+        return landmarks;
     }
 
     private List<SimpleLandmark> GenerateOptimizedFaceData()
@@ -452,29 +933,60 @@ public class HolisticJsonSender : MonoBehaviour
         return landmarks;
     }
 
-    private List<SimpleLandmark> GenerateDummyPose()
+    private List<SimpleLandmark> FindLeftHandDataSafely()
     {
-        var landmarks = new List<SimpleLandmark>();
-
+        var handData = new List<SimpleLandmark>();
         try
         {
-            for (int i = 0; i < 33; i++)
+            var landmarks = holisticSolution?.CurrentLeftHandLandmarks?.Landmark;
+            if (landmarks != null)
             {
-                landmarks.Add(new SimpleLandmark
+                foreach (var landmark in landmarks)
                 {
-                    x = UnityEngine.Random.Range(0.2f, 0.8f),
-                    y = UnityEngine.Random.Range(0.2f, 0.8f),
-                    z = UnityEngine.Random.Range(-0.3f, 0.3f),
-                    visibility = UnityEngine.Random.Range(0.7f, 1.0f)
-                });
+                    handData.Add(new SimpleLandmark
+                    {
+                        x = landmark.X,
+                        y = landmark.Y,
+                        z = landmark.Z,
+                        visibility = landmark.Visibility
+                    });
+                }
             }
         }
         catch (Exception e)
         {
-            Debug.LogError($"포즈 더미 데이터 생성 오류: {e.Message}");
+            Debug.LogWarning($"왼손 데이터 추출 오류: {e.Message}");
         }
 
-        return landmarks;
+        return handData;
+    }
+
+    private List<SimpleLandmark> FindRightHandDataSafely()
+    {
+        var handData = new List<SimpleLandmark>();
+        try
+        {
+            var landmarks = holisticSolution?.CurrentRightHandLandmarks?.Landmark;
+            if (landmarks != null)
+            {
+                foreach (var landmark in landmarks)
+                {
+                    handData.Add(new SimpleLandmark
+                    {
+                        x = landmark.X,
+                        y = landmark.Y,
+                        z = landmark.Z,
+                        visibility = landmark.Visibility
+                    });
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"오른손 데이터 추출 오류: {e.Message}");
+        }
+
+        return handData;
     }
 
     private List<SimpleLandmark> GenerateDummyHand()
@@ -508,17 +1020,16 @@ public class HolisticJsonSender : MonoBehaviour
 
         try
         {
-            // 스레드 안전성을 위한 lock
             lock (lockObject)
             {
                 if (!isCollectingForBattle) return;
 
-                // 오버플로우 방지 - 더 엄격한 체크
-                if (frameSequence.Count >= sequenceFrameCount + 10)
+                // 초기 5프레임만 손 유효 여부 로그
+                bool leftValid = frame.leftHand.Count >= 5;
+                bool rightValid = frame.rightHand.Count >= 5;
+                if (enableLogging && battleFramesCollected < 5)
                 {
-                    Debug.LogError($"프레임 시퀀스 오버플로우! 수집된 프레임: {frameSequence.Count}, 목표: {sequenceFrameCount}");
-                    ResetBattleCollection();
-                    return;
+                    Debug.Log($"[배틀] 프레임 {battleFramesCollected + 1}: LeftValid={leftValid}, RightValid={rightValid}");
                 }
 
                 var flattenedFrame = FlattenFrameData(frame);
@@ -531,14 +1042,16 @@ public class HolisticJsonSender : MonoBehaviour
                 frameSequence.Add(flattenedFrame);
                 battleFramesCollected++;
 
-                if (enableLogging && battleFramesCollected <= 5)
+                // *** UI 진행률 업데이트 (매 5프레임마다) ***
+                if (battleFramesCollected % 5 == 0)
                 {
-                    Debug.Log($"[배틀] 수어 프레임 수집: {battleFramesCollected}/{sequenceFrameCount}");
+                    UpdateCollectionProgress();
                 }
 
                 if (battleFramesCollected >= sequenceFrameCount)
                 {
-                    Debug.Log("30프레임 수집 완료! 서버로 전송합니다.");
+                    Debug.Log($"{sequenceFrameCount}프레임 수집 완료! 서버로 전송합니다.");
+                    UpdateBattleManagerUI("서버로 전송 중...\n잠시만 기다려 주세요!");
                     SendSequenceToServer();
                     StopBattleCollection();
                 }
@@ -551,7 +1064,7 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-    // 배틀 수집 상태 안전하게 리셋
+
     private void ResetBattleCollection()
     {
         lock (lockObject)
@@ -570,32 +1083,6 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-    public void StartGestureCollection()
-    {
-        if (isDestroying || !isInitialized)
-        {
-            Debug.LogWarning("HolisticJsonSender가 초기화되지 않았거나 종료 중입니다");
-            return;
-        }
-
-        try
-        {
-            lock (lockObject)
-            {
-                ResetBattleCollection();
-                frameSequence = new List<List<float>>();
-                battleFramesCollected = 0;
-                isCollectingForBattle = true;
-
-                Debug.Log("=== 스킬 사용! 30프레임 수집 시작 ===");
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"제스처 수집 시작 오류: {e.Message}");
-        }
-    }
-
     private void StopBattleCollection()
     {
         lock (lockObject)
@@ -606,48 +1093,16 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-    public bool IsCollectingFrames()
-    {
-        if (isDestroying || !isInitialized) return false;
-
-        lock (lockObject)
-        {
-            return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
-        }
-    }
-
-    public int GetCurrentFrameCount()
-    {
-        lock (lockObject)
-        {
-            return battleFramesCollected;
-        }
-    }
-
-    public float GetCollectionProgress()
-    {
-        lock (lockObject)
-        {
-            return sequenceFrameCount > 0 ? (float)battleFramesCollected / sequenceFrameCount : 0f;
-        }
-    }
-
     private List<float> FlattenFrameData(SimpleFrame frame)
     {
         try
         {
             var flattened = new List<float>();
 
-            // 왼손 21개 점 xyz = 63개 값
             AddHandData(flattened, frame.leftHand, "Left");
-
-            // 오른손 21개 점 xyz = 63개 값
             AddHandData(flattened, frame.rightHand, "Right");
-
-            // 포즈에서 필요한 부분 추가 (어깨, 팔꿈치 등)
             AddPoseKeypoints(flattened, frame.pose);
 
-            // 총 148개 값이 되도록 조정 (안전한 방법)
             int targetSize = 148;
             if (flattened.Count < targetSize)
             {
@@ -701,7 +1156,7 @@ public class HolisticJsonSender : MonoBehaviour
     {
         try
         {
-            int[] poseIndices = { 11, 12, 13, 14, 15, 16, 23, 24 }; // 8개 포인트 = 24개 값
+            int[] poseIndices = { 11, 12, 13, 14, 15, 16, 23, 24 };
 
             foreach (int index in poseIndices)
             {
@@ -747,7 +1202,6 @@ public class HolisticJsonSender : MonoBehaviour
     {
         if (isDestroying) yield break;
 
-        // 1) 서버 전송용 JSON 준비 (try‐catch만 이 부분에)
         string json = "{}";
         try
         {
@@ -773,15 +1227,12 @@ public class HolisticJsonSender : MonoBehaviour
             Debug.LogError($"시퀀스 준비 중 오류: {e.Message}");
         }
 
-        // 2) 파일 저장 (예외 처리 불필요하면 그대로)
         if (saveToTextFile)
             SaveSequenceToFile(json);
 
-        // 3) 실제 전송 — yield return 은 여기에만!
         if (sendToServer && !string.IsNullOrEmpty(serverUrl))
             yield return StartCoroutine(SendSequenceToServerCoroutine(json));
     }
-
 
     private IEnumerator SendSequenceToServerCoroutine(string json)
     {
@@ -804,10 +1255,8 @@ public class HolisticJsonSender : MonoBehaviour
             yield break;
         }
 
-        // yield return을 try-catch 밖에서 실행
         yield return request.SendWebRequest();
 
-        // 응답 처리는 별도로 try-catch 적용
         try
         {
             if (request.result == UnityWebRequest.Result.Success)
@@ -848,7 +1297,6 @@ public class HolisticJsonSender : MonoBehaviour
         }
         finally
         {
-            // 리소스 정리
             try
             {
                 request?.Dispose();
@@ -864,6 +1312,9 @@ public class HolisticJsonSender : MonoBehaviour
     {
         try
         {
+            if (gestureHandled) return;
+            gestureHandled = true;
+
             if (battleManager != null && !isDestroying)
             {
                 battleManager.OnGestureRecognized(response.prediction);
@@ -874,6 +1325,7 @@ public class HolisticJsonSender : MonoBehaviour
             Debug.LogError($"서버 응답 처리 오류: {e.Message}");
         }
     }
+
 
     private string CreateManualJson(List<List<float>> sequence)
     {
@@ -926,33 +1378,6 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-    public void ForceSendCurrentSequence()
-    {
-        if (isDestroying || !isInitialized) return;
-
-        try
-        {
-            lock (lockObject)
-            {
-                if (frameSequence != null && frameSequence.Count > 0)
-                {
-                    Debug.Log($"[배틀] 강제 전송: {frameSequence.Count}프레임");
-                    SendSequenceToServer();
-                    StopBattleCollection();
-                }
-                else
-                {
-                    Debug.LogWarning("[배틀] 전송할 프레임이 없습니다");
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"강제 전송 오류: {e.Message}");
-        }
-    }
-
-    // Context Menu 메서드들 (안전하게 수정)
     [ContextMenu("Switch to Real Data")]
     public void SwitchToRealData()
     {
@@ -961,6 +1386,7 @@ public class HolisticJsonSender : MonoBehaviour
         try
         {
             useDummyData = false;
+            forceDummyData = false;
             CancelInvoke();
             StartCoroutine(DelayedDataCollection());
             Debug.Log("실제 데이터 추출로 전환");
@@ -975,8 +1401,84 @@ public class HolisticJsonSender : MonoBehaviour
     public void SwitchToDummyData()
     {
         if (isDestroying) return;
-
         SwitchToDummyDataSafely();
+    }
+
+    [ContextMenu("Check MediaPipe Status")]
+    public void CheckMediaPipeStatus()
+    {
+        Debug.Log("=== MediaPipe 솔루션 상태 체크 ===");
+
+        if (holisticSolution == null)
+        {
+            Debug.LogWarning("HolisticTrackingSolution이 null입니다");
+            return;
+        }
+
+        if (holisticSolution.PublicGraphRunner == null)
+        {
+            Debug.LogWarning("GraphRunner가 null입니다 - MediaPipe가 아직 초기화되지 않았습니다");
+            return;
+        }
+
+        bool hasFaceData = holisticSolution.CurrentFaceLandmarks?.Landmark != null && holisticSolution.CurrentFaceLandmarks.Landmark.Count > 0;
+        bool hasPoseData = holisticSolution.CurrentPoseLandmarks?.Landmark != null && holisticSolution.CurrentPoseLandmarks.Landmark.Count > 0;
+        bool hasLeftHandData = holisticSolution.CurrentLeftHandLandmarks?.Landmark != null && holisticSolution.CurrentLeftHandLandmarks.Landmark.Count > 0;
+        bool hasRightHandData = holisticSolution.CurrentRightHandLandmarks?.Landmark != null && holisticSolution.CurrentRightHandLandmarks.Landmark.Count > 0;
+
+        Debug.Log($"현재 랜드마크 데이터 상태:");
+        Debug.Log($"- Face: {(hasFaceData ? holisticSolution.CurrentFaceLandmarks.Landmark.Count + "개" : "없음")}");
+        Debug.Log($"- Pose: {(hasPoseData ? holisticSolution.CurrentPoseLandmarks.Landmark.Count + "개" : "없음")}");
+        Debug.Log($"- Left Hand: {(hasLeftHandData ? holisticSolution.CurrentLeftHandLandmarks.Landmark.Count + "개" : "없음")}");
+        Debug.Log($"- Right Hand: {(hasRightHandData ? holisticSolution.CurrentRightHandLandmarks.Landmark.Count + "개" : "없음")}");
+
+        if (!hasFaceData && !hasPoseData && !hasLeftHandData && !hasRightHandData)
+        {
+            Debug.LogWarning("모든 랜드마크 데이터가 비어있습니다. MediaPipe가 아직 시작되지 않았거나 카메라 입력이 없을 수 있습니다.");
+        }
+
+        Debug.Log($"GraphRunner 상태: {holisticSolution.PublicGraphRunner.GetType().Name}");
+    }
+
+    [ContextMenu("Test Real Data Extraction")]
+    public void TestRealDataExtraction()
+    {
+        Debug.Log("=== 실제 데이터 추출 테스트 ===");
+
+        var faceData = FindFaceDataSafely();
+        var poseData = FindPoseDataSafely();
+        var leftHandData = FindLeftHandDataSafely();
+        var rightHandData = FindRightHandDataSafely();
+
+        var lh = FindLeftHandDataSafely();
+        if (lh.Count > 0)
+        {
+            Debug.Log($"LeftHand[0] vis={lh[0].visibility:F3}  x={lh[0].x:F3}, y={lh[0].y:F3}");
+        }
+
+        Debug.Log($"추출 결과:");
+        Debug.Log($"- Face: {faceData.Count}개 포인트");
+        Debug.Log($"- Pose: {poseData.Count}개 포인트");
+        Debug.Log($"- Left Hand: {leftHandData.Count}개 포인트");
+        Debug.Log($"- Right Hand: {rightHandData.Count}개 포인트");
+
+        if (faceData.Count == 0 && poseData.Count == 0 && leftHandData.Count == 0 && rightHandData.Count == 0)
+        {
+            Debug.LogWarning("모든 실제 데이터가 0개입니다. MediaPipe가 아직 초기화되지 않았거나 카메라 입력이 없을 수 있습니다.");
+        }
+        else
+        {
+            if (faceData.Count > 0)
+            {
+                var firstFace = faceData[0];
+                Debug.Log($"Face 샘플: x={firstFace.x:F3}, y={firstFace.y:F3}, z={firstFace.z:F3}, v={firstFace.visibility:F3}");
+            }
+            if (poseData.Count > 0)
+            {
+                var firstPose = poseData[0];
+                Debug.Log($"Pose 샘플: x={firstPose.x:F3}, y={firstPose.y:F3}, z={firstPose.z:F3}, v={firstPose.visibility:F3}");
+            }
+        }
     }
 
     [ContextMenu("Show Battle Stats")]
@@ -989,6 +1491,37 @@ public class HolisticJsonSender : MonoBehaviour
         Debug.Log($"수집된 프레임: {battleFramesCollected}/{sequenceFrameCount}");
         Debug.Log($"수집 진행률: {GetCollectionProgress() * 100:F1}%");
         Debug.Log($"BattleManager 연결: {(battleManager != null ? "연결됨" : "없음")}");
+        Debug.Log($"Face mode: {faceMode}, Pose mode: {poseMode}");
+        Debug.Log($"더미 데이터 모드: {useDummyData}");
+    }
+
+    [ContextMenu("Reset Data Quality Stats")]
+    public void ResetDataQualityStats()
+    {
+        InitializeDataQualityStats();
+        consecutiveRealDataFrames = 0;
+        Debug.Log("데이터 품질 통계 리셋 완료");
+    }
+
+    [ContextMenu("Force Real Data Collection")]
+    public void ForceRealDataCollection()
+    {
+        useDummyData = false;
+        forceDummyData = false;
+        consecutiveRealDataFrames = requiredConsecutiveFrames;
+        Debug.Log("실제 데이터 수집 강제 활성화");
+    }
+
+    [ContextMenu("Show Data Quality Report")]
+    public void ShowDataQualityReport()
+    {
+        Debug.Log("=== 데이터 품질 리포트 ===");
+        Debug.Log($"MediaPipe 안정화: {isMediaPipeStable}");
+        Debug.Log($"연속 실제 데이터 프레임: {consecutiveRealDataFrames}");
+        Debug.Log($"필요한 연속 프레임: {requiredConsecutiveFrames}");
+        Debug.Log($"더미 데이터 모드: {useDummyData}");
+        Debug.Log($"강제 더미 데이터: {forceDummyData}");
+        LogDataQualityStats();
     }
 
     void OnDestroy()
@@ -999,22 +1532,18 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.Log("HolisticJsonSender 정리 시작");
 
-            // 모든 코루틴과 InvokeRepeating 중지
             StopAllCoroutines();
             CancelInvoke();
 
-            // 수집 상태 초기화
             lock (lockObject)
             {
                 isCollectingForBattle = false;
                 battleFramesCollected = 0;
 
-                // 메모리 정리
                 frameSequence?.Clear();
                 frameSequence = null;
             }
 
-            // 참조 정리
             holisticSolution = null;
             battleManager = null;
             isInitialized = false;
