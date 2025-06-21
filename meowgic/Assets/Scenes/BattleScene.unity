@@ -5195,6 +5195,7 @@ MonoBehaviour:
   sendToServer: 1
   serverUrl: http://3.39.24.148:8000/predict
   frameSkip: 1
+  enableUIFeedback: 1
   requiredConsecutiveFrames: 2
   collectionStartDelay: 2
   mediapipeStabilizationTime: 3
