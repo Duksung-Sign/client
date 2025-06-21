@@ -38,6 +38,7 @@ public class InteractionDetector : MonoBehaviour
         // 프롬프트 캔버스를 월드 스페이스로 설정
         if (promptCanvas != null)
         {
+            promptUI.SetActive(false);
             promptCanvas.renderMode = RenderMode.WorldSpace;
             promptCanvas.worldCamera = mainCamera;
         }
