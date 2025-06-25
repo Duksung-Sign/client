@@ -22,14 +22,14 @@ MonoBehaviour:
   worldSprite: {fileID: 0}
   outlineColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   outlineWidth: 0.1
-  stackable: 1
+  stackable: 0
   maxStackSize: 99
   sellPrice: 10
   buyPrice: 20
   consumeOnUse: 0
   healAmount: 0
   manaAmount: 0
-  droppable: 1
-  tradeable: 1
+  droppable: 0
+  tradeable: 0
   pickupSound: {fileID: 0}
   useSound: {fileID: 0}
