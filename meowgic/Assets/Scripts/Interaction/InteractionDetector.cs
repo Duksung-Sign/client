@@ -56,11 +56,12 @@ public class InteractionDetector : MonoBehaviour
             {
                 promptUI.SetActive(false);
             }
-            return;
         }
-
+        else
+        {
         CheckForInteractables();
         HandleInput();
+        }
     }
 
     void CheckForInteractables()
