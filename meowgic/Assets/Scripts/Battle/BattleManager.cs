@@ -4,34 +4,34 @@ using System.Collections;
 
 public class BattleManager : MonoBehaviour
 {
-    [Header("¹èÆ² Âü°¡ÀÚ")]
+    [Header("ë°°í‹€ ë³€ìˆ˜ì")]
     public MonsterDataSO currentMonster;
 
-    [Header("ÇöÀç ¹èÆ² »óÅÂ")]
+    [Header("í˜„ì¬ ë°°í‹€ ìƒíƒœ")]
     private int currentPlayerHP;
     private int currentMonsterHP;
 
-    [Header("UI ÂüÁ¶")]
+    [Header("UI ì°¸ì¡°")]
     private BattleUIManager uiManager;
 
-    [Header("¹Ìµğ¾îÆÄÀÌÇÁ ÂüÁ¶")]
+    [Header("ë¯¸ë””ì–´íŒŒì´í”„ ì°¸ì¡°")]
     private HolisticJsonSender holisticExtractor;
 
-    [Header("¹èÆ² »óÅÂ")]
+    [Header("ë°°í‹€ ìƒíƒœ")]
     private bool isPlayerTurn = true;
     private bool waitingForGesture = false;
     private string selectedSkill = "";
 
-    // *** Å¸ÀÌ¹Ö ÀÌ½´ ÇØ°áÀ» À§ÇÑ Ãß°¡ º¯¼öµé ***
+    // *** íƒ€ì„ì•„ì›ƒ ì´ìŠˆ í•´ê²°ì„ ìœ„í•œ ì¶”ê°€ ë³€ìˆ˜ë“¤ ***
     private bool gestureResponseReceived = false;
     private string receivedPrediction = "";
     private Coroutine gestureTimeoutCoroutine;
 
-    // ¹èÆ² °á°ú ÃßÀûÀ» À§ÇÑ Ãß°¡ º¯¼öµé
+    // ë°°í‹€ ê²°ê³¼ ì¶”ì ì„ ìœ„í•œ ì¶”ê°€ ë³€ìˆ˜ë“¤
     private string battleResult = ""; // "victory", "escape", "defeat"
-    private string defeatedMonsterID = ""; // Á×ÀÎ ¸ó½ºÅÍÀÇ ID
+    private string defeatedMonsterID = ""; // ì²˜ì¹˜ ëª¬ìŠ¤í„°ì˜ ID
 
-    // ¾ÈÁ¤È­ °ü·Ã UI ¾È³»
+    // ì•ˆì •í™” ê´€ë ¨ UI ì•ˆë‚´
     private bool isInitialStabilizationComplete = false;
 
     void Start()
@@ -53,7 +53,8 @@ public class BattleManager : MonoBehaviour
             currentMonster = GameManager.Instance.currentBattleMonster;
             currentMonsterHP = currentMonster.maxHP;
 
-            Debug.Log($"¸ó½ºÅÍ ·Îµå: {currentMonster.monsterName} (HP: {currentMonsterHP})");
+            // ìˆ˜ì •: monsterName -> GetDisplayName()
+            Debug.Log($"ëª¬ìŠ¤í„° ë¡œë“œ: {currentMonster.GetDisplayName()} (HP: {currentMonsterHP})");
 
             if (uiManager != null && currentMonster.monsterSprite != null)
             {
@@ -62,7 +63,7 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("GameManager¿¡¼­ ¸ó½ºÅÍ Á¤º¸¸¦ °¡Á®¿Ã ¼ö ¾ø½À´Ï´Ù!");
+            Debug.LogError("GameManagerì—ì„œ ëª¬ìŠ¤í„° ì •ë³´ë¥¼ ê°€ì ¸ì˜¬ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
         }
     }
 
@@ -72,11 +73,11 @@ public class BattleManager : MonoBehaviour
         if (statsMgr != null)
         {
             currentPlayerHP = statsMgr.GetCurrentHP();
-            Debug.Log($"ÇÃ·¹ÀÌ¾î ·Îµå: HP {currentPlayerHP}/{statsMgr.GetMaxHP()}, ATK {statsMgr.GetAttackPower()}");
+            Debug.Log($"í”Œë ˆì´ì–´ ë¡œë“œ: HP {currentPlayerHP}/{statsMgr.GetMaxHP()}, ATK {statsMgr.GetAttackPower()}");
         }
         else
         {
-            Debug.LogError("PlayerStatsManager ÀÎ½ºÅÏ½º¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù!");
+            Debug.LogError("PlayerStatsManager ì¸ìŠ¤í„´ìŠ¤ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
             currentPlayerHP = 30;
         }
     }
@@ -87,7 +88,7 @@ public class BattleManager : MonoBehaviour
         battleResult = "";
         defeatedMonsterID = "";
 
-        // *** ¹èÆ² ½ÃÀÛ ½Ã Á¦½ºÃ³ »óÅÂ ¿ÏÀü ¸®¼Â ***
+        // *** ë°°í‹€ ì‹œì‘ ì‹œ ì œìŠ¤ì²˜ ìƒíƒœ ì™„ì „ ë¦¬ì…‹ ***
         ResetGestureState();
 
         if (uiManager != null)
@@ -95,7 +96,7 @@ public class BattleManager : MonoBehaviour
             uiManager.ShowMainBattleUI();
         }
 
-        Debug.Log("¹èÆ² ÃÊ±âÈ­ ¿Ï·á + Á¦½ºÃ³ »óÅÂ ¸®¼Â");
+        Debug.Log("ë°°í‹€ ì´ˆê¸°í™” ì™„ë£Œ + ì œìŠ¤ì²˜ ìƒíƒœ ë¦¬ì…‹");
     }
 
     private IEnumerator MonitorStabilization()
@@ -106,7 +107,7 @@ public class BattleManager : MonoBehaviour
         }
 
         int retryCount = 0;
-        const int maxRetries = 3; // ÃÖ´ë 3¹ø Àç½Ãµµ
+        const int maxRetries = 3; // ìµœëŒ€ 3ë²ˆ ì¬ì‹œë„
 
         while (retryCount < maxRetries && !isInitialStabilizationComplete)
         {
@@ -118,17 +119,17 @@ public class BattleManager : MonoBehaviour
 
                 if (retryCount < maxRetries)
                 {
-                    // Àç½Ãµµ ¾È³»
+                    // ì¬ì‹œë„ ì•ˆë‚´
                     if (uiManager != null)
                     {
-                        uiManager.ShowResult($"¾ÈÁ¤È­¸¦ Àç½ÃµµÇÏ°í ÀÖ¾î! ({retryCount + 1}/{maxRetries})\n¼ÕÀ» Ä«¸Ş¶ó¿¡ ´õ °¡±îÀÌ º¸¿©Áà!");
+                        uiManager.ShowResult($"ì•ˆì •í™”ë¥¼ ì¬ì‹œë„í•˜ê³  ìˆì–´! ({retryCount + 1}/{maxRetries})\nì†ì„ ì¹´ë©”ë¼ì— ë” ê°€ê¹Œì´ ë³´ì—¬ì¤˜!");
                     }
                     yield return new WaitForSeconds(2f);
                 }
             }
         }
 
-        // ¸ğµç Àç½Ãµµ ½ÇÆĞ ½Ã »ç¿ëÀÚ ¼±ÅÃ±Ç Á¦°ø
+        // ëª¨ë“  ì¬ì‹œë„ ì‹¤íŒ¨ ì‹œ ì‚¬ìš©ì ì„ íƒê¶Œ ì œê³µ
         if (!isInitialStabilizationComplete)
         {
             yield return StartCoroutine(HandleStabilizationFailure());
@@ -137,23 +138,23 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator AttemptStabilization(int attemptNumber)
     {
-        // ½Ãµµ ¹øÈ£¿¡ µû¸¥ ¾È³» ¸Ş½ÃÁö
+        // ì‹œë„ ë²ˆí˜¸ì— ë”°ë¥¸ ì•ˆë‚´ ë©”ì‹œì§€
         string initialMessage = attemptNumber == 0 ?
-            "¹Ìµğ¾îÆÄÀÌÇÁ ÃÊ±âÈ­ ÁßÀÌ¾ß!\n3ÃÊ µ¿¾È ¾ç ¼Õ¹Ù´ÚÀ» Ä«¸Ş¶ó¿¡ º¸¿©Áà!" :
-            $"¾ÈÁ¤È­¸¦ ½ÃµµÇÏ°í ÀÖ¾î! ({attemptNumber + 1}/3)\n¼ÕÀ» Ä«¸Ş¶ó¿¡ ´õ °¡±îÀÌ º¸¿©Áà!";
+            "ë¯¸ë””ì–´íŒŒì´í”„ ì´ˆê¸°í™” ì¤‘ì´ì•¼!\n3ì´ˆ ë™ì•ˆ ì–‘ ì†ë°”ë‹¥ì„ ì¹´ë©”ë¼ì— ë³´ì—¬ì¤˜!" :
+            $"ì•ˆì •í™”ë¥¼ ì‹œë„í•˜ê³  ìˆì–´! ({attemptNumber + 1}/3)\nì†ì„ ì¹´ë©”ë¼ì— ë” ê°€ê¹Œì´ ë³´ì—¬ì¤˜!";
 
         if (uiManager != null)
         {
             uiManager.ShowResult(initialMessage);
         }
 
-        // MediaPipe ¾ÈÁ¤È­ ´ë±â
+        // MediaPipe ì•ˆì •í™” ëŒ€ê¸°
         float waitTime = 0f;
-        const float maxWaitTime = 8f; // ÃÖ´ë 8ÃÊ ´ë±â
+        const float maxWaitTime = 8f; // ìµœëŒ€ 8ì´ˆ ëŒ€ê¸°
 
         while (waitTime < maxWaitTime)
         {
-            // ¾ÈÁ¤È­ »óÅÂ Ã¼Å©
+            // ì•ˆì •í™” ìƒíƒœ ì²´í¬
             if (holisticExtractor.IsMediaPipeStable() &&
                 holisticExtractor.GetConsecutiveRealDataFrames() >= 3)
             {
@@ -161,10 +162,10 @@ public class BattleManager : MonoBehaviour
 
                 if (uiManager != null)
                 {
-                    uiManager.ShowResult("¹Ìµğ¾îÆÄÀÌÇÁ ¾ÈÁ¤È­ ¿Ï·á!\nÀÌÁ¦ ¹¦¾î¸¦ ÁØºñÇÏÀÚ!");
+                    uiManager.ShowResult("ë¯¸ë””ì–´íŒŒì´í”„ ì•ˆì •í™” ì™„ë£Œ!\nì´ì œ ë°¸ì–´ë¥¼ ì¤€ë¹„í•˜ì!");
                 }
 
-                // 3ÃÊ ÈÄ ¸ŞÀÎ UI·Î ÀüÈ¯
+                // 3ì´ˆ í›„ ë©”ì¸ UIë¡œ ì „í™˜
                 yield return new WaitForSeconds(3f);
                 if (uiManager != null)
                 {
@@ -173,15 +174,15 @@ public class BattleManager : MonoBehaviour
                 yield break;
             }
 
-            // ÁøÇà »óÈ² ¾÷µ¥ÀÌÆ® (¸Å 2ÃÊ¸¶´Ù)
+            // ì§„í–‰ ìƒí™© ì—…ë°ì´íŠ¸ (ë§¤ 2ì´ˆë§ˆë‹¤)
             if (waitTime % 2f < 0.1f && uiManager != null)
             {
                 int frames = holisticExtractor.GetConsecutiveRealDataFrames();
                 float progress = Mathf.Clamp01(waitTime / maxWaitTime) * 100f;
 
                 string progressMsg = attemptNumber == 0 ?
-                    $"¾ç ¼Õ¹Ù´ÚÀ» Ä«¸Ş¶ó¿¡ º¸¿©Áà!\nÁøÇà·ü: {frames}/3 ÇÁ·¹ÀÓ ({progress:F0}%)" :
-                    $"Àç½Ãµµ ÁßÀÌ¾ß!\n¼Õ°¡¶ôÀ» ÆîÃÄ¼­ º¸¿©Áà! ({progress:F0}%)";
+                    $"ì–‘ ì†ë°”ë‹¥ì„ ì¹´ë©”ë¼ì— ë³´ì—¬ì¤˜!\nì§„í–‰ë¥ : {frames}/3 í”„ë ˆì„ ({progress:F0}%)" :
+                    $"ì¬ì‹œë„ ì¤‘ì´ì•¼!\nì†ê°€ë½ì„ í´ì„œ ë³´ì—¬ì¤˜! ({progress:F0}%)";
 
                 uiManager.ShowResult(progressMsg);
             }
@@ -195,35 +196,35 @@ public class BattleManager : MonoBehaviour
     {
         if (uiManager != null)
         {
-            uiManager.ShowResult("¾ÈÁ¤È­¿¡ ½ÇÆĞÇß¾î!\nÁ¶¸íÀº ¹à°Ô! ¼ÕÀº Àß ³ª¿À°Ô!");
+            uiManager.ShowResult("ì•ˆì •í™”ì— ì‹¤íŒ¨í–ˆì–´!\nì¡°ëª…ì„ ë°ê²Œ! ì†ì€ ì˜ ë‚˜ì™€ì•¼!");
         }
 
         yield return new WaitForSeconds(4f);
 
         if (uiManager != null)
         {
-            uiManager.ShowResult("5ÃÊ ÈÄ¿¡ ´Ù½Ã ½ÃÀÛÇÒ°Ô! ¼ÕÀ» ÁØºñÇØÁà!");
+            uiManager.ShowResult("5ì´ˆ í›„ì— ë‹¤ì‹œ ì‹œì‘í• ê²Œ! ì†ì„ ì¤€ë¹„í•´ì¤˜!");
         }
 
-        // 5ÃÊ Ä«¿îÆ®´Ù¿î
+        // 5ì´ˆ ì¹´ìš´íŠ¸ë‹¤ìš´
         for (int i = 5; i >= 1; i--)
         {
             yield return new WaitForSeconds(1f);
             if (uiManager != null)
             {
-                uiManager.ShowResult($"{i}ÃÊ ÈÄ ´Ù½Ã ½ÃÀÛÇÑ´Ù? ÁØºñµÆÁö?");
+                uiManager.ShowResult($"{i}ì´ˆ í›„ ë‹¤ì‹œ ì‹œì‘í•œë‹¤? ì¤€ë¹„ëì§€?");
             }
         }
 
-        // Àç½Ãµµ
+        // ì¬ì‹œë„
         yield return StartCoroutine(AttemptStabilization(0));
 
         if (!isInitialStabilizationComplete)
         {
-            // ÃÖÁ¾ ½ÇÆĞ ½Ã ´õ¹Ì µ¥ÀÌÅÍ·Î ÁøÇà
+            // ìµœì¢… ì‹¤íŒ¨ ì‹œ ë”ë¯¸ ë°ì´í„°ë¡œ ì§„í–‰
             if (uiManager != null)
             {
-                uiManager.ShowResult("½ÇÆĞÇÏ°í ¸»¾Ò¾î.");
+                uiManager.ShowResult("ì‹¤íŒ¨í•˜ê³  ë§ì•˜ì–´.");
                 yield return new WaitForSeconds(2f);
             }
             yield return StartCoroutine(ProceedWithDummyData());
@@ -234,10 +235,10 @@ public class BattleManager : MonoBehaviour
     {
         if (uiManager != null)
         {
-            uiManager.ShowResult("³»°¡ µµ¿ÍÁÙ°Ô.\nÀÎ½ÄÀÌ Á¤È®ÇÏÁö ¾ÊÀ» ¼ö ÀÖ¾î!");
+            uiManager.ShowResult("ë‚´ê°€ ë„ì™€ì¤„ê²Œ.\nì¸ì‹ì´ ì •í™•í•˜ì§€ ì•Šì„ ìˆ˜ ìˆì–´!");
         }
 
-        // HolisticExtractor¸¦ ´õ¹Ì ¸ğµå·Î ÀüÈ¯
+        // HolisticExtractorë¥¼ ë”ë¯¸ ëª¨ë“œë¡œ ì „í™˜
         if (holisticExtractor != null)
         {
             holisticExtractor.SwitchToDummyData();
@@ -251,7 +252,7 @@ public class BattleManager : MonoBehaviour
         {
             uiManager.ShowMainBattleUI();
         }
-        Debug.Log("´õ¹Ì µ¥ÀÌÅÍ ¸ğµå·Î ¹èÆ² ½ÃÀÛ");
+        Debug.Log("ë”ë¯¸ ë°ì´í„° ëª¨ë“œë¡œ ë°°í‹€ ì‹œì‘");
     }
 
     void ResetBattleUI()
@@ -265,14 +266,14 @@ public class BattleManager : MonoBehaviour
     public void UseSkill(string skillName)
     {
         if (!isPlayerTurn || waitingForGesture) return;
-        if (!isInitialStabilizationComplete) return; // ¾ÈÁ¤È­ ¿Ï·á Àü¿¡´Â ½ºÅ³ »ç¿ë ºÒ°¡
+        if (!isInitialStabilizationComplete) return; // ì•ˆì •í™” ì™„ë£Œ ì „ì—ëŠ” ìŠ¤í‚¬ ì‚¬ìš© ë¶ˆê°€
 
-        // »óÅÂ ¸®¼Â
+        // ìƒíƒœ ë¦¬ì…‹
         ResetGestureState();
         selectedSkill = skillName;
         waitingForGesture = true;
 
-        Debug.Log($"½ºÅ³ ¼±ÅÃ: {skillName} (»óÅÂ ¿ÏÀü ¸®¼ÂµÊ)");
+        Debug.Log($"ìŠ¤í‚¬ ì„ íƒ: {skillName} (ìƒíƒœ ì™„ì „ ë¦¬ì…‹ë¨)");
 
         StartCoroutine(SkillCountdownAndGuidance(skillName));
     }
@@ -281,31 +282,31 @@ public class BattleManager : MonoBehaviour
     {
         string skillDisplayName = GetSkillDisplayName(skillName);
 
-        // ÁØºñ ¾È³»
+        // ì¤€ë¹„ ì•ˆë‚´
         if (uiManager != null)
         {
-            uiManager.ShowResult($"¹¦¾î¸¦ »ç¿ëÇÒ ÁØºñ¸¦ ÇØÁà!");
+            uiManager.ShowResult($"ë°¸ì–´ë¥¼ ì‚¬ìš©í•  ì¤€ë¹„ë¥¼ í•´ì¤˜!");
         }
 
         yield return new WaitForSeconds(1f);
 
-        // 3, 2, 1 Ä«¿îÆ®´Ù¿î
+        // 3, 2, 1 ì¹´ìš´íŠ¸ë‹¤ìš´
         for (int i = 3; i >= 1; i--)
         {
             if (uiManager != null)
             {
-                uiManager.ShowResult($"{i}ÃÊ ÈÄ ½ÃÀÛÇÑ´Ù?\n{skillDisplayName}À»(¸¦) ÁØºñÇØ!");
+                uiManager.ShowResult($"{i}ì´ˆ í›„ ì‹œì‘í•œë‹¤?\n{skillDisplayName}ì„(ë¥¼) ì¤€ë¹„í•´!");
             }
             yield return new WaitForSeconds(1f);
         }
 
-        // ½ºÅ³ ½ÇÇà ¾È³»
+        // ìŠ¤í‚¬ ì‹¤í–‰ ì•ˆë‚´
         if (uiManager != null)
         {
-            uiManager.ShowResult($"{skillDisplayName}À»(¸¦) º¸¿©Áà!");
+            uiManager.ShowResult($"{skillDisplayName}ì„(ë¥¼) ë³´ì—¬ì¤˜!");
         }
 
-        // ½ÇÁ¦ Á¦½ºÃ³ ÀÎ½Ä ½ÃÀÛ
+        // ì‹¤ì œ ì œìŠ¤ì²˜ ì¸ì‹ ì‹œì‘
         StartCoroutine(WaitForGestureRecognition());
     }
 
@@ -314,16 +315,16 @@ public class BattleManager : MonoBehaviour
         waitingForGesture = false;
         gestureResponseReceived = false;
         receivedPrediction = "";
-        Debug.Log("Á¦½ºÃ³ »óÅÂ ¿ÏÀü ¸®¼Â");
+        Debug.Log("ì œìŠ¤ì²˜ ìƒíƒœ ì™„ì „ ë¦¬ì…‹");
     }
 
     string GetSkillDisplayName(string skillName)
     {
         switch (skillName)
         {
-            case "hello": return "¾È³çÇÏ¼¼¿ä";
-            case "sorry": return "ÁË¼ÛÇÕ´Ï´Ù";
-            case "thank": return "°¨»çÇÕ´Ï´Ù";
+            case "hello": return "ì•ˆë…•í•˜ì„¸ìš”";
+            case "sorry": return "ì£„ì†¡í•©ë‹ˆë‹¤";
+            case "thank": return "ê°ì‚¬í•©ë‹ˆë‹¤";
             default: return skillName;
         }
     }
@@ -334,7 +335,7 @@ public class BattleManager : MonoBehaviour
         {
             holisticExtractor.StartGestureCollection();
 
-            // 1´Ü°è: ÇÁ·¹ÀÓ ¼öÁı ´ë±â (ÃÖ´ë 5ÃÊ)
+            // 1ë‹¨ê³„: í”„ë ˆì„ ìˆ˜ì§‘ ëŒ€ê¸° (ìµœëŒ€ 5ì´ˆ)
             float collectWaitTime = 5f;
             while (collectWaitTime > 0 && holisticExtractor.IsCollectingFrames())
             {
@@ -342,16 +343,16 @@ public class BattleManager : MonoBehaviour
                 yield return null;
             }
 
-            // °­Á¦ Àü¼ÛÀÌ ÇÊ¿äÇÑ °æ¿ì
+            // ê°•ì œ ì „ì†¡ì´ í•„ìš”í•œ ê²½ìš°
             if (collectWaitTime <= 0 && holisticExtractor.GetCurrentFrameCount() > 0)
             {
-                Debug.Log("¼öÁı Å¸ÀÓ¾Æ¿ô - °­Á¦ Àü¼Û");
+                Debug.Log("ìˆ˜ì§‘ íƒ€ì„ì•„ì›ƒ - ê°•ì œ ì „ì†¡");
                 holisticExtractor.ForceSendCurrentSequence();
             }
 
-            // 2´Ü°è: ¼­¹ö ÀÀ´ä ´ë±â (´õ ±ä ½Ã°£, 10ÃÊ)
+            // 2ë‹¨ê³„: ì„œë²„ ì‘ë‹µ ëŒ€ê¸° (ë” ê¸´ ì‹œê°„, 10ì´ˆ)
             float responseWaitTime = 10f;
-            Debug.Log("¼­¹ö ÀÀ´ä ´ë±â ½ÃÀÛ...");
+            Debug.Log("ì„œë²„ ì‘ë‹µ ëŒ€ê¸° ì‹œì‘...");
 
             while (responseWaitTime > 0 && waitingForGesture && !gestureResponseReceived)
             {
@@ -359,16 +360,16 @@ public class BattleManager : MonoBehaviour
                 yield return null;
             }
 
-            // Å¸ÀÓ¾Æ¿ô Ã³¸®
+            // íƒ€ì„ì•„ì›ƒ ì²˜ë¦¬
             if (waitingForGesture && !gestureResponseReceived)
             {
-                Debug.LogWarning("¼­¹ö ÀÀ´ä Å¸ÀÓ¾Æ¿ô - noneÀ¸·Î Ã³¸®");
+                Debug.LogWarning("ì„œë²„ ì‘ë‹µ íƒ€ì„ì•„ì›ƒ - noneìœ¼ë¡œ ì²˜ë¦¬");
                 ProcessGestureResult("none");
             }
         }
         else
         {
-            Debug.LogError("HolisticExtractor¸¦ Ã£À» ¼ö ¾øÀ½");
+            Debug.LogError("HolisticExtractorë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŒ");
             ProcessGestureResult("none");
         }
     }
@@ -377,17 +378,17 @@ public class BattleManager : MonoBehaviour
     {
         if (!waitingForGesture)
         {
-            Debug.Log($"Á¦½ºÃ³ ´ë±â ÁßÀÌ ¾Æ´Ô - ¹«½Ã: {prediction}");
+            Debug.Log($"ì œìŠ¤ì²˜ ëŒ€ê¸° ì¤‘ì´ ì•„ë‹˜ - ë¬´ì‹œ: {prediction}");
             return;
         }
 
         if (gestureResponseReceived)
         {
-            Debug.Log($"ÀÌ¹Ì ÀÀ´ä ¹ŞÀ½ - ¹«½Ã: {prediction}");
+            Debug.Log($"ì´ë¯¸ ì‘ë‹µ ë°›ìŒ - ë¬´ì‹œ: {prediction}");
             return;
         }
 
-        Debug.Log($"¼ö¾î ÀÎ½Ä °á°ú ¼ö½Å: {prediction}, ¼±ÅÃÇÑ ½ºÅ³: {selectedSkill}");
+        Debug.Log($"ìˆ˜ì–´ ì¸ì‹ ê²°ê³¼ ìˆ˜ì‹ : {prediction}, ì„ íƒí•œ ìŠ¤í‚¬: {selectedSkill}");
 
         gestureResponseReceived = true;
         receivedPrediction = prediction;
@@ -418,7 +419,7 @@ public class BattleManager : MonoBehaviour
     {
         yield return new WaitForSeconds(1f);
         ResetGestureState();
-        Debug.Log("Áö¿¬µÈ Á¦½ºÃ³ »óÅÂ ¸®¼Â ¿Ï·á");
+        Debug.Log("ì§€ì—°ëœ ì œìŠ¤ì²˜ ìƒíƒœ ë¦¬ì…‹ ì™„ë£Œ");
     }
 
     void ExecutePlayerAttack()
@@ -427,21 +428,22 @@ public class BattleManager : MonoBehaviour
         int damage = Mathf.Max(1, statsMgr.GetAttackPower() - currentMonster.defense);
         currentMonsterHP -= damage;
 
-        string message = $"¼º°øÀÌ¾ß!\n{currentMonster.monsterName}¿¡°Ô {damage}ÀÇ ÇÇÇØ¸¦ ÀÔÇû¾î!";
+        // ìˆ˜ì •: monsterName -> GetDisplayName()
+        string message = $"ì„±ê³µì´ì•¼!\n{currentMonster.GetDisplayName()}ì—ê²Œ {damage}ì˜ í”¼í•´ë¥¼ ì…í˜”ì–´!";
 
         if (currentMonsterHP <= 0)
         {
-            message += $"\n{currentMonster.monsterName}À»(¸¦) ¹°¸®ÃÆ´Ù!";
+            message += $"\n{currentMonster.GetDisplayName()}ì„(ë¥¼) ë¬¼ë¦¬ì³¤ë‹¤!";
 
-            // ½Â¸® Ã³¸®
+            // ìŠ¹ë¦¬ ì²˜ë¦¬
             battleResult = "victory";
-            defeatedMonsterID = GetMonsterUniqueID(); // ¸ó½ºÅÍ °íÀ¯ ID ÀúÀå
+            defeatedMonsterID = GetMonsterUniqueID(); // ëª¬ìŠ¤í„° ê³ ìœ  ID ì €ì¥
 
             EndBattle(true);
         }
         else
         {
-            message += $"\n{currentMonster.monsterName} HP: {currentMonsterHP}";
+            message += $"\n{currentMonster.GetDisplayName()} HP: {currentMonsterHP}";
             isPlayerTurn = false;
             StartCoroutine(MonsterTurn());
         }
@@ -456,7 +458,7 @@ public class BattleManager : MonoBehaviour
 
     void PlayerAttackFailed()
     {
-        string message = $"ÀÎ½Ä ½ÇÆĞ¾ß!\n´ÙÀ½¿¡ ´Ù½Ã ½ÃµµÇÏÀÚ!";
+        string message = $"ì¸ì‹ ì‹¤íŒ¨ì•¼!\në‹¤ìŒì— ë‹¤ì‹œ ì‹œë„í•˜ì!";
 
         if (uiManager != null)
         {
@@ -477,17 +479,18 @@ public class BattleManager : MonoBehaviour
         statsMgr.TakeDamage(damage);
         currentPlayerHP = statsMgr.GetCurrentHP();
 
-        string message = $"{currentMonster.monsterName}ÀÇ °ø°İ!\n{damage}ÀÇ ÇÇÇØ¸¦ ¹Ş¾Ò¾î!";
+        // ìˆ˜ì •: monsterName -> GetDisplayName()
+        string message = $"{currentMonster.GetDisplayName()}ì˜ ê³µê²©!\n{damage}ì˜ í”¼í•´ë¥¼ ë°›ì•˜ì–´!";
 
         if (currentPlayerHP <= 0)
         {
-            message += "\n¾²·¯Áö°í ¸»¾Ò¾î.";
+            message += "\nì•„í”„ì§€ê³  ë§ì•˜ì–´.";
             battleResult = "defeat";
             EndBattle(false);
         }
         else
         {
-            message += $"\nÇÃ·¹ÀÌ¾î HP: {currentPlayerHP}";
+            message += $"\ní”Œë ˆì´ì–´ HP: {currentPlayerHP}";
             isPlayerTurn = true;
 
             if (uiManager != null)
@@ -506,10 +509,10 @@ public class BattleManager : MonoBehaviour
 
         if (isPlayerTurn)
         {
-            // *** ÇÃ·¹ÀÌ¾î ÅÏÀ¸·Î µ¹¾Æ¿Ã ¶§ »óÅÂ È®½ÇÈ÷ ¸®¼Â ***
+            // *** í”Œë ˆì´ì–´ í„´ìœ¼ë¡œ ëŒì•„ì˜¬ ë•Œ ìƒíƒœ í™•ì‹¤íˆ ë¦¬ì…‹ ***
             ResetGestureState();
             ResetBattleUI();
-            Debug.Log("¹èÆ² UI ¸®¼Â + Á¦½ºÃ³ »óÅÂ ¸®¼Â");
+            Debug.Log("ë°°í‹€ UI ë¦¬ì…‹ + ì œìŠ¤ì²˜ ìƒíƒœ ë¦¬ì…‹");
         }
     }
 
@@ -521,7 +524,8 @@ public class BattleManager : MonoBehaviour
         {
             if (uiManager != null)
             {
-                uiManager.ShowResult($"{currentMonster.monsterName}¿¡°Ô¼­ ¹ş¾î³¯ ¼ö ¾ø´Ù.");
+                // ìˆ˜ì •: monsterName -> GetDisplayName()
+                uiManager.ShowResult($"{currentMonster.GetDisplayName()}ì—ê²Œì„œ ë²—ì–´ë‚  ìˆ˜ ì—†ë‹¤.");
                 StartCoroutine(DelayedBattleUIReset());
             }
             return;
@@ -532,11 +536,11 @@ public class BattleManager : MonoBehaviour
         if (escapeSuccess)
         {
             battleResult = "escape";
-            defeatedMonsterID = GetMonsterUniqueID(); // µµ¸ÁÃÆÀ» ¶§µµ ¸ó½ºÅÍ ID ÀúÀå
+            defeatedMonsterID = GetMonsterUniqueID(); // ë„ë§ì³¤ì„ ë•Œë„ ëª¬ìŠ¤í„° ID ì €ì¥
 
             if (uiManager != null)
             {
-                uiManager.ShowResult("¹«»çÈ÷ µµ¸ÁÃÆ¾î!");
+                uiManager.ShowResult("ë¬´ì‚¬íˆ ë„ë§ì³¤ì–´!");
             }
 
             StartCoroutine(ReturnToField());
@@ -545,7 +549,7 @@ public class BattleManager : MonoBehaviour
         {
             if (uiManager != null)
             {
-                uiManager.ShowResult("ÀÌÅ©, ºÙÀâÇû´Ù!");
+                uiManager.ShowResult("ì´ëŸ°, ë¶™ì¡í˜”ë‹¤!");
             }
 
             isPlayerTurn = false;
@@ -557,12 +561,12 @@ public class BattleManager : MonoBehaviour
     {
         if (playerWon)
         {
-            // ½Â¸® Ã³¸® (°æÇèÄ¡, ¾ÆÀÌÅÛ µî)
+            // ìŠ¹ë¦¬ ì²˜ë¦¬ (ê²½í—˜ì¹˜, ì•„ì´í…œ ë“±)
             StartCoroutine(ReturnToField());
         }
         else
         {
-            // ÆĞ¹è Ã³¸®
+            // íŒ¨ë°° ì²˜ë¦¬
             StartCoroutine(GameOver());
         }
     }
@@ -571,24 +575,25 @@ public class BattleManager : MonoBehaviour
     {
         if (isPlayerTurn && uiManager != null)
         {
-            // *** Continue ¹öÆ° Å¬¸¯ ½Ã¿¡µµ »óÅÂ ¸®¼Â ***
+            // *** Continue ë²„íŠ¼ í´ë¦­ ì‹œì—ë„ ìƒíƒœ ë¦¬ì…‹ ***
             ResetGestureState();
             uiManager.ShowMainBattleUI();
-            Debug.Log("¹èÆ² °è¼Ó + Á¦½ºÃ³ »óÅÂ ¸®¼Â");
+            Debug.Log("ë°°í‹€ ê³„ì† + ì œìŠ¤ì²˜ ìƒíƒœ ë¦¬ì…‹");
         }
     }
 
-    // ¸ó½ºÅÍ °íÀ¯ ID °¡Á®¿À±â
+    // ëª¬ìŠ¤í„° ê³ ìœ  ID ê°€ì ¸ì˜¤ê¸°
     string GetMonsterUniqueID()
     {
-        // MonsterController¿¡¼­ PlayerPrefs¿¡ ÀúÀåÇÑ ID °¡Á®¿À±â
+        // MonsterControllerì—ì„œ PlayerPrefsì— ì €ì¥í•œ ID ê°€ì ¸ì˜¤ê¸°
         string monsterID = PlayerPrefs.GetString("CurrentMonsterID", "");
 
         if (string.IsNullOrEmpty(monsterID) && currentMonster != null)
         {
-            // ¹é¾÷: ¸ó½ºÅÍ µ¥ÀÌÅÍÀÇ ÀÌ¸§À¸·Î ID »ı¼º
-            monsterID = $"{currentMonster.monsterName}_backup_{System.DateTime.Now.Ticks}";
-            Debug.LogWarning($"¸ó½ºÅÍ ID¸¦ Ã£À» ¼ö ¾ø¾î ¹é¾÷ ID »ı¼º: {monsterID}");
+            // ë°±ì—…: ëª¬ìŠ¤í„° ë°ì´í„°ì˜ ì´ë¦„ìœ¼ë¡œ ID ìƒì„±
+            // ìˆ˜ì •: monsterName -> GetDisplayName()
+            monsterID = $"{currentMonster.GetDisplayName()}_backup_{System.DateTime.Now.Ticks}";
+            Debug.LogWarning($"ëª¬ìŠ¤í„° IDë¥¼ ì°¾ì„ ìˆ˜ ì—†ì–´ ë°±ì—… ID ìƒì„±: {monsterID}");
         }
 
         return monsterID;
@@ -600,37 +605,37 @@ public class BattleManager : MonoBehaviour
 
         PlayerPrefs.SetInt("FirstBattleCompleted", 1);
         PlayerPrefs.Save();
-        Debug.Log("Ã¹ ¹èÆ² ¿Ï·á »óÅÂ ÀúÀåµÊ");
+        Debug.Log("ì²« ë°°í‹€ ì™„ë£Œ ìƒíƒœ ì €ì¥ë¨");
 
-        // GameManager¿¡ ¹èÆ² °á°ú Àü´Ş
+        // GameManagerì— ë°°í‹€ ê²°ê³¼ ì „ë‹¬
         if (GameManager.Instance != null)
         {
-            // ¹èÆ² °á°ú¿¡ µû¶ó ´Ù¸¥ Ã³¸®
+            // ë°°í‹€ ê²°ê³¼ì— ë”°ë¼ ë‹¤ë¥¸ ì²˜ë¦¬
             switch (battleResult)
             {
                 case "victory":
-                    // ¸ó½ºÅÍ¸¦ Á×¿´À¸¹Ç·Î ÇØ´ç ¸ó½ºÅÍ Á¦°Å
+                    // ëª¬ìŠ¤í„°ë¥¼ ì²˜ì› ìœ¼ë¯€ë¡œ í•´ë‹¹ ëª¬ìŠ¤í„° ì œê±°
                     GameManager.Instance.SetMonsterDefeated(defeatedMonsterID);
-                    Debug.Log($"¸ó½ºÅÍ {defeatedMonsterID} Á¦°Å ¼³Á¤ (½Â¸®)");
+                    Debug.Log($"ëª¬ìŠ¤í„° {defeatedMonsterID} ì œê±° ì„¤ì • (ìŠ¹ë¦¬)");
                     break;
 
                 case "escape":
-                    // µµ¸ÁÃÆ¾îµµ ¸ó½ºÅÍ Á¦°Å (ÇÑ ¹ø ¸¸³­ ¸ó½ºÅÍ´Â »ç¶óÁü)
+                    // ë„ë§ì³¤ì–´ë„ ëª¬ìŠ¤í„° ì œê±° (í•œ ë²ˆ ë§Œë‚œ ëª¬ìŠ¤í„°ëŠ” ì‚¬ë¼ì§)
                     GameManager.Instance.SetMonsterDefeated(defeatedMonsterID);
-                    Debug.Log($"¸ó½ºÅÍ {defeatedMonsterID} Á¦°Å ¼³Á¤ (µµ¸Á)");
+                    Debug.Log($"ëª¬ìŠ¤í„° {defeatedMonsterID} ì œê±° ì„¤ì • (ë„ë§)");
                     break;
             }
 
-            // ¹èÆ² »óÅÂ Á¤¸®
+            // ë°°í‹€ ìƒíƒœ ì •ë¦¬
             GameManager.Instance.EndBattle();
         }
 
-        // PlayerPrefs Á¤¸®
+        // PlayerPrefs ì •ë¦¬
         PlayerPrefs.DeleteKey("CurrentMonsterID");
 
-        // ¿ø·¡ ¾ÀÀ¸·Î µ¹¾Æ°¡±â
+        // ì›ë˜ ì”¬ìœ¼ë¡œ ëŒì•„ê°€ê¸°
         string previousScene = PlayerPrefs.GetString("PreviousScene", "Maptest");
-        Debug.Log($"¿ø·¡ ¾ÀÀ¸·Î º¹±Í: {previousScene}");
+        Debug.Log($"ì›ë˜ ì”¬ìœ¼ë¡œ ë³µê·€: {previousScene}");
 
         SceneManager.LoadScene(previousScene);
     }
@@ -639,13 +644,13 @@ public class BattleManager : MonoBehaviour
     {
         yield return new WaitForSeconds(2f);
 
-        // GameManager¿¡ ÆĞ¹è »óÅÂ Àü´Ş
+        // GameManagerì— íŒ¨ë°° ìƒíƒœ ì „ë‹¬
         if (GameManager.Instance != null)
         {
             GameManager.Instance.EndBattle();
         }
 
-        // PlayerPrefs Á¤¸®
+        // PlayerPrefs ì •ë¦¬
         PlayerPrefs.DeleteKey("CurrentMonsterID");
 
         SceneManager.LoadScene("MainMenu");
