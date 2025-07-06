@@ -4,7 +4,7 @@ using System.Collections;
 
 public class MonsterController : MonoBehaviour
 {
-    [Header("ÄÄÆ÷³ÍÆ® ÂüÁ¶")]
+    [Header("ì»´í¬ë„ŒíŠ¸ ì°¸ì¡°")]
     public MonsterDataSO monsterData;
     private Transform player;
     private Rigidbody2D rb;
@@ -19,10 +19,10 @@ public class MonsterController : MonoBehaviour
         BattleStarted
     }
 
-    [Header("AI »óÅÂ")]
+    [Header("AI ìƒíƒœ")]
     public MonsterState currentState = MonsterState.Idle;
 
-    [Header("¹üÀ§ ¼³Á¤")]
+    [Header("ë²”ìœ„ ì„¤ì •")]
     public bool overrideRanges = false;
     [SerializeField, Range(1f, 10f)]
     private float customPatrolRange = 3f;
@@ -31,25 +31,25 @@ public class MonsterController : MonoBehaviour
     [SerializeField, Range(0.5f, 5f)]
     private float customMoveSpeed = 2f;
 
-    [Header("ÀÌµ¿ °ü·Ã")]
+    [Header("ì´ë™ ê´€ë ¨")]
     private Vector3 initialPosition;
     private Vector3 patrolTarget;
     private float stateTimer;
     private float idleTime = 2f;
     private float patrolTime = 3f;
 
-    [Header("°íÀ¯ ½Äº°ÀÚ")]
+    [Header("ê³ ìœ  ì‹ë³„ì")]
     public string uniqueIdentifier = "";
 
-    // ¸ó½ºÅÍ °íÀ¯ ID
+    // ëª¬ìŠ¤í„° ê³ ìœ  ID
     private string monsterUniqueID;
 
-    // ¾ÈÀü »óÅÂ °ü¸®
+    // ì•ˆì „ ìƒíƒœ ê´€ë¦¬
     private bool battleStarted = false;
     private bool isDestroyed = false;
     private bool isInitialized = false;
 
-    // ÇÁ·ÎÆÛÆ¼
+    // í”„ë¡œí¼í‹°
     public float PatrolRange => overrideRanges ? customPatrolRange : (monsterData != null ? monsterData.patrolRange : 3f);
     public float ChaseRange => overrideRanges ? customChaseRange : (monsterData != null ? monsterData.chaseRange : 2f);
     public float MoveSpeed => overrideRanges ? customMoveSpeed : (monsterData != null ? monsterData.moveSpeed : 2f);
@@ -62,58 +62,58 @@ public class MonsterController : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"MonsterController ÃÊ±âÈ­ ½ÇÆĞ: {e.Message}");
+            Debug.LogError($"MonsterController ì´ˆê¸°í™” ì‹¤íŒ¨: {e.Message}");
             SafeDestroy();
         }
     }
 
     void SafeInitialize()
     {
-        // ¸ó½ºÅÍ °íÀ¯ ID »ı¼º
+        // ëª¬ìŠ¤í„° ê³ ìœ  ID ìƒì„±
         monsterUniqueID = GenerateMonsterID();
 
-        // ÀÌ¹Ì Á×Àº ¸ó½ºÅÍÀÎÁö È®ÀÎ
+        // ì´ë¯¸ ì²˜ì¹œ ëª¬ìŠ¤í„°ì¸ì§€ í™•ì¸
         if (GameManager.Instance != null && GameManager.Instance.IsMonsterDefeated(monsterUniqueID))
         {
-            Debug.Log($"ÀÌ¹Ì Á×Àº ¸ó½ºÅÍ Á¦°Å: {monsterUniqueID}");
+            Debug.Log($"ì´ë¯¸ ì²˜ì¹œ ëª¬ìŠ¤í„° ì œê±°: {monsterUniqueID}");
             SafeDestroy();
             return;
         }
 
-        // ±âº» µ¥ÀÌÅÍ À¯È¿¼º °Ë»ç
+        // ê¸°ë³¸ ë°ì´í„° ìœ íš¨ì„± ê²€ì‚¬
         if (monsterData == null)
         {
-            Debug.LogError($"MonsterData°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù: {gameObject.name}");
+            Debug.LogError($"MonsterDataê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤: {gameObject.name}");
             SafeDestroy();
             return;
         }
 
-        // ÄÄÆ÷³ÍÆ® ÃÊ±âÈ­
+        // ì»´í¬ë„ŒíŠ¸ ì´ˆê¸°í™”
         initialPosition = transform.position;
         rb = GetComponent<Rigidbody2D>();
         triggerCollider = GetComponent<Collider2D>();
 
-        // ÇÊ¼ö ÄÄÆ÷³ÍÆ® È®ÀÎ
+        // í•„ìˆ˜ ì»´í¬ë„ŒíŠ¸ í™•ì¸
         if (rb == null)
         {
-            Debug.LogError($"Rigidbody2D°¡ ¾ø½À´Ï´Ù: {gameObject.name}");
+            Debug.LogError($"Rigidbody2Dê°€ ì—†ìŠµë‹ˆë‹¤: {gameObject.name}");
             rb = gameObject.AddComponent<Rigidbody2D>();
         }
 
         if (triggerCollider == null)
         {
-            Debug.LogError($"Collider2D°¡ ¾ø½À´Ï´Ù: {gameObject.name}");
+            Debug.LogError($"Collider2Dê°€ ì—†ìŠµë‹ˆë‹¤: {gameObject.name}");
             triggerCollider = gameObject.AddComponent<BoxCollider2D>();
         }
 
-        // Trigger ¼³Á¤ È®ÀÎ
+        // Trigger ì„¤ì • í™•ì¸
         if (!triggerCollider.isTrigger)
         {
-            Debug.LogWarning($"{gameObject.name}: Collider¸¦ Trigger·Î ¼³Á¤ÇÕ´Ï´Ù.");
+            Debug.LogWarning($"{gameObject.name}: Colliderë¥¼ Triggerë¡œ ì„¤ì •í•©ë‹ˆë‹¤.");
             triggerCollider.isTrigger = true;
         }
 
-        // ÇÃ·¹ÀÌ¾î Ã£±â
+        // í”Œë ˆì´ì–´ ì°¾ê¸°
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
@@ -121,16 +121,17 @@ public class MonsterController : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Player ÅÂ±×¸¦ °¡Áø ¿ÀºêÁ§Æ®¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù!");
+            Debug.LogWarning("Player íƒœê·¸ë¥¼ ê°€ì§„ ì˜¤ë¸Œì íŠ¸ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
         }
 
-        // ÃÊ±â »óÅÂ ¼³Á¤
+        // ì´ˆê¸° ìƒíƒœ ì„¤ì •
         SetRandomPatrolTarget();
         currentState = MonsterState.Idle;
         stateTimer = idleTime;
         isInitialized = true;
 
-        Debug.Log($"¸ó½ºÅÍ ÃÊ±âÈ­ ¿Ï·á: {monsterData.monsterName} (ID: {monsterUniqueID})");
+        // ìˆ˜ì •: monsterName -> GetDisplayName()
+        Debug.Log($"ëª¬ìŠ¤í„° ì´ˆê¸°í™” ì™„ë£Œ: {monsterData.GetDisplayName()} (ID: {monsterUniqueID})");
     }
 
     string GenerateMonsterID()
@@ -141,12 +142,13 @@ public class MonsterController : MonoBehaviour
         }
 
         Vector3 pos = transform.position;
-        return $"{(monsterData != null ? monsterData.monsterName : "Unknown")}_{pos.x:F2}_{pos.y:F2}";
+        // ìˆ˜ì •: monsterName -> GetDisplayName()
+        return $"{(monsterData != null ? monsterData.GetDisplayName() : "Unknown")}_{pos.x:F2}_{pos.y:F2}";
     }
 
     void Update()
     {
-        // ¾ÈÀü »óÅÂ Ã¼Å©
+        // ì•ˆì „ ìƒíƒœ ì²´í¬
         if (!isInitialized || battleStarted || isDestroyed || currentState == MonsterState.BattleStarted)
             return;
 
@@ -157,7 +159,7 @@ public class MonsterController : MonoBehaviour
             float distanceToPlayer = Vector3.Distance(transform.position, player.position);
             float distanceToInitial = Vector3.Distance(transform.position, initialPosition);
 
-            // »óÅÂ ÀüÈ¯ ·ÎÁ÷
+            // ìƒíƒœ ì „í™˜ ë¡œì§
             switch (currentState)
             {
                 case MonsterState.Idle:
@@ -178,7 +180,7 @@ public class MonsterController : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"MonsterController Update ¿À·ù: {e.Message}");
+            Debug.LogError($"MonsterController Update ì˜¤ë¥˜: {e.Message}");
         }
     }
 
@@ -285,7 +287,7 @@ public class MonsterController : MonoBehaviour
         }
     }
 
-    // ¾ÈÀüÇÑ Ãæµ¹ °¨Áö
+    // ì•ˆì „í•œ ì¶©ëŒ ê°ì§€
     void OnTriggerEnter2D(Collider2D other)
     {
         try
@@ -295,20 +297,20 @@ public class MonsterController : MonoBehaviour
             if (other == null || !other.CompareTag("Player"))
                 return;
 
-            Debug.Log($"¸ó½ºÅÍ {monsterUniqueID}: ÇÃ·¹ÀÌ¾î¿Í Ãæµ¹ °¨Áö");
-            // Áï½Ã È£ÃâÇÏÁö ¾Ê°í ÄÚ·çÆ¾À¸·Î Áö¿¬
+            Debug.Log($"ëª¬ìŠ¤í„° {monsterUniqueID}: í”Œë ˆì´ì–´ì™€ ì¶©ëŒ ê°ì§€");
+            // ì¦‰ì‹œ í˜¸ì¶œí•˜ì§€ ì•Šê³  ì½”ë£¨í‹´ìœ¼ë¡œ ì§€ì—°
             StartCoroutine(DelayedBattleStart());
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"¸ó½ºÅÍ Ãæµ¹ Ã³¸® ¿À·ù: {e.Message}");
+            Debug.LogError($"ëª¬ìŠ¤í„° ì¶©ëŒ ì²˜ë¦¬ ì˜¤ë¥˜: {e.Message}");
         }
     }
 
-    // »õ·Î Ãß°¡ÇÒ ÄÚ·çÆ¾
+    // ìƒˆë¡œ ì¶”ê°€í•  ì½”ë£¨í‹´
     private IEnumerator DelayedBattleStart()
     {
-        // ¹°¸® ¾÷µ¥ÀÌÆ®°¡ ¿Ï·áµÈ ´ÙÀ½ ÇÁ·¹ÀÓ±îÁö ±â´Ù¸²
+        // ë¬¼ë¦¬ ì—…ë°ì´íŠ¸ê°€ ì™„ë£Œëœ ë‹¤ìŒ í”„ë ˆì„ê¹Œì§€ ê¸°ë‹¤ë¦¼
         yield return new WaitForEndOfFrame();
         StartBattleSafe();
     }
@@ -317,56 +319,57 @@ public class MonsterController : MonoBehaviour
     {
         try
         {
-            // Áßº¹ ¹èÆ² ½ÃÀÛ ¹æÁö
+            // ì¤‘ë³µ ë°°í‹€ ì‹œì‘ ë°©ì§€
             if (battleStarted || isDestroyed)
             {
-                Debug.Log($"¸ó½ºÅÍ {monsterUniqueID}: ÀÌ¹Ì ¹èÆ² ½ÃÀÛµÊ - ¹«½Ã");
+                Debug.Log($"ëª¬ìŠ¤í„° {monsterUniqueID}: ì´ë¯¸ ë°°í‹€ ì‹œì‘ë¨ - ë¬´ì‹œ");
                 return;
             }
 
-            // GameManager À¯È¿¼º È®ÀÎ
+            // GameManager ìœ íš¨ì„± í™•ì¸
             if (GameManager.Instance == null)
             {
-                Debug.LogError("GameManager.Instance°¡ nullÀÔ´Ï´Ù!");
+                Debug.LogError("GameManager.Instanceê°€ nullì…ë‹ˆë‹¤!");
                 return;
             }
 
             if (monsterData == null)
             {
-                Debug.LogError("monsterData°¡ nullÀÔ´Ï´Ù!");
+                Debug.LogError("monsterDataê°€ nullì…ë‹ˆë‹¤!");
                 return;
             }
 
-            // ¹èÆ² ½ÃÀÛ ÇÃ·¡±× ¼³Á¤
+            // ë°°í‹€ ì‹œì‘ í”Œë˜ê·¸ ì„¤ì •
             battleStarted = true;
             currentState = MonsterState.BattleStarted;
 
-            // Ãæµ¹ °¨Áö ºñÈ°¼ºÈ­
+            // ì¶©ëŒ ê°ì§€ ë¹„í™œì„±í™”
             if (triggerCollider != null)
             {
                 triggerCollider.enabled = false;
-                Debug.Log($"¸ó½ºÅÍ {monsterUniqueID}: Ãæµ¹ °¨Áö ºñÈ°¼ºÈ­");
+                Debug.Log($"ëª¬ìŠ¤í„° {monsterUniqueID}: ì¶©ëŒ ê°ì§€ ë¹„í™œì„±í™”");
             }
 
-            // ÀÌµ¿ ÁßÁö
+            // ì´ë™ ì •ì§€
             if (rb != null)
             {
                 rb.velocity = Vector2.zero;
             }
 
-            // ¸ó½ºÅÍ ID ÀúÀå
+            // ëª¬ìŠ¤í„° ID ì €ì¥
             PlayerPrefs.SetString("CurrentMonsterID", monsterUniqueID);
 
-            Debug.Log($"¾ÈÀüÇÑ ¹èÆ² ½ÃÀÛ: {monsterData.monsterName} (ID: {monsterUniqueID})");
+            // ìˆ˜ì •: monsterName -> GetDisplayName()
+            Debug.Log($"ì•ˆì „í•œ ë°°í‹€ ì‹œì‘: {monsterData.GetDisplayName()} (ID: {monsterUniqueID})");
 
-            // GameManager¿¡ ¹èÆ² ½ÃÀÛ ¿äÃ»
+            // GameManagerì— ë°°í‹€ ì‹œì‘ ìš”ì²­
             GameManager.Instance.StartBattle(monsterData, gameObject);
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"¹èÆ² ½ÃÀÛ ¿À·ù: {e.Message}");
+            Debug.LogError($"ë°°í‹€ ì‹œì‘ ì˜¤ë¥˜: {e.Message}");
 
-            // ¿À·ù º¹±¸
+            // ì˜¤ë¥˜ ë³µêµ¬
             battleStarted = false;
             currentState = MonsterState.Idle;
             if (triggerCollider != null)
@@ -381,20 +384,20 @@ public class MonsterController : MonoBehaviour
         if (isDestroyed) return;
 
         isDestroyed = true;
-        Debug.Log($"¸ó½ºÅÍ {monsterUniqueID} ¾ÈÀü ÆÄ±«");
+        Debug.Log($"ëª¬ìŠ¤í„° {monsterUniqueID} ì•ˆì „ íŒŒê´´");
 
         StartCoroutine(DelayedDestroy());
     }
 
     IEnumerator DelayedDestroy()
     {
-        // Ãæµ¹ °¨Áö ºñÈ°¼ºÈ­
+        // ì¶©ëŒ ê°ì§€ ë¹„í™œì„±í™”
         if (triggerCollider != null)
         {
             triggerCollider.enabled = false;
         }
 
-        // ÀÌµ¿ ÁßÁö
+        // ì´ë™ ì •ì§€
         if (rb != null)
         {
             rb.velocity = Vector2.zero;

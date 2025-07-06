@@ -13,7 +13,7 @@ public class InteractionDetector : MonoBehaviour
     [Header("UI")]
     public GameObject promptUI;
     public TextMeshProUGUI promptText;
-    public Canvas promptCanvas; // ÇÁ·ÒÇÁÆ® UI Äµ¹ö½º
+    public Canvas promptCanvas; // í”„ë¡¬í”„íŠ¸ UI ìº”ë²„ìŠ¤
 
     [Header("UI References")]
     public Image characterPortraitImage;
@@ -22,7 +22,7 @@ public class InteractionDetector : MonoBehaviour
     public PlayerStats playerStats;
 
     [Header("Prompt Position Settings")]
-    public Vector3 promptOffset = new Vector3(0, 1.5f, 0); // ¾ÆÀÌÅÛ À§ÂÊÀ¸·Î ¾ó¸¶³ª ¶ç¿ïÁö
+    public Vector3 promptOffset = new Vector3(0, 1.5f, 0); // ì•„ì´í…œ ìœ„ìª½ìœ¼ë¡œ ì–¼ë§ˆë‚˜ ë„ìš¸ì§€
 
     private GameObject currentTarget;
     private List<GameObject> nearbyObjects = new List<GameObject>();
@@ -35,7 +35,7 @@ public class InteractionDetector : MonoBehaviour
         if (mainCamera == null)
             mainCamera = FindObjectOfType<Camera>();
 
-        // ÇÁ·ÒÇÁÆ® Äµ¹ö½º¸¦ ¿ùµå ½ºÆäÀÌ½º·Î ¼³Á¤
+        // í”„ë¡¬í”„íŠ¸ ìº”ë²„ìŠ¤ë¥¼ ì›”ë“œ ìŠ¤í˜ì´ìŠ¤ë¡œ ì„¤ì •
         if (promptCanvas != null)
         {
             promptUI.SetActive(false);
@@ -46,12 +46,12 @@ public class InteractionDetector : MonoBehaviour
 
     void Update()
     {
-        // ´ëÈ­ ÁßÀÌ°Å³ª ¾ÆÀÌÅÛ ¼³¸í ÁßÀÏ ¶§´Â »óÈ£ÀÛ¿ë °¨Áö Áß´Ü
+        // ëŒ€í™” ì¤‘ì´ê±°ë‚˜ ì•„ì´í…œ ì„¤ëª… ì¤‘ì¼ ë•ŒëŠ” ìƒí˜¸ì‘ìš© ê°ì§€ ì¤‘ë‹¨
         bool isInDialogue = DialogueManager.Instance != null && DialogueManager.Instance.IsInDialogue();
 
         if (isInDialogue)
         {
-            // ´ëÈ­ ÁßÀÏ ¶§´Â ÇÁ·ÒÇÁÆ® UI ¼û±â±â
+            // ëŒ€í™” ì¤‘ì¼ ë•ŒëŠ” í”„ë¡¬í”„íŠ¸ UI ìˆ¨ê¸°ê¸°
             if (promptUI != null && promptUI.activeInHierarchy)
             {
                 promptUI.SetActive(false);
@@ -59,8 +59,8 @@ public class InteractionDetector : MonoBehaviour
         }
         else
         {
-        CheckForInteractables();
-        HandleInput();
+            CheckForInteractables();
+            HandleInput();
         }
     }
 
@@ -122,10 +122,10 @@ public class InteractionDetector : MonoBehaviour
             if (promptText != null)
                 promptText.text = $"[E] {objectName}";
 
-            // ÇÁ·ÒÇÁÆ® UI¸¦ ¾ÆÀÌÅÛ À§ÂÊ¿¡ À§Ä¡½ÃÅ°±â
+            // í”„ë¡¬í”„íŠ¸ UIë¥¼ ì•„ì´í…œ ìœ„ìª½ì— ìœ„ì¹˜ì‹œí‚¤ê¸°
             UpdatePromptPosition();
 
-            // NPCÀÇ °æ¿ì ÃÊ»óÈ­ ¹Ì¸®º¸±â ¼³Á¤
+            // NPCì˜ ê²½ìš° ì´ˆìƒí™” ë¯¸ë¦¬ë³´ê¸° ì„¤ì •
             UpdateCharacterPortrait();
         }
         else
@@ -142,11 +142,11 @@ public class InteractionDetector : MonoBehaviour
         Vector3 worldPosition = currentTarget.transform.position + promptOffset;
         promptCanvas.transform.position = worldPosition;
 
-        // Ä«¸Ş¶ó¸¦ ÇâÇÏµµ·Ï È¸Àü (ºôº¸µå È¿°ú)
+        // ì¹´ë©”ë¼ë¥¼ í–¥í•˜ë„ë¡ íšŒì „ (ë¹Œë³´ë“œ íš¨ê³¼)
         if (mainCamera != null)
         {
             Vector3 directionToCamera = mainCamera.transform.position - promptCanvas.transform.position;
-            directionToCamera.y = 0; // YÃà È¸Àü¸¸ Àû¿ë
+            directionToCamera.y = 0; // Yì¶• íšŒì „ë§Œ ì ìš©
 
             if (directionToCamera != Vector3.zero)
             {
@@ -178,23 +178,25 @@ public class InteractionDetector : MonoBehaviour
         ItemManager item = target.GetComponent<ItemManager>();
         if (item != null && item.itemData != null)
         {
-            return item.itemData.itemType == ItemType.Collectible ? "È¹µæ" : "Á¶»ç";
+            // ì¼ë‹¨ ëª¨ë“  ì•„ì´í…œì„ "íšë“"ìœ¼ë¡œ ì²˜ë¦¬ (ë‚˜ì¤‘ì— íƒ€ì… ì‹œìŠ¤í…œ ì¶”ê°€ ì‹œ ìˆ˜ì •)
+            return "íšë“";
         }
 
         NPCController npc = target.GetComponent<NPCController>();
         if (npc != null)
         {
-            return "´ëÈ­";
+            return "ëŒ€í™”";
         }
 
-        return "»óÈ£ÀÛ¿ë";
+        return "ìƒí˜¸ì‘ìš©";
     }
 
     string GetObjectName(GameObject target)
     {
         ItemManager item = target.GetComponent<ItemManager>();
         if (item != null && item.itemData != null)
-            return item.itemData.displayName;
+            // ê°„ë‹¨í•œ ë°©ì‹: displayNameì´ ìˆìœ¼ë©´ ì‚¬ìš©, ì—†ìœ¼ë©´ name ì‚¬ìš©
+            return string.IsNullOrEmpty(item.itemData.displayName) ? item.itemData.name : item.itemData.displayName;
 
         NPCController npc = target.GetComponent<NPCController>();
         if (npc != null)
@@ -205,12 +207,12 @@ public class InteractionDetector : MonoBehaviour
 
     void HandleInput()
     {
-        // ´ëÈ­ ÁßÀÌ ¾Æ´Ò ¶§¸¸ EÅ° Ã³¸®
+        // ëŒ€í™” ì¤‘ì´ ì•„ë‹ ë•Œë§Œ Eí‚¤ ì²˜ë¦¬
         if (Input.GetKeyDown(KeyCode.E) && currentTarget != null)
         {
-            Debug.Log($"»óÈ£ÀÛ¿ë ½ÃÀÛ: {currentTarget.name}");
+            Debug.Log($"ìƒí˜¸ì‘ìš© ì‹œì‘: {currentTarget.name}");
 
-            // »óÈ£ÀÛ¿ë ½ÃÀÛÇÒ ¶§ promptUI ¼û±â±â
+            // ìƒí˜¸ì‘ìš© ì‹œì‘í•  ë•Œ promptUI ìˆ¨ê¸°ê¸°
             if (promptUI != null)
             {
                 promptUI.SetActive(false);
@@ -226,7 +228,7 @@ public class InteractionDetector : MonoBehaviour
             NPCController npc = currentTarget.GetComponent<NPCController>();
             if (npc != null)
             {
-                // NPC¿Í ´ëÈ­ ½ÃÀÛÇÏ¸é¼­ DialogueManager¿¡ ÃÊ»óÈ­ Á¤º¸ Àü´Ş
+                // NPCì™€ ëŒ€í™” ì‹œì‘í•˜ë©´ì„œ DialogueManagerì— ì´ˆìƒí™” ì •ë³´ ì „ë‹¬
                 SetDialoguePortraits(npc);
                 npc.Interact();
                 return;
@@ -234,25 +236,25 @@ public class InteractionDetector : MonoBehaviour
         }
     }
 
-    // DialogueManager¿¡ ´ëÈ­ Âü¿©ÀÚµéÀÇ ÃÊ»óÈ­ ¼³Á¤
+    // DialogueManagerì— ëŒ€í™” ì°¸ì—¬ìë“¤ì˜ ì´ˆìƒí™” ì„¤ì •
     void SetDialoguePortraits(NPCController npc)
     {
         if (DialogueManager.Instance != null)
         {
             Sprite playerPortrait = GetPlayerPortrait();
-            // DialogueManager¿¡ ÇÃ·¹ÀÌ¾î¿Í NPC ÃÊ»óÈ­ Àü´Ş
+            // DialogueManagerì— í”Œë ˆì´ì–´ì™€ NPC ì´ˆìƒí™” ì „ë‹¬
             DialogueManager.Instance.SetCharacterPortraits(playerPortrait, npc.npcPortrait);
         }
     }
 
-    // ÇÃ·¹ÀÌ¾î ÃÊ»óÈ­¸¦ °¡Á®¿À´Â ¸Ş¼­µå
+    // í”Œë ˆì´ì–´ ì´ˆìƒí™”ë¥¼ ê°€ì ¸ì˜¤ëŠ” ë©”ì„œë“œ
     Sprite GetPlayerPortrait()
     {
         if (playerStats != null && playerStats.playerPortrait != null)
         {
             return playerStats.playerPortrait;
         }
-        Debug.LogWarning("ÇÃ·¹ÀÌ¾î ÃÊ»óÈ­¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù!");
+        Debug.LogWarning("í”Œë ˆì´ì–´ ì´ˆìƒí™”ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
         return null;
     }
 

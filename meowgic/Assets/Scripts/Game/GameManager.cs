@@ -12,18 +12,18 @@ public class GameManager : MonoBehaviour
         private set;
     }
 
-    [Header("¹èÆ² °ü·Ã")]
+    [Header("ë°°í‹€ ê´€ë ¨")]
     [HideInInspector]
     public MonsterDataSO currentBattleMonster;
     [HideInInspector]
-    public GameObject currentBattleMonsterObject; // Ãß°¡: ¸ó½ºÅÍ ¿ÀºêÁ§Æ® ÂüÁ¶
+    public GameObject currentBattleMonsterObject; // ì¶”ê°€: ëª¬ìŠ¤í„° ì˜¤ë¸Œì íŠ¸ ì°¸ì¡°
 
-    // °ÔÀÓ »óÅÂµé
+    // ê²Œì„ ìƒíƒœë“¤
     private bool isInDialogue = false;
     private bool isInMenu = false;
     private bool isPaused = false;
 
-    // Á×Àº ¸ó½ºÅÍµé °ü¸®
+    // ì²˜ì¹œ ëª¬ìŠ¤í„°ë“¤ ê´€ë¦¬
     private HashSet<string> defeatedMonsters = new HashSet<string>();
 
     void Awake()
@@ -44,85 +44,87 @@ public class GameManager : MonoBehaviour
         Player = pc;
     }
 
-    // ´ëÈ­ »óÅÂ Á¦¾î
+    // ëŒ€í™” ìƒíƒœ ì œì–´
     public void SetDialogueState(bool inDialogue)
     {
         isInDialogue = inDialogue;
         UpdatePlayerMovement();
 
-        Debug.Log($"´ëÈ­ »óÅÂ: {(inDialogue ? "½ÃÀÛ" : "Á¾·á")}");
+        Debug.Log($"ëŒ€í™” ìƒíƒœ: {(inDialogue ? "ì‹œì‘" : "ì¢…ë£Œ")}");
     }
 
-    // ¸Ş´º »óÅÂ Á¦¾î (³ªÁß¿¡ ÀÎº¥Åä¸® µî¿¡¼­ »ç¿ë)
+    // ë©”ë‰´ ìƒíƒœ ì œì–´ (ë‚˜ì¤‘ì— ì¸ë²¤í† ë¦¬ ë“±ì—ì„œ ì‚¬ìš©)
     public void SetMenuState(bool inMenu)
     {
         isInMenu = inMenu;
         UpdatePlayerMovement();
     }
 
-    // ÀÏ½ÃÁ¤Áö »óÅÂ Á¦¾î
+    // ì¼ì‹œì •ì§€ ìƒíƒœ ì œì–´
     public void SetPauseState(bool paused)
     {
         isPaused = paused;
         UpdatePlayerMovement();
 
-        // ÀÏ½ÃÁ¤Áö ½Ã ½Ã°£µµ ¸ØÃã
+        // ì¼ì‹œì •ì§€ ì‹œ ì‹œê°„ë„ ë©ˆì¶¤
         Time.timeScale = paused ? 0f : 1f;
     }
 
-    // ÇÃ·¹ÀÌ¾î ÀÌµ¿ °¡´É ¿©ºÎ ¾÷µ¥ÀÌÆ®
+    // í”Œë ˆì´ì–´ ì´ë™ ê°€ëŠ¥ ì—¬ë¶€ ì—…ë°ì´íŠ¸
     void UpdatePlayerMovement()
     {
         if (Player != null)
         {
-            // ´ëÈ­ ÁßÀÌ°Å³ª ¸Ş´º ÁßÀÌ°Å³ª ÀÏ½ÃÁ¤Áö ÁßÀÌ¸é ÀÌµ¿ ºÒ°¡
+            // ëŒ€í™” ì¤‘ì´ê±°ë‚˜ ë©”ë‰´ ì¤‘ì´ê±°ë‚˜ ì¼ì‹œì •ì§€ ì¤‘ì´ë©´ ì´ë™ ë¶ˆê°€
             bool canMove = !isInDialogue && !isInMenu && !isPaused;
             Player.SetCanMove(canMove);
         }
     }
 
     /// <summary>
-    /// ¸ó½ºÅÍ ÀÚµ¿ ÇÒ´ç, ÇÊµå¿¡¼­ ºÎµúÈ÷¸é ±× ¸ó½ºÅÍ°¡ ÀúÀå
+    /// ëª¬ìŠ¤í„° ìë™ í• ë‹¹, í•„ë“œì—ì„œ ë¶€ë”ªíˆë©´ ê·¸ ëª¬ìŠ¤í„°ê°€ ì €ì¥
     /// </summary>
-    /// <param name="monster">¸ó½ºÅÍ µ¥ÀÌÅÍ</param>
+    /// <param name="monster">ëª¬ìŠ¤í„° ë°ì´í„°</param>
     public void SetBattleMonster(MonsterDataSO monster)
     {
         currentBattleMonster = monster;
-        Debug.Log($"¹èÆ² ¸ó½ºÅÍ ¼³Á¤: {monster.monsterName}");
+        // ìˆ˜ì •: monsterName -> GetDisplayName()
+        Debug.Log($"ë°°í‹€ ëª¬ìŠ¤í„° ì„¤ì •: {monster.GetDisplayName()}");
     }
 
     /// <summary>
-    /// ¹èÆ² ½ÃÀÛ (¸ó½ºÅÍ ¿ÀºêÁ§Æ®µµ ÇÔ²² ÀúÀå)
+    /// ë°°í‹€ ì‹œì‘ (ëª¬ìŠ¤í„° ì˜¤ë¸Œì íŠ¸ë„ í•¨ê»˜ ì €ì¥)
     /// </summary>
-    /// <param name="monster">¸ó½ºÅÍ µ¥ÀÌÅÍ</param>
-    /// <param name="monsterObject">¸ó½ºÅÍ °ÔÀÓ¿ÀºêÁ§Æ®</param>
+    /// <param name="monster">ëª¬ìŠ¤í„° ë°ì´í„°</param>
+    /// <param name="monsterObject">ëª¬ìŠ¤í„° ê²Œì„ì˜¤ë¸Œì íŠ¸</param>
     public void StartBattle(MonsterDataSO monster, GameObject monsterObject)
     {
         currentBattleMonster = monster;
         currentBattleMonsterObject = monsterObject;
 
-        // ÇöÀç ¾À ÀúÀå
+        // í˜„ì¬ ì”¬ ì €ì¥
         PlayerPrefs.SetString("PreviousScene", SceneManager.GetActiveScene().name);
 
-        Debug.Log($"¹èÆ² ½ÃÀÛ: {monster.monsterName}");
+        // ìˆ˜ì •: monsterName -> GetDisplayName()
+        Debug.Log($"ë°°í‹€ ì‹œì‘: {monster.GetDisplayName()}");
         SceneManager.LoadScene("BattleScene");
     }
 
     /// <summary>
-    /// ¸ó½ºÅÍ°¡ Á×¾úÀ½À» ±â·ÏÇÏ°í ¿ÀºêÁ§Æ® Á¦°Å
+    /// ëª¬ìŠ¤í„°ê°€ ì²˜í–ˆìŒì„ ê¸°ë¡í•˜ê³  ì˜¤ë¸Œì íŠ¸ ì œê±°
     /// </summary>
-    /// <param name="monsterID">¸ó½ºÅÍ °íÀ¯ ID</param>
+    /// <param name="monsterID">ëª¬ìŠ¤í„° ê³ ìœ  ID</param>
     public void SetMonsterDefeated(string monsterID)
     {
         if (!string.IsNullOrEmpty(monsterID))
         {
             defeatedMonsters.Add(monsterID);
-            Debug.Log($"¸ó½ºÅÍ {monsterID}°¡ Á¦°Å ¸ñ·Ï¿¡ Ãß°¡µÊ");
+            Debug.Log($"ëª¬ìŠ¤í„° {monsterID}ê°€ ì œê±° ëª©ë¡ì— ì¶”ê°€ë¨");
 
-            // ½ÇÁ¦ ¸ó½ºÅÍ ¿ÀºêÁ§Æ® Á¦°Å
+            // ì‹¤ì œ ëª¬ìŠ¤í„° ì˜¤ë¸Œì íŠ¸ ì œê±°
             if (currentBattleMonsterObject != null)
             {
-                Debug.Log($"¸ó½ºÅÍ ¿ÀºêÁ§Æ® {currentBattleMonsterObject.name} Á¦°ÅµÊ");
+                Debug.Log($"ëª¬ìŠ¤í„° ì˜¤ë¸Œì íŠ¸ {currentBattleMonsterObject.name} ì œê±°ë¨");
                 Destroy(currentBattleMonsterObject);
                 currentBattleMonsterObject = null;
             }
@@ -130,28 +132,28 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸ó½ºÅÍ°¡ ÀÌ¹Ì Á×¾ú´ÂÁö È®ÀÎ
+    /// ëª¬ìŠ¤í„°ê°€ ì´ë¯¸ ì²˜ì¡ŒëŠ”ì§€ í™•ì¸
     /// </summary>
-    /// <param name="monsterID">¸ó½ºÅÍ °íÀ¯ ID</param>
-    /// <returns>Á×¾úÀ¸¸é true</returns>
+    /// <param name="monsterID">ëª¬ìŠ¤í„° ê³ ìœ  ID</param>
+    /// <returns>ì²˜ì¡Œìœ¼ë©´ true</returns>
     public bool IsMonsterDefeated(string monsterID)
     {
         return defeatedMonsters.Contains(monsterID);
     }
 
     /// <summary>
-    /// ¹èÆ² Á¾·á ½Ã Á¤¸®
+    /// ë°°í‹€ ì¢…ë£Œ ì‹œ ì •ë¦¬
     /// </summary>
     public void EndBattle()
     {
         currentBattleMonster = null;
         if (currentBattleMonsterObject == null)
         {
-            Debug.Log("¸ó½ºÅÍ ¿ÀºêÁ§Æ®°¡ ÀÌ¹Ì Á¦°ÅµÊ");
+            Debug.Log("ëª¬ìŠ¤í„° ì˜¤ë¸Œì íŠ¸ê°€ ì´ë¯¸ ì œê±°ë¨");
         }
         currentBattleMonsterObject = null;
 
-        Debug.Log("¹èÆ² »óÅÂ Á¤¸® ¿Ï·á");
+        Debug.Log("ë°°í‹€ ìƒíƒœ ì •ë¦¬ ì™„ë£Œ");
     }
 
     public void ClearBattleMonster()
@@ -160,27 +162,27 @@ public class GameManager : MonoBehaviour
         currentBattleMonsterObject = null;
     }
 
-    // »óÅÂ È®ÀÎ ¸Ş¼­µåµé
+    // ìƒíƒœ í™•ì¸ ë©”ì„œë“œë“¤
     public bool IsInDialogue() => isInDialogue;
     public bool IsInMenu() => isInMenu;
     public bool IsPaused() => isPaused;
     public bool CanPlayerMove() => !isInDialogue && !isInMenu && !isPaused;
 
-    // µğ¹ö±ë¿ë: Á×Àº ¸ó½ºÅÍ ¸ñ·Ï È®ÀÎ
+    // ë””ë²„ê·¸ìš©: ì²˜ì¹œ ëª¬ìŠ¤í„° ëª©ë¡ í™•ì¸
     public void LogDefeatedMonsters()
     {
-        Debug.Log($"Á×Àº ¸ó½ºÅÍ ¼ö: {defeatedMonsters.Count}");
+        Debug.Log($"ì²˜ì¹œ ëª¬ìŠ¤í„° ìˆ˜: {defeatedMonsters.Count}");
         foreach (string monsterId in defeatedMonsters)
         {
             Debug.Log($"- {monsterId}");
         }
     }
 
-    // °ÔÀÓ ¸®¼Â ½Ã Á×Àº ¸ó½ºÅÍ ¸ñ·Ï ÃÊ±âÈ­ (°³¹ß¿ë)
+    // ê²Œì„ ë¦¬ì…‹ ì‹œ ì²˜ì¹œ ëª¬ìŠ¤í„° ëª©ë¡ ì´ˆê¸°í™” (ê°œë°œìš©)
     [ContextMenu("Reset Defeated Monsters")]
     public void ResetDefeatedMonsters()
     {
         defeatedMonsters.Clear();
-        Debug.Log("Á×Àº ¸ó½ºÅÍ ¸ñ·ÏÀÌ ÃÊ±âÈ­µÇ¾ú½À´Ï´Ù.");
+        Debug.Log("ì²˜ì¹œ ëª¬ìŠ¤í„° ëª©ë¡ì´ ì´ˆê¸°í™”ë˜ì—ˆìŠµë‹ˆë‹¤.");
     }
 }

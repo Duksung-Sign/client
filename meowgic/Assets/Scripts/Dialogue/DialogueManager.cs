@@ -2,8 +2,239 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using System;
+using System.Linq;
 using TMPro;
 
+[System.Serializable]
+public class DialogueLine
+{
+    public string lineID;
+    public string dialogueSetID;
+    public string speakerName;
+    public string text;
+    public bool isPlayer;
+    public string nextLineID;
+    public int order;
+    public string customSpeaker;
+
+    public DialogueLine() { }
+
+    public DialogueLine(string lineID, string dialogueSetID, string speakerName, string text,
+                       bool isPlayer, string nextLineID, int order, string customSpeaker)
+    {
+        this.lineID = lineID;
+        this.dialogueSetID = dialogueSetID;
+        this.speakerName = speakerName;
+        this.text = text;
+        this.isPlayer = isPlayer;
+        this.nextLineID = nextLineID;
+        this.order = order;
+        this.customSpeaker = customSpeaker;
+    }
+}
+
+[System.Serializable]
+public class DialogueSet
+{
+    public string dialogueSetID;
+    public string npcName;
+    public string startLineID;
+    public bool isRepeatable;
+    public string description;
+    public string portraitPath;
+
+    public DialogueSet() { }
+
+    public DialogueSet(string dialogueSetID, string npcName, string startLineID,
+                      bool isRepeatable, string description, string portraitPath)
+    {
+        this.dialogueSetID = dialogueSetID;
+        this.npcName = npcName;
+        this.startLineID = startLineID;
+        this.isRepeatable = isRepeatable;
+        this.description = description;
+        this.portraitPath = portraitPath;
+    }
+}
+
+[System.Serializable]
+public class DialogueCondition
+{
+    public string dialogueSetID;
+    public string conditionType;
+    public string target;
+    public string value;
+    public string description;
+
+    public DialogueCondition() { }
+
+    public DialogueCondition(string dialogueSetID, string conditionType, string target,
+                           string value, string description)
+    {
+        this.dialogueSetID = dialogueSetID;
+        this.conditionType = conditionType;
+        this.target = target;
+        this.value = value;
+        this.description = description;
+    }
+}
+
+// ===== CSV íŒŒì‹± ìœ í‹¸ë¦¬í‹° =====
+public static class DialogueCSVParser
+{
+    public static List<DialogueLine> ParseDialogueLines(string csvText)
+    {
+        var lines = new List<DialogueLine>();
+
+        try
+        {
+            string[] rows = csvText.Split('\n');
+
+            for (int i = 1; i < rows.Length; i++)
+            {
+                string row = rows[i].Trim();
+                if (string.IsNullOrEmpty(row)) continue;
+
+                string[] values = ParseCSVLine(row);
+                if (values.Length >= 8)
+                {
+                    var line = new DialogueLine(
+                        values[0].Trim(), // LineID
+                        values[1].Trim(), // DialogueSetID
+                        values[2].Trim(), // SpeakerName
+                        values[3].Trim(), // Text
+                        ParseBool(values[4]), // IsPlayer
+                        values[5].Trim(), // NextLineID
+                        ParseInt(values[6]), // Order
+                        values[7].Trim()  // CustomSpeaker
+                    );
+                    lines.Add(line);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"DialogueLines CSV íŒŒì‹± ì‹¤íŒ¨: {e.Message}");
+        }
+
+        return lines;
+    }
+
+    public static List<DialogueSet> ParseDialogueSets(string csvText)
+    {
+        var sets = new List<DialogueSet>();
+
+        try
+        {
+            string[] rows = csvText.Split('\n');
+
+            for (int i = 1; i < rows.Length; i++)
+            {
+                string row = rows[i].Trim();
+                if (string.IsNullOrEmpty(row)) continue;
+
+                string[] values = ParseCSVLine(row);
+                if (values.Length >= 6)
+                {
+                    var set = new DialogueSet(
+                        values[0].Trim(), // DialogueSetID
+                        values[1].Trim(), // NPCName
+                        values[2].Trim(), // StartLineID
+                        ParseBool(values[3]), // IsRepeatable
+                        values[4].Trim(), // Description
+                        values[5].Trim()  // PortraitPath
+                    );
+                    sets.Add(set);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"DialogueSets CSV íŒŒì‹± ì‹¤íŒ¨: {e.Message}");
+        }
+
+        return sets;
+    }
+
+    public static List<DialogueCondition> ParseDialogueConditions(string csvText)
+    {
+        var conditions = new List<DialogueCondition>();
+
+        try
+        {
+            string[] rows = csvText.Split('\n');
+
+            for (int i = 1; i < rows.Length; i++)
+            {
+                string row = rows[i].Trim();
+                if (string.IsNullOrEmpty(row)) continue;
+
+                string[] values = ParseCSVLine(row);
+                if (values.Length >= 5)
+                {
+                    var condition = new DialogueCondition(
+                        values[0].Trim(), // DialogueSetID
+                        values[1].Trim(), // ConditionType
+                        values[2].Trim(), // Target
+                        values[3].Trim(), // Value
+                        values[4].Trim()  // Description
+                    );
+                    conditions.Add(condition);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"DialogueConditions CSV íŒŒì‹± ì‹¤íŒ¨: {e.Message}");
+        }
+
+        return conditions;
+    }
+
+    private static string[] ParseCSVLine(string line)
+    {
+        var result = new List<string>();
+        bool inQuotes = false;
+        string currentField = "";
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(currentField);
+                currentField = "";
+            }
+            else
+            {
+                currentField += c;
+            }
+        }
+
+        result.Add(currentField);
+        return result.ToArray();
+    }
+
+    private static bool ParseBool(string value)
+    {
+        return value.Trim().ToUpper() == "TRUE";
+    }
+
+    private static int ParseInt(string value)
+    {
+        if (int.TryParse(value.Trim(), out int result))
+            return result;
+        return 0;
+    }
+}
+
+// ===== ìƒˆë¡œìš´ CSV ê¸°ë°˜ DialogueManager =====
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
@@ -14,27 +245,51 @@ public class DialogueManager : MonoBehaviour
     public TextMeshProUGUI speakerNameText;
 
     [Header("Character Portraits")]
-    public Image leftPortrait; // ÇÃ·¹ÀÌ¾î
+    public Image leftPortrait;  // í”Œë ˆì´ì–´
     public Image rightPortrait; // NPC
 
-    [Header("NPC Data")]
-    public NPCDataSO npcData;
+    [Header("CSV íŒŒì¼ ê²½ë¡œ")]
+    [SerializeField] private string dialogueLinesPath = "DialogueData/DialogueLines";
+    [SerializeField] private string dialogueSetsPath = "DialogueData/DialogueSets";
+    [SerializeField] private string dialogueConditionsPath = "DialogueData/DialogueConditions";
 
-    private DialogueDataSO currentDialogueData;
-    private int currentDialogueID;
-    private int currentLineIndex;
-    private Sprite playerPortrait;
-    private Sprite npcPortrait;
+    [Header("ê¸°ë³¸ ì´ˆìƒí™”")]
+    public Sprite defaultPlayerPortrait;
+    public Sprite defaultNPCPortrait;
+
+    [Header("ë””ë²„ê·¸")]
+    public bool debugMode = true;
+    public bool logDialogueEvents = true;
+
+    // ëŒ€í™” ë°ì´í„°
+    private Dictionary<string, DialogueLine> dialogueLines = new Dictionary<string, DialogueLine>();
+    private Dictionary<string, DialogueSet> dialogueSets = new Dictionary<string, DialogueSet>();
+    private Dictionary<string, List<DialogueCondition>> dialogueConditions = new Dictionary<string, List<DialogueCondition>>();
+
+    // í˜„ì¬ ëŒ€í™” ìƒíƒœ
+    private string currentDialogueSetID;
+    private string currentLineID;
     private bool isInDialogue = false;
     private bool isShowingItemDescription = false;
 
+    // ì¡°ê±´ ì²´í¬ í•¨ìˆ˜ë“¤
+    private Dictionary<string, Func<string, string, bool>> conditionCheckers;
+
+    // ì´ˆìƒí™” ìºì‹œ
+    private Dictionary<string, Sprite> portraitCache = new Dictionary<string, Sprite>();
+
     void Awake()
     {
-        // ½Ì±ÛÅæ ¼³Á¤
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+            InitializeDialogueSystem();
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
 
-        // talkPanel Ã£±â
         if (dialoguePanel == null)
             dialoguePanel = GameObject.Find("talkPanel");
 
@@ -44,31 +299,28 @@ public class DialogueManager : MonoBehaviour
 
     void Start()
     {
-        // talkPanelÀ» ÀÚµ¿À¸·Î Ã£¾Æ¼­ ¿¬°á
         if (dialoguePanel == null)
         {
             GameObject foundTalkPanel = GameObject.Find("talkPanel");
             if (foundTalkPanel != null)
             {
                 dialoguePanel = foundTalkPanel;
-                Debug.Log("talkPanelÀ» ÀÚµ¿À¸·Î Ã£¾Æ¼­ ¿¬°áÇß½À´Ï´Ù!");
+                Debug.Log("talkPanelì„ ìë™ìœ¼ë¡œ ì°¾ì•„ì„œ ì—°ê²°í–ˆìŠµë‹ˆë‹¤!");
             }
             else
             {
-                Debug.LogError("talkPanelÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù! Hierarchy¿¡¼­ talkPanel ÀÌ¸§À» È®ÀÎÇØÁÖ¼¼¿ä.");
+                Debug.LogError("talkPanelì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
             }
         }
     }
 
     void Update()
     {
-        // ´ëÈ­ ÁßÀÏ ¶§ ½ºÆäÀÌ½º¹Ù³ª ¿£ÅÍÅ°·Î ´ÙÀ½ ¶óÀÎ
         if (isInDialogue && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
         {
             NextLine();
         }
 
-        // ¾ÆÀÌÅÛ ¼³¸í ÁßÀÏ ¶§ EÅ°, ½ºÆäÀÌ½º¹Ù, ¿£ÅÍÅ°·Î ´İ±â
         if (isShowingItemDescription &&
             (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
         {
@@ -76,148 +328,180 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    // ¾ÆÀÌÅÛ ¼³¸íÀ» ´ëÈ­Ã¢¿¡ Ç¥½ÃÇÏ´Â ¸Ş¼­µå
-    public void ShowItemDescription(string description)
+    void InitializeDialogueSystem()
     {
-        Debug.Log($"ShowItemDescription È£ÃâµÊ: {description}");
+        InitializeConditionCheckers();
+        LoadDialogueDataFromCSV();
 
-        // talkPanelÀ» ´Ù½Ã ÇÑ¹ø È®ÀÎ
-        if (dialoguePanel == null)
+        if (debugMode)
         {
-            GameObject foundTalkPanel = GameObject.Find("talkPanel");
-            if (foundTalkPanel != null)
+            Debug.Log($"[DialogueManager] ì‹œìŠ¤í…œ ì´ˆê¸°í™” ì™„ë£Œ");
+            Debug.Log($"[DialogueManager] ëŒ€í™” ë¼ì¸: {dialogueLines.Count}ê°œ");
+            Debug.Log($"[DialogueManager] ëŒ€í™” ì„¸íŠ¸: {dialogueSets.Count}ê°œ");
+        }
+    }
+
+    // ===== CSV ë°ì´í„° ë¡œë“œ =====
+    void LoadDialogueDataFromCSV()
+    {
+        LoadDialogueLines();
+        LoadDialogueSets();
+        LoadDialogueConditions();
+    }
+
+    void LoadDialogueLines()
+    {
+        try
+        {
+            TextAsset csvFile = Resources.Load<TextAsset>(dialogueLinesPath);
+            if (csvFile == null)
             {
-                dialoguePanel = foundTalkPanel;
-                Debug.Log("talkPanelÀ» ´Ù½Ã Ã£¾Æ¼­ ¿¬°áÇß½À´Ï´Ù!");
-            }
-            else
-            {
-                Debug.LogError("talkPanelÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù!");
+                Debug.LogError($"[DialogueManager] CSV íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {dialogueLinesPath}");
                 return;
             }
+
+            var lines = DialogueCSVParser.ParseDialogueLines(csvFile.text);
+            dialogueLines.Clear();
+
+            foreach (var line in lines)
+            {
+                dialogueLines[line.lineID] = line;
+            }
+
+            if (debugMode)
+                Debug.Log($"[DialogueManager] DialogueLines ë¡œë“œ ì™„ë£Œ: {lines.Count}ê°œ");
         }
-
-        isShowingItemDescription = true;
-        isInDialogue = false; // ÀÏ¹İ ´ëÈ­°¡ ¾Æ´Ô
-
-        // ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ Á¦ÇÑ
-        PlayerController playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
+        catch (Exception e)
         {
-            playerController.SetCanMove(false);
-            Debug.Log("ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ Á¦ÇÑµÊ");
-        }
-
-        // ´ëÈ­Ã¢ È°¼ºÈ­ Àü ·Î±×
-        Debug.Log($"´ëÈ­Ã¢ È°¼ºÈ­ ½Ãµµ: {dialoguePanel.name}");
-        dialoguePanel.SetActive(true);
-
-        // È°¼ºÈ­ ÈÄ »óÅÂ È®ÀÎ
-        Debug.Log($"´ëÈ­Ã¢ È°¼ºÈ­ ÈÄ »óÅÂ: {dialoguePanel.activeInHierarchy}");
-
-        // ÅØ½ºÆ® ¼³Á¤
-        if (dialogueText != null)
-        {
-            dialogueText.text = description;
-            Debug.Log($"´ëÈ­ ÅØ½ºÆ® ¼³Á¤µÊ: {description}");
-        }
-        else
-        {
-            Debug.LogError("dialogueText°¡ nullÀÔ´Ï´Ù!");
-        }
-
-        // È­ÀÚ ÀÌ¸§ ¼³Á¤ (ÇÃ·¹ÀÌ¾î)
-        var stats = FindObjectOfType<PlayerStats>();
-        string name = stats != null && !string.IsNullOrEmpty(stats.playerName)
-                      ? stats.playerName
-                      : "ÇÃ·¹ÀÌ¾î";
-
-        if (speakerNameText != null)
-            speakerNameText.text = name;
-
-        // ÇÃ·¹ÀÌ¾î ÃÊ»óÈ­¸¸ Ç¥½Ã (NPC ÃÊ»óÈ­´Â ¼û±è)
-        if (leftPortrait != null && playerPortrait != null)
-        {
-            leftPortrait.sprite = playerPortrait;
-            SetPortraitAlpha(leftPortrait, 1f);
-        }
-
-        if (rightPortrait != null)
-        {
-            SetPortraitAlpha(rightPortrait, 0f); // NPC ÃÊ»óÈ­ ¼û±è
-        }
-
-        // °ÔÀÓ »óÅÂ º¯°æ
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(true);
-            Debug.Log("°ÔÀÓ »óÅÂ º¯°æ: ´ëÈ­ ¸ğµå");
+            Debug.LogError($"[DialogueManager] DialogueLines ë¡œë“œ ì‹¤íŒ¨: {e.Message}");
         }
     }
 
-    // ¾ÆÀÌÅÛ ¼³¸í ¼û±â±â
-    public void HideItemDescription()
+    void LoadDialogueSets()
     {
-        Debug.Log("HideItemDescription È£ÃâµÊ");
-
-        if (dialoguePanel != null)
+        try
         {
-            dialoguePanel.SetActive(false);
-            Debug.Log("´ëÈ­Ã¢ ºñÈ°¼ºÈ­µÊ");
+            TextAsset csvFile = Resources.Load<TextAsset>(dialogueSetsPath);
+            if (csvFile == null)
+            {
+                Debug.LogError($"[DialogueManager] CSV íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {dialogueSetsPath}");
+                return;
+            }
+
+            var sets = DialogueCSVParser.ParseDialogueSets(csvFile.text);
+            dialogueSets.Clear();
+
+            foreach (var set in sets)
+            {
+                dialogueSets[set.dialogueSetID] = set;
+            }
+
+            if (debugMode)
+                Debug.Log($"[DialogueManager] DialogueSets ë¡œë“œ ì™„ë£Œ: {sets.Count}ê°œ");
         }
-
-        isShowingItemDescription = false;
-
-        // ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ º¹¿ø
-        PlayerController playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
+        catch (Exception e)
         {
-            playerController.SetCanMove(true);
-            Debug.Log("ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ º¹¿øµÊ");
-        }
-
-        // °ÔÀÓ »óÅÂ º¹¿ø
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(false);
-            Debug.Log("°ÔÀÓ »óÅÂ º¹¿øµÊ");
+            Debug.LogError($"[DialogueManager] DialogueSets ë¡œë“œ ì‹¤íŒ¨: {e.Message}");
         }
     }
 
-    // InteractionDetector¿¡¼­ È£ÃâµÉ ¸Ş¼­µå
-    public void SetCharacterPortraits(Sprite player, Sprite npc)
+    void LoadDialogueConditions()
     {
-        playerPortrait = player;
-        npcPortrait = npc;
+        try
+        {
+            TextAsset csvFile = Resources.Load<TextAsset>(dialogueConditionsPath);
+            if (csvFile == null)
+            {
+                Debug.LogWarning($"[DialogueManager] CSV íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {dialogueConditionsPath} (ì„ íƒì‚¬í•­)");
+                return;
+            }
 
-        // UI ÃÊ»óÈ­ ¼³Á¤
-        if (leftPortrait != null)
-            leftPortrait.sprite = player;
-        if (rightPortrait != null)
-            rightPortrait.sprite = npc;
+            var conditions = DialogueCSVParser.ParseDialogueConditions(csvFile.text);
+            dialogueConditions.Clear();
+
+            foreach (var condition in conditions)
+            {
+                if (!dialogueConditions.ContainsKey(condition.dialogueSetID))
+                    dialogueConditions[condition.dialogueSetID] = new List<DialogueCondition>();
+
+                dialogueConditions[condition.dialogueSetID].Add(condition);
+            }
+
+            if (debugMode)
+                Debug.Log($"[DialogueManager] DialogueConditions ë¡œë“œ ì™„ë£Œ: {conditions.Count}ê°œ");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DialogueManager] DialogueConditions ë¡œë“œ ì‹¤íŒ¨: {e.Message}");
+        }
     }
 
-    public void StartDialogue(NPCDataSO data, int dialogueID)
+    // ===== ì¡°ê±´ ì²´í¬ ì‹œìŠ¤í…œ =====
+    void InitializeConditionCheckers()
     {
-        npcData = data;
+        conditionCheckers = new Dictionary<string, Func<string, string, bool>>()
+        {
+            ["none"] = (target, value) => true,
+            ["story_reached"] = CheckStoryReached,
+            ["quest_completed"] = CheckQuestCompleted,
+            ["item_obtained"] = CheckItemObtained,
+            ["dialogue_finished"] = CheckDialogueFinished
+        };
+    }
 
-        currentDialogueID = dialogueID;
-        currentLineIndex = 0;
+    bool CheckStoryReached(string target, string value)
+    {
+        if (StoryProgressManager.Instance != null)
+        {
+            string currentStory = StoryProgressManager.Instance.GetCurrentStoryID();
+            return currentStory == target;
+        }
+        return false;
+    }
+
+    bool CheckQuestCompleted(string target, string value)
+    {
+        return PlayerPrefs.GetInt($"Quest_{target}_Completed", 0) == 1;
+    }
+
+    bool CheckItemObtained(string target, string value)
+    {
+        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
+        int currentAmount = PlayerPrefs.GetInt($"Item_{target}_Count", 0);
+        return currentAmount >= requiredAmount;
+    }
+
+    bool CheckDialogueFinished(string target, string value)
+    {
+        return PlayerPrefs.GetInt($"Dialogue_{target}_Finished", 0) == 1;
+    }
+
+    // ===== ê³µê°œ ë©”ì„œë“œë“¤ (ê¸°ì¡´ í˜¸í™˜ì„± ìœ ì§€) =====
+    public void StartDialogue(string dialogueSetID)
+    {
+        if (!dialogueSets.ContainsKey(dialogueSetID))
+        {
+            Debug.LogError($"[DialogueManager] ì¡´ì¬í•˜ì§€ ì•ŠëŠ” ëŒ€í™” ì„¸íŠ¸: {dialogueSetID}");
+            return;
+        }
+
+        if (!CanStartDialogue(dialogueSetID))
+        {
+            Debug.Log($"[DialogueManager] ëŒ€í™” ì‹œì‘ ì¡°ê±´ ë¯¸ì¶©ì¡±: {dialogueSetID}");
+            return;
+        }
+
+        var dialogueSet = dialogueSets[dialogueSetID];
+        currentDialogueSetID = dialogueSetID;
+        currentLineID = dialogueSet.startLineID;
         isInDialogue = true;
         isShowingItemDescription = false;
 
-        if (npcData.dialogues != null && dialogueID >= 0 && dialogueID < npcData.dialogues.Length)
-        {
-            currentDialogueData = npcData.dialogues[dialogueID];
-        }
-        else
-        {
-            Debug.LogError($"npcData.dialogues[{dialogueID}]°¡ ¾ø½À´Ï´Ù!");
-            currentDialogueData = null;
-        }
+        if (logDialogueEvents)
+            Debug.Log($"[DialogueManager] ëŒ€í™” ì‹œì‘: {dialogueSetID} - {dialogueSet.description}");
 
-        // ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ Á¦ÇÑ
-        PlayerController playerController = FindObjectOfType<PlayerController>();
+        // í”Œë ˆì´ì–´ ì¡°ì‘ ê¸ˆì§€
+        var playerController = FindObjectOfType<PlayerController>();
         if (playerController != null)
         {
             playerController.SetCanMove(false);
@@ -226,139 +510,97 @@ public class DialogueManager : MonoBehaviour
         if (dialoguePanel != null)
             dialoguePanel.SetActive(true);
 
-        // Ã¹ ¹øÂ° ´ëÈ­ ¶óÀÎ Ç¥½Ã
+        // ê²Œì„ ìƒíƒœ ë³€ê²½
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(true);
+        }
+
         DisplayCurrentLine();
+    }
+
+    public void StartDialogue(NPCDataSO npcData, int dialogueID)
+    {
+        // ê¸°ì¡´ í˜¸í™˜ì„±ì„ ìœ„í•œ ë˜í¼ ë©”ì„œë“œ
+        Debug.LogWarning("[DialogueManager] êµ¬ ë°©ì‹ í˜¸ì¶œë¨. CSV ê¸°ë°˜ StartDialogue(string) ì‚¬ìš©ì„ ê¶Œì¥í•©ë‹ˆë‹¤.");
+
+        // ì„ì‹œë¡œ dialogueIDë¥¼ stringìœ¼ë¡œ ë³€í™˜
+        string dialogueSetID = $"legacy_dialogue_{dialogueID}";
+        StartDialogue(dialogueSetID);
+    }
+
+    bool CanStartDialogue(string dialogueSetID)
+    {
+        if (!dialogueConditions.ContainsKey(dialogueSetID))
+            return true;
+
+        var conditions = dialogueConditions[dialogueSetID];
+        foreach (var condition in conditions)
+        {
+            if (!CheckDialogueCondition(condition))
+                return false;
+        }
+
+        return true;
+    }
+
+    bool CheckDialogueCondition(DialogueCondition condition)
+    {
+        if (!conditionCheckers.ContainsKey(condition.conditionType))
+        {
+            Debug.LogWarning($"[DialogueManager] ì•Œ ìˆ˜ ì—†ëŠ” ì¡°ê±´ íƒ€ì…: {condition.conditionType}");
+            return true;
+        }
+
+        return conditionCheckers[condition.conditionType](condition.target, condition.value);
     }
 
     void DisplayCurrentLine()
     {
-        if (currentDialogueData == null
-            || currentDialogueData.IsDialogueFinished(currentDialogueID, currentLineIndex))
+        if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
         {
             EndDialogue();
             return;
         }
 
-        // ÇöÀç ¶óÀÎ µ¥ÀÌÅÍ °¡Á®¿À±â
-        string text = currentDialogueData.GetDialogueText(currentDialogueID, currentLineIndex);
-        string speakerName = currentDialogueData.GetSpeakerName(currentDialogueID, currentLineIndex);
-        bool isPlayer = currentDialogueData.IsPlayerSpeaking(currentDialogueID, currentLineIndex);
+        var currentLine = dialogueLines[currentLineID];
 
-        // UI ¾÷µ¥ÀÌÆ®
+        if (logDialogueEvents)
+            Debug.Log($"[DialogueManager] ëŒ€í™” ë¼ì¸ í‘œì‹œ: {currentLineID} - {currentLine.speakerName}");
+
+        // UI ì—…ë°ì´íŠ¸
         if (dialogueText != null)
-            dialogueText.text = text;
+            dialogueText.text = currentLine.text;
 
-        SetCurrentSpeaker(speakerName, isPlayer);
+        SetCurrentSpeaker(currentLine);
     }
 
-    public void NextLine()
+    void SetCurrentSpeaker(DialogueLine line)
     {
-        currentLineIndex++;
-        DisplayCurrentLine();
-    }
+        string speakerName = string.IsNullOrEmpty(line.customSpeaker) ? line.speakerName : line.customSpeaker;
 
-    public void EndDialogue()
-    {
-        isInDialogue = false;
-        isShowingItemDescription = false;
-
-        // ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ º¹±¸
-        PlayerController playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.SetCanMove(true);
-        }
-
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(false);
-    }
-
-    public bool IsInDialogue()
-    {
-        return isInDialogue || isShowingItemDescription;
-    }
-
-    public void SetCurrentSpeaker(string speakerName, bool isPlayer)
-    {
-        Debug.Log($"=== SetCurrentSpeaker È£Ãâ: Speaker={speakerName}, isPlayer={isPlayer} ===");
-
-        // 1) È­ÀÚ ÀÌ¸§ ¼³Á¤
         if (speakerNameText != null)
             speakerNameText.text = speakerName;
 
-        // 2) Æ÷Æ®·¹ÀÌÆ® µğ¹ö±ë Á¤º¸
-        Debug.Log($"leftPortrait null ¿©ºÎ: {leftPortrait == null}");
-        Debug.Log($"rightPortrait null ¿©ºÎ: {rightPortrait == null}");
-        Debug.Log($"playerPortrait null ¿©ºÎ: {playerPortrait == null}");
-        Debug.Log($"npcPortrait null ¿©ºÎ: {npcPortrait == null}");
-
-        // 3) Æ÷Æ®·¹ÀÌÆ® ¼³Á¤ ¹× È°¼ºÈ­ (GameObject.SetActive ´ë½Å alpha »ç¿ë)
-        if (leftPortrait != null)
-        {
-            // ÇÃ·¹ÀÌ¾î Æ÷Æ®·¹ÀÌÆ®´Â Ç×»ó È°¼ºÈ­ÇÏ°í ½ºÇÁ¶óÀÌÆ® Àç¼³Á¤
-            leftPortrait.gameObject.SetActive(true);
-            if (playerPortrait != null)
-                leftPortrait.sprite = playerPortrait;
-
-            // ¾ËÆÄ°ªÀ¸·Î °­Á¶/ºñ°­Á¶ Ç¥Çö
-            SetPortraitAlpha(leftPortrait, isPlayer ? 1f : 0.5f);
-            Debug.Log($"leftPortrait ¾ËÆÄ°ª: {(isPlayer ? 1f : 0.5f)}");
-        }
-
-        if (rightPortrait != null)
-        {
-            // NPC Æ÷Æ®·¹ÀÌÆ®µµ Ç×»ó È°¼ºÈ­ÇÏ°í ½ºÇÁ¶óÀÌÆ® Àç¼³Á¤
-            rightPortrait.gameObject.SetActive(true);
-            if (npcPortrait != null)
-                rightPortrait.sprite = npcPortrait;
-
-            // ¾ËÆÄ°ªÀ¸·Î °­Á¶/ºñ°­Á¶ Ç¥Çö
-            SetPortraitAlpha(rightPortrait, !isPlayer ? 1f : 0.5f);
-            Debug.Log($"rightPortrait ¾ËÆÄ°ª: {(!isPlayer ? 1f : 0.5f)}");
-            Debug.Log($"rightPortrait ½ºÇÁ¶óÀÌÆ®: {(rightPortrait.sprite != null ? rightPortrait.sprite.name : "null")}");
-        }
+        // ì´ˆìƒí™” ì„¤ì •
+        UpdatePortraits(line);
     }
 
-    public void StartQuestDialogue(DialogueDataSO questDialogueData, int questDialogueID)
+    void UpdatePortraits(DialogueLine line)
     {
-        Debug.Log($"StartQuestDialogue È£Ãâ: DialogueID {questDialogueID}");
-
-        // Äù½ºÆ® ´ÙÀÌ¾ó·Î±× µ¥ÀÌÅÍ Á÷Á¢ ¼³Á¤
-        currentDialogueData = questDialogueData;
-        currentDialogueID = questDialogueID;
-        currentLineIndex = 0;
-        isInDialogue = true;
-        isShowingItemDescription = false;
-
-        // ÇØ´ç DialogueSetÀÌ Á¸ÀçÇÏ´ÂÁö È®ÀÎ
-        DialogueSet dialogueSet = questDialogueData.GetDialogueSet(questDialogueID);
-        if (dialogueSet == null)
+        if (leftPortrait != null && rightPortrait != null)
         {
-            Debug.LogError($"questDialogueID {questDialogueID}¿¡ ÇØ´çÇÏ´Â DialogueSetÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù!");
-            EndDialogue();
-            return;
+            Sprite playerPortrait = GetPlayerPortrait();
+            Sprite npcPortrait = GetNPCPortrait(line.speakerName);
+
+            // í”Œë ˆì´ì–´ ì´ˆìƒí™” (ì™¼ìª½)
+            leftPortrait.sprite = playerPortrait;
+            SetPortraitAlpha(leftPortrait, line.isPlayer ? 1f : 0.5f);
+
+            // NPC ì´ˆìƒí™” (ì˜¤ë¥¸ìª½)  
+            rightPortrait.sprite = npcPortrait;
+            SetPortraitAlpha(rightPortrait, !line.isPlayer ? 1f : 0.5f);
         }
-
-        Debug.Log($"Äù½ºÆ® ´ÙÀÌ¾ó·Î±× ½ÃÀÛ: {dialogueSet.npcName}");
-
-        // ÇÃ·¹ÀÌ¾î ¿òÁ÷ÀÓ Á¦ÇÑ
-        PlayerController playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.SetCanMove(false);
-        }
-
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(true);
-
-        // °ÔÀÓ »óÅÂ º¯°æ
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(true);
-        }
-
-        // Ã¹ ¹øÂ° ´ëÈ­ ¶óÀÎ Ç¥½Ã
-        DisplayCurrentLine();
     }
 
     void SetPortraitAlpha(Image portrait, float alpha)
@@ -371,15 +613,214 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    // ÇÃ·¹ÀÌ¾î Á¤º¸¸¦ PlayerStats¿¡¼­ Á÷Á¢ °¡Á®¿À´Â ¹æ¹ı
-    public void SetPlayerInfo(PlayerStats playerStats)
+    Sprite GetPlayerPortrait()
     {
-        if (playerStats != null)
-        {
-            playerPortrait = playerStats.GetPlayerPortrait();
+        var playerStats = FindObjectOfType<PlayerStats>();
+        if (playerStats != null && playerStats.playerPortrait != null)
+            return playerStats.playerPortrait;
 
-            if (leftPortrait != null)
-                leftPortrait.sprite = playerPortrait;
+        return defaultPlayerPortrait;
+    }
+
+    Sprite GetNPCPortrait(string speakerName)
+    {
+        // ìºì‹œì—ì„œ ì°¾ê¸°
+        if (portraitCache.ContainsKey(speakerName))
+            return portraitCache[speakerName];
+
+        // Resourcesì—ì„œ ë¡œë“œ ì‹œë„
+        Sprite portrait = Resources.Load<Sprite>($"Portraits/{speakerName}");
+        if (portrait != null)
+        {
+            portraitCache[speakerName] = portrait;
+            return portrait;
+        }
+
+        return defaultNPCPortrait;
+    }
+
+    public void NextLine()
+    {
+        if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
+        {
+            EndDialogue();
+            return;
+        }
+
+        var currentLine = dialogueLines[currentLineID];
+
+        if (string.IsNullOrEmpty(currentLine.nextLineID))
+        {
+            EndDialogue();
+        }
+        else
+        {
+            currentLineID = currentLine.nextLineID;
+            DisplayCurrentLine();
+        }
+    }
+
+    public void EndDialogue()
+    {
+        if (!string.IsNullOrEmpty(currentDialogueSetID))
+        {
+            // ëŒ€í™” ì™„ë£Œ ìƒíƒœ ì €ì¥
+            PlayerPrefs.SetInt($"Dialogue_{currentDialogueSetID}_Finished", 1);
+            PlayerPrefs.Save();
+
+            if (logDialogueEvents)
+                Debug.Log($"[DialogueManager] ëŒ€í™” ì™„ë£Œ: {currentDialogueSetID}");
+
+            // StoryProgressManagerì— ì§„í–‰ ì•Œë¦¼
+            if (StoryProgressManager.Instance != null)
+            {
+                StoryProgressManager.Instance.TryAdvanceToNextStory();
+            }
+        }
+
+        isInDialogue = false;
+        isShowingItemDescription = false;
+        currentDialogueSetID = "";
+        currentLineID = "";
+
+        // í”Œë ˆì´ì–´ ì¡°ì‘ ë³µêµ¬
+        var playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(true);
+        }
+
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+
+        // ê²Œì„ ìƒíƒœ ë³µêµ¬
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(false);
+        }
+    }
+
+    // ===== ì•„ì´í…œ ì„¤ëª… ê¸°ëŠ¥ =====
+    public void ShowItemDescription(string description)
+    {
+        Debug.Log($"ShowItemDescription í˜¸ì¶œë¨: {description}");
+
+        if (dialoguePanel == null)
+        {
+            GameObject foundTalkPanel = GameObject.Find("talkPanel");
+            if (foundTalkPanel != null)
+            {
+                dialoguePanel = foundTalkPanel;
+                Debug.Log("talkPanelì„ ë‹¤ì‹œ ì°¾ì•„ì„œ ì—°ê²°í–ˆìŠµë‹ˆë‹¤!");
+            }
+            else
+            {
+                Debug.LogError("talkPanelì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
+                return;
+            }
+        }
+
+        isShowingItemDescription = true;
+        isInDialogue = false;
+
+        var playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(false);
+        }
+
+        dialoguePanel.SetActive(true);
+
+        if (dialogueText != null)
+        {
+            dialogueText.text = description;
+        }
+
+        var stats = FindObjectOfType<PlayerStats>();
+        string name = stats != null && !string.IsNullOrEmpty(stats.playerName)
+                      ? stats.playerName
+                      : "í”Œë ˆì´ì–´";
+
+        if (speakerNameText != null)
+            speakerNameText.text = name;
+
+        if (leftPortrait != null)
+        {
+            leftPortrait.sprite = GetPlayerPortrait();
+            SetPortraitAlpha(leftPortrait, 1f);
+        }
+
+        if (rightPortrait != null)
+        {
+            SetPortraitAlpha(rightPortrait, 0f);
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(true);
+        }
+    }
+
+    public void HideItemDescription()
+    {
+        Debug.Log("HideItemDescription í˜¸ì¶œë¨");
+
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(false);
+        }
+
+        isShowingItemDescription = false;
+
+        var playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(true);
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(false);
+        }
+    }
+
+    public void SetCharacterPortraits(Sprite playerPortrait, Sprite npcPortrait)
+    {
+        if (leftPortrait != null)
+        {
+            leftPortrait.sprite = playerPortrait;
+        }
+
+        if (rightPortrait != null)
+        {
+            rightPortrait.sprite = npcPortrait;
+        }
+
+        if (debugMode)
+            Debug.Log($"[DialogueManager] ì´ˆìƒí™” ì„¤ì • ì™„ë£Œ - Player: {(playerPortrait != null ? playerPortrait.name : "NULL")}, NPC: {(npcPortrait != null ? npcPortrait.name : "NULL")}");
+    }
+
+    // ===== ê³µê°œ ìƒíƒœ í™•ì¸ ë©”ì„œë“œë“¤ =====
+    public bool IsInDialogue()
+    {
+        return isInDialogue || isShowingItemDescription;
+    }
+
+    // ===== ë””ë²„ê·¸ ë©”ì„œë“œë“¤ =====
+    [ContextMenu("Reload Dialogue Data")]
+    public void ReloadDialogueData()
+    {
+        LoadDialogueDataFromCSV();
+        Debug.Log("[DialogueManager] ëŒ€í™” ë°ì´í„° ì¬ë¡œë“œ ì™„ë£Œ");
+    }
+
+    [ContextMenu("List All Dialogue Sets")]
+    public void ListAllDialogueSets()
+    {
+        Debug.Log("=== ì „ì²´ ëŒ€í™” ì„¸íŠ¸ ëª©ë¡ ===");
+        foreach (var kvp in dialogueSets)
+        {
+            Debug.Log($"{kvp.Key}: {kvp.Value.description}");
         }
     }
 }
