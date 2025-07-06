@@ -4,20 +4,15 @@ using UnityEngine;
 
 public class ItemManager : MonoBehaviour
 {
-    [Header("¾ÆÀÌÅÛ µ¥ÀÌÅÍ")]
-    public ItemDataSO itemData;        // ScriptableObject ÂüÁ¶
+    [Header("ì•„ì´í…œ ë°ì´í„°")]
+    public ItemDataSO itemData;        // ScriptableObject ì°¸ì¡°
 
-    [Header("¿À¹ö¶óÀÌµå (ÇÊ¿ä½Ã)")]
+    [Header("ì˜¤ë²„ë¼ì´ë“œ (í•„ìš”ì‹œ)")]
     public bool overrideSprite = false;
     public Sprite customSprite;
 
-    [Header("Äù½ºÆ® ¾ÆÀÌÅÛ µğ¹ö±ë")]
-    public bool debugQuestItem = true;
-
-    // ¾ÆÀÌÅÛ °íÀ¯ ID (¼öÁı »óÅÂ ÃßÀû¿ë)
-    [Header("¾ÆÀÌÅÛ °íÀ¯ ½Äº°ÀÚ")]
-    [Tooltip("ºñ¾îÀÖÀ¸¸é itemData.itemID¸¦ »ç¿ëÇÕ´Ï´Ù")]
-    public string uniqueItemID = "";
+    [Header("ë””ë²„ê·¸")]
+    public bool debugItemSystem = true;
 
     private SpriteRenderer spriteRenderer;
     private bool hasOutline = false;
@@ -27,18 +22,16 @@ public class ItemManager : MonoBehaviour
 
     void Awake()
     {
-        // ÃÖÃÊ ½ÇÇà ¿©ºÎ ÇÑ ¹ø¸¸ Ã¼Å©
+        // ìµœì´ˆ ì‹¤í–‰ ì—¬ë¶€ í•œ ë²ˆë§Œ ì²´í¬
         if (!firstRunChecked)
         {
             if (!PlayerPrefs.HasKey(kFirstRunKey))
             {
-                // Ã¹ ½ÇÇàÀÌ´Ï±î, ÀÌÀü¿¡ ÀúÀåµÈ ¸ğµç ¼öÁı »óÅÂ¸¦ Áö¿öÁØ´Ù.
-                // (¸¸¾à ´Ù¸¥ PlayerPrefs¸¦ °°ÀÌ ¾²°í ÀÖ´Ù¸é, 
-                //  DeleteAll ´ë½Å Item_Collected_ ·Î ½ÃÀÛÇÏ´Â Å°¸¸ Áö¿ì´Â ·ÎÁ÷À» ÀÛ¼ºÇØµµ OK)
+                // ì²« ì‹¤í–‰ì´ë¯€ë¡œ, ì´ì „ì— ì €ì¥ëœ ëª¨ë“  ì•„ì´í…œ ìƒíƒœë¥¼ ì§€ì›ë‹ˆë‹¤.
                 PlayerPrefs.DeleteAll();
                 PlayerPrefs.SetInt(kFirstRunKey, 1);
                 PlayerPrefs.Save();
-                Debug.Log("[ItemManager] Ã¹ ½ÇÇà - ¼öÁı »óÅÂ ÃÊ±âÈ­");
+                Debug.Log("[ItemManager] ì²« ì‹¤í–‰ - ì•„ì´í…œ ìƒíƒœ ì´ˆê¸°í™”");
             }
             firstRunChecked = true;
         }
@@ -48,17 +41,15 @@ public class ItemManager : MonoBehaviour
     {
         if (itemData == null)
         {
-            Debug.LogError($"ItemData°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù: {gameObject.name}");
+            Debug.LogError($"ItemDataê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤: {gameObject.name}");
             return;
         }
 
-        // ¾ÆÀÌÅÛ °íÀ¯ ID ¼³Á¤
-        SetupUniqueID();
-
-        // ÀÌ¹Ì ¼öÁıµÈ ¾ÆÀÌÅÛÀÎÁö È®ÀÎ
-        if (IsItemAlreadyCollected())
+        // ì´ë¯¸ ìˆ˜ì§‘ëœ ì•„ì´í…œì¸ì§€ í™•ì¸ (ì¤‘ë³µ ë°©ì§€)
+        if (IsItemAlreadyObtained())
         {
-            Debug.Log($"¾ÆÀÌÅÛ {GetItemUniqueID()}´Â ÀÌ¹Ì ¼öÁıµÇ¾î Á¦°ÅµË´Ï´Ù.");
+            if (debugItemSystem)
+                Debug.Log($"ì•„ì´í…œ {GetItemID()}ëŠ” ì´ë¯¸ íšë“ë˜ì–´ ì œê±°ë©ë‹ˆë‹¤.");
             Destroy(gameObject);
             return;
         }
@@ -66,47 +57,99 @@ public class ItemManager : MonoBehaviour
         SetupSprite();
         AddOutline();
 
-        // Äù½ºÆ® ¾ÆÀÌÅÛ µğ¹ö±ë Á¤º¸
-        if (debugQuestItem && itemData.isQuestItem)
+        // ë””ë²„ê·¸ ì •ë³´
+        if (debugItemSystem)
         {
-            Debug.Log($"Äù½ºÆ® ¾ÆÀÌÅÛ ÃÊ±âÈ­: {itemData.displayName} (ID: {itemData.itemID})");
+            Debug.Log($"ì•„ì´í…œ ì´ˆê¸°í™”: {GetItemDisplayName()} (ID: {GetItemID()}, í€˜ìŠ¤íŠ¸: {itemData.isQuestItem})");
         }
     }
 
-    void SetupUniqueID()
+    // ê°„ë‹¨í•œ í—¬í¼ ë©”ì„œë“œë“¤
+    string GetItemID()
     {
-        // °íÀ¯ ID°¡ ¼³Á¤µÇ¾î ÀÖÁö ¾ÊÀ¸¸é itemDataÀÇ ID »ç¿ë
-        if (string.IsNullOrEmpty(uniqueItemID))
+        return string.IsNullOrEmpty(itemData.itemID) ? itemData.name : itemData.itemID;
+    }
+
+    string GetItemDisplayName()
+    {
+        return string.IsNullOrEmpty(itemData.displayName) ? itemData.name : itemData.displayName;
+    }
+
+    Sprite GetItemWorldSprite()
+    {
+        return itemData.worldSprite != null ? itemData.worldSprite : itemData.icon;
+    }
+
+    Color GetItemOutlineColor()
+    {
+        if (itemData.isQuestItem)
+            return Color.cyan;  // í€˜ìŠ¤íŠ¸ ì•„ì´í…œì€ í•˜ëŠ˜ìƒ‰
+        return itemData.outlineColor;
+    }
+
+    /// <summary>
+    /// ì´ë¯¸ íšë“í•œ ì•„ì´í…œì¸ì§€ í™•ì¸ (CSV ìŠ¤í† ë¦¬ ì‹œìŠ¤í…œ ê¸°ì¤€)
+    /// </summary>
+    bool IsItemAlreadyObtained()
+    {
+        string itemID = GetItemID();
+        string countKey = $"Item_{itemID}_Count";
+        int currentCount = PlayerPrefs.GetInt(countKey, 0);
+
+        // í€˜ìŠ¤íŠ¸ ì•„ì´í…œì€ 1ê°œë§Œ ì¡´ì¬í•´ì•¼ í•¨
+        if (itemData.isQuestItem)
         {
-            uniqueItemID = itemData.itemID;
+            return currentCount > 0;
         }
 
-        // ±×·¡µµ ºñ¾îÀÖÀ¸¸é GameObject ÀÌ¸§ + À§Ä¡·Î »ı¼º
-        if (string.IsNullOrEmpty(uniqueItemID))
+        // ì¼ë°˜ ì•„ì´í…œì€ ìŠ¤íƒ ê°€ëŠ¥ ì—¬ë¶€ì— ë”°ë¼
+        if (itemData.stackable)
         {
-            Vector3 pos = transform.position;
-            uniqueItemID = $"{gameObject.name}_{pos.x:F2}_{pos.y:F2}";
-            Debug.LogWarning($"¾ÆÀÌÅÛ °íÀ¯ ID°¡ ¾ø¾î¼­ ÀÚµ¿ »ı¼º: {uniqueItemID}");
+            return currentCount >= itemData.maxStackSize;
+        }
+        else
+        {
+            return currentCount > 0;
         }
     }
 
-    string GetItemUniqueID()
+    /// <summary>
+    /// ì•„ì´í…œ íšë“ ì²˜ë¦¬ - CSV ìŠ¤í† ë¦¬ ì‹œìŠ¤í…œê³¼ ì™„ì „ í˜¸í™˜
+    /// </summary>
+    void SaveItemObtained()
     {
-        return uniqueItemID;
-    }
+        string itemID = GetItemID();
+        string countKey = $"Item_{itemID}_Count";
+        int currentCount = PlayerPrefs.GetInt(countKey, 0);
+        int newCount = currentCount + 1;
 
-    bool IsItemAlreadyCollected()
-    {
-        string key = $"Item_Collected_{GetItemUniqueID()}";
-        return PlayerPrefs.GetInt(key, 0) == 1;
-    }
-
-    void SaveItemCollected()
-    {
-        string key = $"Item_Collected_{GetItemUniqueID()}";
-        PlayerPrefs.SetInt(key, 1);
+        PlayerPrefs.SetInt(countKey, newCount);
         PlayerPrefs.Save();
-        Debug.Log($"¾ÆÀÌÅÛ ¼öÁı »óÅÂ ÀúÀå: {GetItemUniqueID()}");
+
+        if (debugItemSystem)
+        {
+            Debug.Log($"ì•„ì´í…œ íšë“ ì €ì¥: {countKey} = {newCount}");
+        }
+
+        // ìŠ¤í† ë¦¬ ì‹œìŠ¤í…œì— ì¦‰ì‹œ ì•Œë¦¼
+        NotifyStorySystemItemObtained(itemID, newCount);
+    }
+
+    /// <summary>
+    /// ìŠ¤í† ë¦¬ ì‹œìŠ¤í…œì— ì•„ì´í…œ íšë“ ì•Œë¦¼
+    /// </summary>
+    void NotifyStorySystemItemObtained(string itemID, int newCount)
+    {
+        if (StoryProgressManager.Instance != null)
+        {
+            // í˜„ì¬ ìŠ¤í† ë¦¬ì—ì„œ ì´ ì•„ì´í…œ íšë“ì„ ê¸°ë‹¤ë¦¬ê³  ìˆëŠ”ì§€ ì¦‰ì‹œ ì²´í¬
+            StoryProgressManager.Instance.TryAdvanceToNextStory();
+
+            if (debugItemSystem)
+            {
+                Debug.Log($"[ItemManager] ìŠ¤í† ë¦¬ ì‹œìŠ¤í…œ ì•Œë¦¼: {itemID} x{newCount} íšë“");
+            }
+        }
     }
 
     void SetupSprite()
@@ -114,14 +157,13 @@ public class ItemManager : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         if (spriteRenderer == null) return;
 
-        // Ä¿½ºÅÒ ½ºÇÁ¶óÀÌÆ®°¡ ÀÖÀ¸¸é ¿ì¼± »ç¿ë, ¾øÀ¸¸é µ¥ÀÌÅÍ¿¡¼­ °¡Á®¿À±â
         if (overrideSprite && customSprite != null)
         {
             spriteRenderer.sprite = customSprite;
         }
         else
         {
-            spriteRenderer.sprite = itemData.GetWorldSprite();
+            spriteRenderer.sprite = GetItemWorldSprite();
         }
     }
 
@@ -136,7 +178,7 @@ public class ItemManager : MonoBehaviour
 
         SpriteRenderer outlineRenderer = outlineObj.AddComponent<SpriteRenderer>();
         outlineRenderer.sprite = spriteRenderer.sprite;
-        outlineRenderer.color = itemData.GetOutlineColor();
+        outlineRenderer.color = GetItemOutlineColor();
         outlineRenderer.sortingOrder = spriteRenderer.sortingOrder - 1;
 
         hasOutline = true;
@@ -146,224 +188,269 @@ public class ItemManager : MonoBehaviour
     {
         if (itemData == null)
         {
-            Debug.LogError("ItemData°¡ nullÀÔ´Ï´Ù!");
+            Debug.LogError("ItemDataê°€ nullì…ë‹ˆë‹¤!");
             return;
         }
 
-        Debug.Log($"¾ÆÀÌÅÛ »óÈ£ÀÛ¿ë: {itemData.displayName} (Å¸ÀÔ: {itemData.itemType}, Äù½ºÆ®¾ÆÀÌÅÛ: {itemData.isQuestItem})");
+        if (debugItemSystem)
+        {
+            Debug.Log($"ì•„ì´í…œ ìƒí˜¸ì‘ìš©: {GetItemDisplayName()} (í€˜ìŠ¤íŠ¸: {itemData.isQuestItem})");
+        }
 
-        if (itemData.itemType == ItemType.Collectible)
-        {
-            CollectItem();
-        }
-        else
-        {
-            InspectItem();
-        }
+        CollectItem();
     }
 
     protected virtual void CollectItem()
     {
-        Debug.Log($"{itemData.displayName} È¹µæ!");
+        if (debugItemSystem)
+        {
+            Debug.Log($"{GetItemDisplayName()} íšë“!");
+        }
 
-        // ¾ÆÀÌÅÛ ¼öÁı »óÅÂ ÀúÀå (Áß¿ä!)
-        SaveItemCollected();
+        // ì•„ì´í…œ íšë“ ìƒíƒœ ì €ì¥ (CSV ìŠ¤í† ë¦¬ ì‹œìŠ¤í…œê³¼ ì™„ì „ í˜¸í™˜)
+        SaveItemObtained();
 
-        // Äù½ºÆ® ¾ÆÀÌÅÛÀÎÁö ¸ÕÀú È®ÀÎ
+        // í€˜ìŠ¤íŠ¸ ì•„ì´í…œ vs ì¼ë°˜ ì•„ì´í…œ ì²˜ë¦¬
         if (itemData.isQuestItem)
         {
-            Debug.Log($"=== Äù½ºÆ® ¾ÆÀÌÅÛ Ã³¸® ½ÃÀÛ: {itemData.displayName} (ID: {itemData.itemID}) ===");
-
-            // QuestItemHandler°¡ ÀÖ´ÂÁö ¸ÕÀú È®ÀÎ
-            QuestItemHandler questHandler = FindObjectOfType<QuestItemHandler>();
-            if (questHandler == null)
-            {
-                Debug.LogError("QuestItemHandler¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù! Äù½ºÆ® ÀÌº¥Æ®°¡ ½ÇÇàµÇÁö ¾Ê½À´Ï´Ù.");
-                // QuestItemHandler°¡ ¾ø¾îµµ ÀÏ¹İ ¾ÆÀÌÅÛ Ã³¸®´Â °è¼Ó
-                ProcessNormalItem();
-                return;
-            }
-
-            // QuestItemHandlerÀÇ ´ë»ó ¾ÆÀÌÅÛÀÎÁö È®ÀÎ
-            bool isTargetItem = CheckIfTargetQuestItem(questHandler);
-            if (!isTargetItem)
-            {
-                Debug.Log($"ÀÌ ¾ÆÀÌÅÛÀº QuestItemHandlerÀÇ ´ë»óÀÌ ¾Æ´Õ´Ï´Ù: {itemData.itemID}");
-                ProcessNormalItem();
-                return;
-            }
-
-            Debug.Log($"QuestItemHandler ´ë»ó ¾ÆÀÌÅÛ È®ÀÎµÊ: {itemData.itemID}");
-
-            // Äù½ºÆ® ¾ÆÀÌÅÛ Àü¿ë Ã³¸® ½ÃÀÛ
-            ProcessQuestItem(questHandler);
+            ProcessQuestItem();
         }
         else
         {
-            // ÀÏ¹İ ¾ÆÀÌÅÛ Ã³¸®
             ProcessNormalItem();
         }
     }
 
-    // QuestItemHandlerÀÇ ´ë»ó ¾ÆÀÌÅÛÀÎÁö È®ÀÎ
-    bool CheckIfTargetQuestItem(QuestItemHandler questHandler)
+    /// <summary>
+    /// í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ì²˜ë¦¬
+    /// </summary>
+    void ProcessQuestItem()
     {
-        if (questHandler.targetQuestItemIDs == null || questHandler.targetQuestItemIDs.Length == 0)
+        if (debugItemSystem)
         {
-            Debug.LogWarning("QuestItemHandlerÀÇ targetQuestItemIDs°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù!");
-            return false;
+            Debug.Log($"=== í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ì²˜ë¦¬: {GetItemDisplayName()} (ID: {GetItemID()}) ===");
         }
 
-        foreach (string targetID in questHandler.targetQuestItemIDs)
+        // QuestItemHandler ì°¾ê¸°
+        QuestItemHandler questHandler = FindObjectOfType<QuestItemHandler>();
+        if (questHandler == null)
         {
-            if (itemData.itemID == targetID)
+            Debug.LogError("QuestItemHandlerë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤! ì¼ë°˜ ì•„ì´í…œìœ¼ë¡œ ì²˜ë¦¬í•©ë‹ˆë‹¤.");
+            ProcessNormalItem();
+            return;
+        }
+
+        // QuestItemHandlerì˜ ëŒ€ìƒ ì•„ì´í…œì¸ì§€ í™•ì¸
+        if (!IsTargetQuestItem(questHandler))
+        {
+            if (debugItemSystem)
             {
-                return true;
+                Debug.Log($"QuestItemHandler ëŒ€ìƒì´ ì•„ë‹™ë‹ˆë‹¤: {GetItemID()}");
+            }
+            ProcessNormalItem();
+            return;
+        }
+
+        // í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ì‹œí€€ìŠ¤ ì‹œì‘
+        StartQuestItemSequence(questHandler);
+    }
+
+    /// <summary>
+    /// QuestItemHandlerì˜ ëŒ€ìƒ ì•„ì´í…œì¸ì§€ í™•ì¸
+    /// </summary>
+    bool IsTargetQuestItem(QuestItemHandler questHandler)
+    {
+        string itemID = GetItemID();
+
+        // 1. íŠ¹ì • ì•„ì´í…œ ID ì²´í¬
+        if (!string.IsNullOrEmpty(questHandler.specificQuestItemID))
+        {
+            return itemID == questHandler.specificQuestItemID;
+        }
+
+        // 2. í€˜ìŠ¤íŠ¸ ì•„ì´í…œ íƒœê·¸ ì²´í¬
+        if (questHandler.useQuestItemTag)
+        {
+            return itemData.isQuestItem;
+        }
+
+        // 3. ëŒ€ìƒ ì•„ì´í…œ ë°°ì—´ ì²´í¬
+        if (questHandler.targetQuestItemIDs != null)
+        {
+            foreach (string targetID in questHandler.targetQuestItemIDs)
+            {
+                if (itemID == targetID)
+                {
+                    return true;
+                }
             }
         }
+
         return false;
     }
 
-    // Äù½ºÆ® ¾ÆÀÌÅÛ Àü¿ë Ã³¸®
-    void ProcessQuestItem(QuestItemHandler questHandler)
+    /// <summary>
+    /// í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ì‹œí€€ìŠ¤ ì‹œì‘
+    /// </summary>
+    void StartQuestItemSequence(QuestItemHandler questHandler)
     {
-        Debug.Log("=== Äù½ºÆ® ¾ÆÀÌÅÛ ½ÃÄö½º ½ÃÀÛ ===");
-
-        // 1´Ü°è: ¾ÆÀÌÅÛ È¹µæ ¸Ş½ÃÁö Ç¥½Ã (DialogueManager »ç¿ë)
+        // 1ë‹¨ê³„: ì•„ì´í…œ ì„¤ëª… í‘œì‹œ
         if (DialogueManager.Instance != null)
         {
-            string itemMessage = $"{itemData.displayName}ÀÌ´Ù. {itemData.itemDescription}";
-            Debug.Log($"¾ÆÀÌÅÛ ¼³¸í Ç¥½Ã: {itemMessage}");
+            string itemMessage = $"{GetItemDisplayName()}ì´ë‹¤. {itemData.itemDescription}";
+
+            if (debugItemSystem)
+            {
+                Debug.Log($"ì•„ì´í…œ ì„¤ëª… í‘œì‹œ: {itemMessage}");
+            }
 
             DialogueManager.Instance.ShowItemDescription(itemMessage);
-
-            // 2´Ü°è: ¾ÆÀÌÅÛ ¼³¸íÀÌ ´İÈù ÈÄ Äù½ºÆ® ÀÌº¥Æ® ½ÇÇà
             StartCoroutine(WaitForItemDescriptionThenCallQuest(questHandler));
         }
         else
         {
-            Debug.LogError("DialogueManager.Instance°¡ nullÀÔ´Ï´Ù!");
-            // DialogueManager°¡ ¾ø¾îµµ Äù½ºÆ® ÀÌº¥Æ®´Â ½ÇÇà
+            Debug.LogError("DialogueManager.Instanceê°€ nullì…ë‹ˆë‹¤!");
             CallQuestItemHandler(questHandler);
         }
     }
 
-    // ÀÏ¹İ ¾ÆÀÌÅÛ Ã³¸®
+    /// <summary>
+    /// ì¼ë°˜ ì•„ì´í…œ ì²˜ë¦¬
+    /// </summary>
     void ProcessNormalItem()
     {
-        Debug.Log($"{itemData.displayName} È¹µæ! (ÀÏ¹İ ¾ÆÀÌÅÛ)");
-
-        // »ç¿îµå Àç»ı
-        if (itemData.pickupSound != null)
+        if (debugItemSystem)
         {
-            AudioSource.PlayClipAtPoint(itemData.pickupSound, transform.position);
+            Debug.Log($"{GetItemDisplayName()} íšë“! (ì¼ë°˜ ì•„ì´í…œ)");
         }
 
-        // ¾ÆÀÌÅÛ ¿ÀºêÁ§Æ® Á¦°Å
+        // ì‚¬ìš´ë“œ ì¬ìƒ
+        PlayPickupSound();
+
+        // ì•„ì´í…œ ì˜¤ë¸Œì íŠ¸ ì œê±°
         Destroy(gameObject);
     }
 
-    // ¾ÆÀÌÅÛ ¼³¸íÀÌ ´İÈú ¶§±îÁö ±â´Ù¸° ÈÄ QuestItemHandler È£Ãâ
+    void PlayPickupSound()
+    {
+        if (!string.IsNullOrEmpty(itemData.pickupSoundID))
+        {
+            Debug.Log($"[ì‚¬ìš´ë“œ] ì•„ì´í…œ íšë“: {itemData.pickupSoundID}");
+            // TODO: AudioManager ì—°ë™
+        }
+    }
+
+    /// <summary>
+    /// ì•„ì´í…œ ì„¤ëª… ì¢…ë£Œ í›„ í€˜ìŠ¤íŠ¸ ì´ë²¤íŠ¸ ì‹¤í–‰
+    /// </summary>
     IEnumerator WaitForItemDescriptionThenCallQuest(QuestItemHandler questHandler)
     {
-        Debug.Log("¾ÆÀÌÅÛ ¼³¸í ´ÙÀÌ¾ó·Î±×°¡ ´İÈú ¶§±îÁö ´ë±â Áß...");
+        if (debugItemSystem)
+        {
+            Debug.Log("ì•„ì´í…œ ì„¤ëª… ì¢…ë£Œ ëŒ€ê¸° ì¤‘...");
+        }
 
-        // ¾ÆÀÌÅÛ ¼³¸í ´ÙÀÌ¾ó·Î±×°¡ ´İÈú ¶§±îÁö ´ë±â
+        // ì•„ì´í…œ ì„¤ëª… ëŒ€í™”ê°€ ëë‚  ë•Œê¹Œì§€ ëŒ€ê¸°
         yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
 
-        Debug.Log("¾ÆÀÌÅÛ ¼³¸í ´ÙÀÌ¾ó·Î±× Á¾·áµÊ. Äù½ºÆ® ÀÌº¥Æ® ½ÇÇà ½ÃÀÛ.");
+        if (debugItemSystem)
+        {
+            Debug.Log("ì•„ì´í…œ ì„¤ëª… ì¢…ë£Œë¨. í€˜ìŠ¤íŠ¸ ì´ë²¤íŠ¸ ì‹¤í–‰.");
+        }
 
-        // ¾à°£ ´ë±â (ºÎµå·¯¿î ÀüÈ¯À» À§ÇØ)
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSeconds(0.2f); // ë¶€ë“œëŸ¬ìš´ ì „í™˜
 
-        // 3´Ü°è: QuestItemHandler È£Ãâ
         CallQuestItemHandler(questHandler);
     }
 
-    // QuestItemHandler È£Ãâ ¹× ¾ÆÀÌÅÛ Á¦°Å
+    /// <summary>
+    /// QuestItemHandler í˜¸ì¶œ ë° ì˜¤ë¸Œì íŠ¸ ì œê±°
+    /// </summary>
     void CallQuestItemHandler(QuestItemHandler questHandler)
     {
-        Debug.Log($"=== QuestItemHandler.OnSpecificQuestItemObtained È£Ãâ: {itemData.itemID} ===");
-
-        // »ç¿îµå Àç»ı (Äù½ºÆ® ¾ÆÀÌÅÛ È¹µæ)
-        if (itemData.pickupSound != null)
+        if (debugItemSystem)
         {
-            AudioSource.PlayClipAtPoint(itemData.pickupSound, transform.position);
+            Debug.Log($"=== QuestItemHandler í˜¸ì¶œ: {GetItemID()} ===");
         }
 
-        // Äù½ºÆ® ÀÌº¥Æ® ½ÇÇà
-        questHandler.OnSpecificQuestItemObtained(itemData.itemID, transform.position);
+        // ì‚¬ìš´ë“œ ì¬ìƒ
+        PlayPickupSound();
 
-        // ¾ÆÀÌÅÛ ¿ÀºêÁ§Æ® Á¦°Å
-        Debug.Log($"¾ÆÀÌÅÛ ¿ÀºêÁ§Æ® Á¦°Å: {gameObject.name}");
+        // í€˜ìŠ¤íŠ¸ ì´ë²¤íŠ¸ ì‹¤í–‰
+        questHandler.OnSpecificQuestItemObtained(GetItemID(), transform.position);
+
+        // ì˜¤ë¸Œì íŠ¸ ì œê±°
         Destroy(gameObject);
     }
 
-    protected virtual void InspectItem()
-    {
-        Debug.Log($"[{itemData.displayName}] {itemData.itemDescription}");
-
-        // DialogueManager¸¦ ÅëÇØ ´ëÈ­Ã¢¿¡ Ç¥½Ã (Å½»ö ½ºÅ¸ÀÏ)
-        if (DialogueManager.Instance != null)
-        {
-            // ÇÃ·¹ÀÌ¾î È¥Àã¸»·Î ¾ÆÀÌÅÛ ¼³¸í Ç¥½Ã
-            string itemMessage = $"{itemData.displayName}ÀÌ´Ù. {itemData.itemDescription}";
-            DialogueManager.Instance.ShowItemDescription(itemMessage);
-            Debug.Log($"DialogueManager.ShowItemDescription È£ÃâµÊ: {itemMessage}");
-        }
-        else
-        {
-            Debug.LogWarning("DialogueManager.Instance¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù!");
-        }
-    }
-
-    // ¾ÆÀÌÅÛ »ç¿ë (ÀÎº¥Åä¸®¿¡¼­ È£Ãâ)
+    // ì•„ì´í…œ ì‚¬ìš© (ë‚˜ì¤‘ì— ì¸ë²¤í† ë¦¬ ì‹œìŠ¤í…œì—ì„œ í˜¸ì¶œ)
     public virtual bool UseItem()
     {
         if (!itemData.CanUse()) return false;
 
-        // »ç¿îµå Àç»ı
-        if (itemData.useSound != null)
+        if (debugItemSystem)
         {
-            AudioSource.PlayClipAtPoint(itemData.useSound, transform.position);
+            Debug.Log($"ì•„ì´í…œ ì‚¬ìš©: {GetItemDisplayName()}");
         }
 
-        // È¿°ú Àû¿ë
+        // ì‚¬ìš© ì‚¬ìš´ë“œ
+        if (!string.IsNullOrEmpty(itemData.useSoundID))
+        {
+            Debug.Log($"[ì‚¬ìš´ë“œ] ì•„ì´í…œ ì‚¬ìš©: {itemData.useSoundID}");
+        }
+
+        // íš¨ê³¼ ì ìš©
         if (itemData.healAmount > 0)
         {
-            // PlayerManager.Instance.Heal(itemData.healAmount);
-            Debug.Log($"Ã¼·Â {itemData.healAmount} È¸º¹!");
+            Debug.Log($"ì²´ë ¥ {itemData.healAmount} íšŒë³µ!");
+            // TODO: PlayerStatsManager ì—°ë™
         }
 
         if (itemData.manaAmount > 0)
         {
-            // PlayerManager.Instance.RestoreMana(itemData.manaAmount);
-            Debug.Log($"¸¶³ª {itemData.manaAmount} È¸º¹!");
+            Debug.Log($"ë§ˆë‚˜ {itemData.manaAmount} íšŒë³µ!");
         }
 
-        return itemData.consumeOnUse;  // ¼Ò¸ğ ¿©ºÎ ¹İÈ¯
+        return itemData.consumeOnUse;
     }
 
-    // °³¹ßÀÚ¿ë: ¾ÆÀÌÅÛ ¼öÁı »óÅÂ ¸®¼Â
-    [ContextMenu("Reset Item Collection")]
-    public void ResetItemCollection()
+    /// <summary>
+    /// íŠ¹ì • ì•„ì´í…œì˜ í˜„ì¬ ê°œìˆ˜ ì¡°íšŒ (ì •ì  ë©”ì„œë“œ)
+    /// </summary>
+    public static int GetItemCount(string itemID)
     {
-        string key = $"Item_Collected_{GetItemUniqueID()}";
-        PlayerPrefs.DeleteKey(key);
+        return PlayerPrefs.GetInt($"Item_{itemID}_Count", 0);
+    }
+
+    /// <summary>
+    /// íŠ¹ì • ì•„ì´í…œì´ íšë“ë˜ì—ˆëŠ”ì§€ í™•ì¸ (ì •ì  ë©”ì„œë“œ)
+    /// </summary>
+    public static bool HasItem(string itemID)
+    {
+        return GetItemCount(itemID) > 0;
+    }
+
+    // ê°œë°œììš© ë””ë²„ê·¸ ë©”ì„œë“œë“¤
+    [ContextMenu("Reset This Item")]
+    public void ResetThisItem()
+    {
+        string itemID = GetItemID();
+        string countKey = $"Item_{itemID}_Count";
+        PlayerPrefs.DeleteKey(countKey);
         PlayerPrefs.Save();
-        Debug.Log($"¾ÆÀÌÅÛ ¼öÁı »óÅÂ ¸®¼Â: {GetItemUniqueID()}");
+        Debug.Log($"ì•„ì´í…œ ë¦¬ì…‹: {itemID}");
     }
 
-    // ¿¡µğÅÍ¿ë ÇïÆÛ
-    void OnValidate()
+    [ContextMenu("Show Item Info")]
+    public void ShowItemInfo()
     {
-        if (itemData != null && !overrideSprite)
-        {
-            var sr = GetComponent<SpriteRenderer>();
-            if (sr != null && itemData.GetWorldSprite() != null)
-            {
-                sr.sprite = itemData.GetWorldSprite();
-            }
-        }
+        string itemID = GetItemID();
+        int count = GetItemCount(itemID);
+        Debug.Log($"=== ì•„ì´í…œ ì •ë³´ ===");
+        Debug.Log($"ID: {itemID}");
+        Debug.Log($"ì´ë¦„: {GetItemDisplayName()}");
+        Debug.Log($"í˜„ì¬ ê°œìˆ˜: {count}");
+        Debug.Log($"í€˜ìŠ¤íŠ¸ ì•„ì´í…œ: {itemData.isQuestItem}");
+        Debug.Log($"ìŠ¤íƒ ê°€ëŠ¥: {itemData.stackable} (ìµœëŒ€: {itemData.maxStackSize})");
     }
 }
