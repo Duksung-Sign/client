@@ -4,15 +4,19 @@ using UnityEngine;
 
 public class QuestItemHandler : MonoBehaviour
 {
-    [Header("Quest Item Settings")]
-    public DialogueDataSO questDialogueData;
-    public int questDialogueID = 111;
+    [Header("Quest Dialogue Settings")]
+    [Tooltip("CSVì— ì •ì˜ëœ í€˜ìŠ¤íŠ¸ ëŒ€í™” ID")]
+    public string questDialogueSetID = "quest_ancient_artifact";
 
     [Header("NPC Reference")]
-    public NPCController questNPC;  // ½ÇÁ¦ NPC ÂüÁ¶·Î º¯°æ
+    public NPCController questNPC;  // ì‹¤ì œ NPC ì°¸ì¡°
 
-    [Header("Target Quest Items")]
+    [Header("Target Quest Items - ë°©ì‹ 1: ë°°ì—´")]
     public string[] targetQuestItemIDs = { "History_book01", "ancient_artifact", "cursed_gem" };
+
+    [Header("Target Quest Items - ë°©ì‹ 2: íŠ¹ì • ì•„ì´í…œ")]
+    public string specificQuestItemID = "";  // íŠ¹ì • ì•„ì´í…œ IDë§Œ ì²´í¬
+    public bool useQuestItemTag = false;     // isQuestItem íƒœê·¸ë¡œ ì²´í¬
 
     [Header("Monster Spawn Settings")]
     public GameObject[] monsterPrefabs;
@@ -29,7 +33,7 @@ public class QuestItemHandler : MonoBehaviour
     public GameObject monsterSpawnEffect;
 
     [Header("Player Reference")]
-    public PlayerStats playerStats;  // Á÷Á¢ ÂüÁ¶·Î º¯°æ
+    public PlayerStats playerStats;  // ì§ì ‘ ì°¸ì¡°
 
     private AudioSource audioSource;
     private bool questItemTriggered = false;
@@ -45,38 +49,31 @@ public class QuestItemHandler : MonoBehaviour
 
     void ValidateSettings()
     {
-        if (questDialogueData == null)
+        if (string.IsNullOrEmpty(questDialogueSetID))
         {
-            Debug.LogError("QuestItemHandler: questDialogueData°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù!");
-            return;
-        }
-
-        DialogueSet dialogueSet = questDialogueData.GetDialogueSet(questDialogueID);
-        if (dialogueSet == null)
-        {
-            Debug.LogError($"QuestItemHandler: questDialogueID {questDialogueID}¿¡ ÇØ´çÇÏ´Â DialogueSetÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù!");
+            Debug.LogError("QuestItemHandler: questDialogueSetIDê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
             return;
         }
 
         if (questNPC == null)
         {
-            Debug.LogWarning("QuestItemHandler: Quest NPC°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogWarning("QuestItemHandler: Quest NPCê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
         }
 
         if (playerStats == null)
         {
-            Debug.LogWarning("QuestItemHandler: PlayerStats°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogWarning("QuestItemHandler: PlayerStatsê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
         }
 
-        Debug.Log($"QuestItemHandler ÃÊ±âÈ­ ¿Ï·á - DialogueID: {questDialogueID}, NPC: {dialogueSet.npcName}");
+        Debug.Log($"QuestItemHandler ì´ˆê¸°í™” ì™„ë£Œ - DialogueSetID: {questDialogueSetID}");
     }
 
     public void OnQuestItemObtained(ItemDataSO questItem, Vector3 obtainPosition)
     {
         if (questItemTriggered) return;
 
-        string itemName = questItem != null ? questItem.displayName : "¾Ë ¼ö ¾ø´Â ¾ÆÀÌÅÛ";
-        Debug.Log($"=== Äù½ºÆ® ¾ÆÀÌÅÛ È¹µæ: {itemName} ===");
+        string itemName = questItem != null ? questItem.GetDisplayName() : "ì•Œ ìˆ˜ ì—†ëŠ” ì•„ì´í…œ";
+        Debug.Log($"=== í€˜ìŠ¤íŠ¸ ì•„ì´í…œ íšë“: {itemName} ===");
 
         questItemTriggered = true;
         StartCoroutine(HandleQuestItemSequence(questItem, obtainPosition));
@@ -84,13 +81,13 @@ public class QuestItemHandler : MonoBehaviour
 
     IEnumerator HandleQuestItemSequence(ItemDataSO questItem, Vector3 obtainPosition)
     {
-        // 1. Äù½ºÆ® ¾ÆÀÌÅÛ È¹µæ »ç¿îµå Àç»ı
+        // 1. í€˜ìŠ¤íŠ¸ ì•„ì´í…œ íšë“ ì‚¬ìš´ë“œ ì¬ìƒ
         if (questItemSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(questItemSound);
         }
 
-        // 2. Äù½ºÆ® ¾ÆÀÌÅÛ È¹µæ ÀÌÆåÆ® »ı¼º
+        // 2. í€˜ìŠ¤íŠ¸ ì•„ì´í…œ íšë“ ì´í™íŠ¸ ìƒì„±
         if (questItemEffect != null)
         {
             GameObject effect = Instantiate(questItemEffect, obtainPosition, Quaternion.identity);
@@ -99,39 +96,26 @@ public class QuestItemHandler : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        // 3. DialogueManager ¹× µ¥ÀÌÅÍ °ËÁõ
+        // 3. DialogueManager ê²€ì¦
         if (DialogueManager.Instance == null)
         {
-            Debug.LogError("DialogueManager.Instance°¡ nullÀÔ´Ï´Ù!");
+            Debug.LogError("DialogueManager.Instanceê°€ nullì…ë‹ˆë‹¤!");
             yield break;
         }
 
-        if (questDialogueData == null)
-        {
-            Debug.LogError("questDialogueData°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù!");
-            yield break;
-        }
-
-        DialogueSet dialogueSet = questDialogueData.GetDialogueSet(questDialogueID);
-        if (dialogueSet == null)
-        {
-            Debug.LogError($"questDialogueID {questDialogueID}¿¡ ÇØ´çÇÏ´Â DialogueSetÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù!");
-            yield break;
-        }
-
-        // 4. Æ÷Æ®·¹ÀÌÆ® ¼³Á¤ ¹× ´ëÈ­ ½ÃÀÛ
-        Debug.Log($"Äù½ºÆ® ´ÙÀÌ¾ó·Î±× ½ÃÀÛ: DialogueID {questDialogueID}, NPC: {dialogueSet.npcName}");
+        // 4. í€˜ìŠ¤íŠ¸ ëŒ€í™” ì‹œì‘
+        Debug.Log($"í€˜ìŠ¤íŠ¸ ë‹¤ì´ì–¼ë¡œê·¸ ì‹œì‘: DialogueSetID {questDialogueSetID}");
 
         StartQuestDialogue();
 
-        // 5. ´ÙÀÌ¾ó·Î±×°¡ ³¡³¯ ¶§±îÁö ´ë±â
+        // 5. ë‹¤ì´ì–¼ë¡œê·¸ê°€ ëë‚  ë•Œê¹Œì§€ ëŒ€ê¸°
         yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
 
-        Debug.Log("Äù½ºÆ® ´ÙÀÌ¾ó·Î±× Á¾·áµÊ");
+        Debug.Log("í€˜ìŠ¤íŠ¸ ë‹¤ì´ì–¼ë¡œê·¸ ì¢…ë£Œë¨");
 
         yield return new WaitForSeconds(0.5f);
 
-        // 6. ¸¶Áö¸·À¸·Î ¸ó½ºÅÍ »ı¼º
+        // 6. ë§ˆì§€ë§‰ìœ¼ë¡œ ëª¬ìŠ¤í„° ìƒì„±
         yield return StartCoroutine(SpawnMonsters());
     }
 
@@ -139,40 +123,36 @@ public class QuestItemHandler : MonoBehaviour
     {
         if (DialogueManager.Instance == null)
         {
-            Debug.LogError("DialogueManager.Instance°¡ nullÀÔ´Ï´Ù!");
+            Debug.LogError("DialogueManager.Instanceê°€ nullì…ë‹ˆë‹¤!");
             return;
         }
 
-        // Æ÷Æ®·¹ÀÌÆ® Á¤º¸ ¼öÁı
+        // í¬íŠ¸ë ˆì´íŠ¸ ì •ë³´ ìˆ˜ì§‘
         Sprite playerPortrait = GetPlayerPortrait();
         Sprite npcPortrait = GetNPCPortrait();
 
-        Debug.Log($"=== Æ÷Æ®·¹ÀÌÆ® ¼³Á¤ Àü È®ÀÎ ===");
+        Debug.Log($"=== í¬íŠ¸ë ˆì´íŠ¸ ì„¤ì • ì „ í™•ì¸ ===");
         Debug.Log($"Player Portrait: {(playerPortrait != null ? playerPortrait.name : "NULL")}");
         Debug.Log($"NPC Portrait: {(npcPortrait != null ? npcPortrait.name : "NULL")}");
 
-        // DialogueManager¿¡ Æ÷Æ®·¹ÀÌÆ® ¸ÕÀú ¼³Á¤
+        // DialogueManagerì— í¬íŠ¸ë ˆì´íŠ¸ ë¨¼ì € ì„¤ì •
         DialogueManager.Instance.SetCharacterPortraits(playerPortrait, npcPortrait);
-        Debug.Log("Ä³¸¯ÅÍ Æ÷Æ®·¹ÀÌÆ® ¼³Á¤ ¿Ï·á");
+        Debug.Log("ìºë¦­í„° í¬íŠ¸ë ˆì´íŠ¸ ì„¤ì • ì™„ë£Œ");
 
-        // ¼³Á¤ ÈÄ È®ÀÎ
-        Debug.Log($"=== DialogueManager Æ÷Æ®·¹ÀÌÆ® ¼³Á¤ ÈÄ È®ÀÎ ===");
-        // DialogueManager ³»ºÎ »óÅÂ È®ÀÎÀ» À§ÇÑ Ãß°¡ ·Î±×°¡ ÇÊ¿äÇÕ´Ï´Ù.
-
-        // ±× ´ÙÀ½¿¡ ´ÙÀÌ¾ó·Î±× ½ÃÀÛ
-        DialogueManager.Instance.StartQuestDialogue(questDialogueData, questDialogueID);
+        // CSV ê¸°ë°˜ ëŒ€í™” ì‹œì‘ (ìƒˆë¡œìš´ ë°©ì‹)
+        DialogueManager.Instance.StartDialogue(questDialogueSetID);
     }
 
     Sprite GetPlayerPortrait()
     {
         if (playerStats != null && playerStats.playerPortrait != null)
         {
-            Debug.Log($"PlayerStats¿¡¼­ ÇÃ·¹ÀÌ¾î Æ÷Æ®·¹ÀÌÆ® °¡Á®¿È: {playerStats.playerPortrait.name}");
+            Debug.Log($"PlayerStatsì—ì„œ í”Œë ˆì´ì–´ í¬íŠ¸ë ˆì´íŠ¸ ê°€ì ¸ì˜´: {playerStats.playerPortrait.name}");
             return playerStats.playerPortrait;
         }
         else
         {
-            Debug.LogWarning("PlayerStats ¶Ç´Â playerPortrait°¡ nullÀÔ´Ï´Ù!");
+            Debug.LogWarning("PlayerStats ë˜ëŠ” playerPortraitê°€ nullì…ë‹ˆë‹¤!");
             return null;
         }
     }
@@ -181,12 +161,12 @@ public class QuestItemHandler : MonoBehaviour
     {
         if (questNPC != null && questNPC.npcPortrait != null)
         {
-            Debug.Log($"QuestNPC¿¡¼­ NPC Æ÷Æ®·¹ÀÌÆ® °¡Á®¿È: {questNPC.npcPortrait.name}");
+            Debug.Log($"QuestNPCì—ì„œ NPC í¬íŠ¸ë ˆì´íŠ¸ ê°€ì ¸ì˜´: {questNPC.npcPortrait.name}");
             return questNPC.npcPortrait;
         }
         else
         {
-            Debug.LogWarning("QuestNPC ¶Ç´Â npcPortrait°¡ nullÀÔ´Ï´Ù!");
+            Debug.LogWarning("QuestNPC ë˜ëŠ” npcPortraitê°€ nullì…ë‹ˆë‹¤!");
             return null;
         }
     }
@@ -195,11 +175,11 @@ public class QuestItemHandler : MonoBehaviour
     {
         if (monsterPrefabs.Length == 0 || spawnPoints.Length == 0)
         {
-            Debug.LogWarning("¸ó½ºÅÍ ÇÁ¸®ÆÕÀÌ³ª ½ºÆù Æ÷ÀÎÆ®°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogWarning("ëª¬ìŠ¤í„° í”„ë¦¬íŒ¹ì´ë‚˜ ìŠ¤í° í¬ì¸íŠ¸ê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
             yield break;
         }
 
-        Debug.Log("¸ó½ºÅÍ »ı¼º ½ÃÀÛ!");
+        Debug.Log("ëª¬ìŠ¤í„° ìƒì„± ì‹œì‘!");
 
         if (monsterSpawnSound != null && audioSource != null)
         {
@@ -219,47 +199,60 @@ public class QuestItemHandler : MonoBehaviour
                 Destroy(effect, 2f);
             }
 
-            Debug.Log($"¸ó½ºÅÍ »ı¼º: {monsterPrefab.name} at {spawnPoint.name}");
+            Debug.Log($"ëª¬ìŠ¤í„° ìƒì„±: {monsterPrefab.name} at {spawnPoint.name}");
 
             if (i < monstersToSpawn - 1)
                 yield return new WaitForSeconds(spawnDelay);
         }
 
-        Debug.Log("¸ğµç ¸ó½ºÅÍ »ı¼º ¿Ï·á!");
+        Debug.Log("ëª¨ë“  ëª¬ìŠ¤í„° ìƒì„± ì™„ë£Œ!");
     }
 
     public void OnSpecificQuestItemObtained(string questItemID, Vector3 obtainPosition)
     {
-        Debug.Log($"OnSpecificQuestItemObtained È£Ãâ: {questItemID}");
+        Debug.Log($"OnSpecificQuestItemObtained í˜¸ì¶œ: {questItemID}");
 
         bool isTargetItem = false;
-        foreach (string targetID in targetQuestItemIDs)
+
+        // ë°©ì‹ 1: targetQuestItemIDs ë°°ì—´ ì²´í¬
+        if (targetQuestItemIDs != null)
         {
-            if (questItemID == targetID)
+            foreach (string targetID in targetQuestItemIDs)
             {
-                isTargetItem = true;
-                break;
+                if (questItemID == targetID)
+                {
+                    isTargetItem = true;
+                    break;
+                }
             }
+        }
+
+        // ë°©ì‹ 2: specificQuestItemID ì²´í¬
+        if (!isTargetItem && !string.IsNullOrEmpty(specificQuestItemID))
+        {
+            isTargetItem = (questItemID == specificQuestItemID);
         }
 
         if (isTargetItem)
         {
-            Debug.Log($"Äù½ºÆ® Æ®¸®°Å ¾ÆÀÌÅÛ È®ÀÎµÊ: {questItemID}");
+            Debug.Log($"í€˜ìŠ¤íŠ¸ íŠ¸ë¦¬ê±° ì•„ì´í…œ í™•ì¸ë¨: {questItemID}");
             ItemDataSO questItem = LoadQuestItemData(questItemID);
             OnQuestItemObtained(questItem, obtainPosition);
         }
         else
         {
-            Debug.Log($"ÀÌ ¾ÆÀÌÅÛÀº Äù½ºÆ® Æ®¸®°Å°¡ ¾Æ´Õ´Ï´Ù: {questItemID}");
+            Debug.Log($"ì´ ì•„ì´í…œì€ í€˜ìŠ¤íŠ¸ íŠ¸ë¦¬ê±°ê°€ ì•„ë‹™ë‹ˆë‹¤: {questItemID}");
         }
     }
 
     ItemDataSO LoadQuestItemData(string questItemID)
     {
+        // Resourcesì—ì„œ ë¡œë“œ ì‹œë„
         ItemDataSO questItem = Resources.Load<ItemDataSO>($"Items/{questItemID}");
 
         if (questItem == null)
         {
+            // ì”¬ì—ì„œ ì°¾ê¸° ì‹œë„
             GameObject itemObj = GameObject.Find(questItemID);
             if (itemObj != null)
             {
@@ -271,20 +264,50 @@ public class QuestItemHandler : MonoBehaviour
 
         if (questItem == null)
         {
-            Debug.LogWarning($"Äù½ºÆ® ¾ÆÀÌÅÛ µ¥ÀÌÅÍ¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù: {questItemID}");
+            Debug.LogWarning($"í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ë°ì´í„°ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {questItemID}");
         }
 
         return questItem;
     }
 
+    // ê°œë°œììš© ë””ë²„ê·¸ ë©”ì„œë“œë“¤
+    [ContextMenu("Test Quest Dialogue")]
+    public void TestQuestDialogue()
+    {
+        if (DialogueManager.Instance != null)
+        {
+            Debug.Log($"í…ŒìŠ¤íŠ¸ ëŒ€í™” ì‹œì‘: {questDialogueSetID}");
+            StartQuestDialogue();
+        }
+        else
+        {
+            Debug.LogError("DialogueManager.Instanceê°€ nullì…ë‹ˆë‹¤!");
+        }
+    }
+
+    [ContextMenu("Spawn Monsters Only")]
     public void SpawnMonstersOnly()
     {
         StartCoroutine(SpawnMonsters());
     }
 
+    [ContextMenu("Reset Quest Trigger")]
     public void ResetQuestTrigger()
     {
         questItemTriggered = false;
-        Debug.Log("Äù½ºÆ® Æ®¸®°Å ¸®¼ÂµÊ");
+        Debug.Log("í€˜ìŠ¤íŠ¸ íŠ¸ë¦¬ê±° ë¦¬ì…‹ë¨");
+    }
+
+    [ContextMenu("Debug Settings")]
+    public void DebugSettings()
+    {
+        Debug.Log("=== QuestItemHandler ì„¤ì • ì •ë³´ ===");
+        Debug.Log($"Quest Dialogue Set ID: {questDialogueSetID}");
+        Debug.Log($"Quest NPC: {(questNPC != null ? questNPC.name : "NULL")}");
+        Debug.Log($"Player Stats: {(playerStats != null ? playerStats.name : "NULL")}");
+        Debug.Log($"Target Item IDs: [{string.Join(", ", targetQuestItemIDs)}]");
+        Debug.Log($"Specific Item ID: {specificQuestItemID}");
+        Debug.Log($"Use Quest Item Tag: {useQuestItemTag}");
+        Debug.Log($"Quest Triggered: {questItemTriggered}");
     }
 }
