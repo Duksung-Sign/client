@@ -508,7 +508,9 @@ public class DialogueManager : MonoBehaviour
         }
 
         if (dialoguePanel != null)
-            dialoguePanel.SetActive(true);
+        {
+            StartCoroutine(DelayedActivatePanel());
+        }
 
         // 게임 상태 변경
         if (GameManager.Instance != null)
@@ -517,6 +519,16 @@ public class DialogueManager : MonoBehaviour
         }
 
         DisplayCurrentLine();
+    }
+
+    IEnumerator DelayedActivatePanel()
+    {
+        yield return null;
+
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(true);
+        }
     }
 
     public void StartDialogue(NPCDataSO npcData, int dialogueID)
@@ -640,25 +652,25 @@ public class DialogueManager : MonoBehaviour
     }
 
     public void NextLine()
+{
+    if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
     {
-        if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
-        {
-            EndDialogue();
-            return;
-        }
-
-        var currentLine = dialogueLines[currentLineID];
-
-        if (string.IsNullOrEmpty(currentLine.nextLineID))
-        {
-            EndDialogue();
-        }
-        else
-        {
-            currentLineID = currentLine.nextLineID;
-            DisplayCurrentLine();
-        }
+        EndDialogue();
+        return;
     }
+
+    var currentLine = dialogueLines[currentLineID];
+
+    if (string.IsNullOrEmpty(currentLine.nextLineID))
+    {
+        EndDialogue();
+    }
+    else
+    {
+        currentLineID = currentLine.nextLineID;
+        DisplayCurrentLine();
+    }
+}
 
     public void EndDialogue()
     {
@@ -674,7 +686,7 @@ public class DialogueManager : MonoBehaviour
             // StoryProgressManager에 진행 알림
             if (StoryProgressManager.Instance != null)
             {
-                StoryProgressManager.Instance.TryAdvanceToNextStory();
+                StoryProgressManager.Instance.OnDialogueCompleted();
             }
         }
 
@@ -690,13 +702,22 @@ public class DialogueManager : MonoBehaviour
             playerController.SetCanMove(true);
         }
 
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(false);
+        StartCoroutine(DelayedDeactivatePanel());
 
         // 게임 상태 복구
         if (GameManager.Instance != null)
         {
             GameManager.Instance.SetDialogueState(false);
+        }
+    }
+
+    IEnumerator DelayedDeactivatePanel()
+    {
+        yield return new WaitForSeconds(2f); 
+
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(false);
         }
     }
 
