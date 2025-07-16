@@ -145,9 +145,9 @@ public class ItemManager : MonoBehaviour
             // 현재 스토리에서 이 아이템 획득을 기다리고 있는지 즉시 체크
             StoryProgressManager.Instance.TryAdvanceToNextStory();
 
-            if (debugItemSystem)
+            if (StoryProgressManager.Instance != null)
             {
-                Debug.Log($"[ItemManager] 스토리 시스템 알림: {itemID} x{newCount} 획득");
+                StoryProgressManager.Instance.OnItemObtained(itemID);
             }
         }
     }
