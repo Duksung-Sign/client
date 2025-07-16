@@ -162,7 +162,7 @@ public class BattleManager : MonoBehaviour
 
                 if (uiManager != null)
                 {
-                    uiManager.ShowResult("미디어파이프 안정화 완료!\n이제 밸어를 준비하자!");
+                    uiManager.ShowResult("미디어파이프 안정화 완료!\n이제 묘어를 준비하자!");
                 }
 
                 // 3초 후 메인 UI로 전환
@@ -285,7 +285,7 @@ public class BattleManager : MonoBehaviour
         // 준비 안내
         if (uiManager != null)
         {
-            uiManager.ShowResult($"밸어를 사용할 준비를 해줘!");
+            uiManager.ShowResult($"묘어를 사용할 준비를 해줘!");
         }
 
         yield return new WaitForSeconds(1f);
