@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 public class MainMenuButtons : MonoBehaviour
 {
-    [Header("¸Ş´º ¹öÆ°")]
+    [Header("ë©”ë‰´ ë²„íŠ¼")]
     public Button startGameButton;
 
     private void Start()
@@ -15,17 +15,17 @@ public class MainMenuButtons : MonoBehaviour
 
     public void StartGame()
     {
-        // 1) ÇÃ·¹ÀÌ µ¥ÀÌÅÍ ÃÊ±âÈ­
-        // * ÀüÃ¼¸¦ Áö¿öµµ µÇ°í, ÇÊ¿äÇÑ Å°¸¸ ¼±ÅÃ »èÁ¦ÇØµµ µÊ
+        // 1) í”Œë ˆì´ ë°ì´í„° ì´ˆê¸°í™”
+        // * ì „ì²´ë¥¼ ì§€ì›Œë„ ë˜ê³ , í•„ìš”í•œ í‚¤ë§Œ ì„ íƒ ì‚­ì œí•´ë„ ë¨
         PlayerPrefs.DeleteAll();
         PlayerPrefs.Save();
-        Debug.Log("[MainMenu] ÇÃ·¹ÀÌ µ¥ÀÌÅÍ ÃÊ±âÈ­");
+        Debug.Log("[MainMenu] í”Œë ˆì´ ë°ì´í„° ì´ˆê¸°í™”");
 
-        // 2) Ã¹ ½ÇÇà ÇÃ·¡±×°¡ ÇÊ¿äÇÏ¸é ´Ù½Ã ¼¼ÆÃ
+        // 2) ì²« ì‹¤í–‰ í”Œë˜ê·¸ê°€ í•„ìš”í•˜ë©´ ë‹¤ì‹œ ì„¸íŒ…
         // PlayerPrefs.SetInt("HasLaunchedBefore", 1);
         // PlayerPrefs.Save();
 
-        // 3) ½ÇÁ¦ °ÔÀÓ ¾À ·Îµå
-        SceneManager.LoadScene("Maptest");
+        // 3) ì‹¤ì œ ê²Œì„ ì”¬ ë¡œë“œ
+        SceneManager.LoadScene("Library");
     }
 }
