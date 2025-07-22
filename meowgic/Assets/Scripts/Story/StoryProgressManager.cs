@@ -482,7 +482,8 @@ public class StoryProgressManager : MonoBehaviour
             ["enable_interaction"] = ExecuteEnableInteraction,
             ["play_bgm"] = ExecutePlayBGM,
             ["spawn_npc"] = ExecuteSpawnNPC,
-            ["start_battle"] = ExecuteStartBattle
+            ["start_battle"] = ExecuteStartBattle,
+            ["change_scene"] = ExecuteChangeScene,
         };
     }
 
@@ -586,6 +587,13 @@ public class StoryProgressManager : MonoBehaviour
         }
     }
 
+    void ExecuteChangeScene(string target, string parameter)
+    {
+        Debug.Log($"[StoryAction] 맵 이동: {target}");
+        
+        UnityEngine.SceneManagement.SceneManager.LoadScene(target);
+    }
+
     // ===== 메인 스토리 진행 로직 =====
     public void ExecuteCurrentStoryNode()
     {
@@ -600,15 +608,56 @@ public class StoryProgressManager : MonoBehaviour
         if (logStoryChanges)
             Debug.Log($"[StoryProgress] 스토리 노드 실행: {currentStoryID} - {currentNode.displayName}");
 
-        // 이벤트 발생
         OnStoryNodeEntered?.Invoke(currentStoryID, currentNode);
-
-        // 액션들 실행
         ExecuteStoryActions(currentStoryID);
 
-        // 자동 진행이면 다음 스토리로
         if (currentNode.autoAdvance)
         {
+            // 대화 액션이 있는지 체크
+            bool hasDialogue = HasDialogueAction(currentStoryID);
+
+            if (hasDialogue)
+            {
+                Debug.Log($"[StoryProgress] 대화 완료 대기 중: {currentStoryID}");
+                // 대화 완료는 DialogueManager에서 알려줄 예정
+            }
+            else
+            {
+                Debug.Log($"[StoryProgress] 즉시 진행: {currentStoryID}");
+                TryAdvanceToNextStory();
+            }
+        }
+    }
+
+    public void OnItemObtained(string itemID)
+    {
+        Debug.Log($"[StoryProgress] 아이템 획득 이벤트: {itemID}");
+
+        var currentNode = GetCurrentStoryNode();
+        if (currentNode != null && !string.IsNullOrEmpty(currentNode.nextStoryID))
+        {
+            if (CanAdvanceStory(currentNode.nextStoryID))
+            {
+                Debug.Log($"[StoryProgress] 아이템 {itemID} 획득으로 조건 충족! 스토리 진행");
+                TryAdvanceStory(currentNode.nextStoryID);
+            }
+        }
+    }
+
+    bool HasDialogueAction(string storyID)
+    {
+        if (!storyActions.ContainsKey(storyID))
+            return false;
+
+        return storyActions[storyID].Any(action => action.actionType == "show_dialogue");
+    }
+
+    public void OnDialogueCompleted()
+    {
+        var currentNode = GetCurrentStoryNode();
+        if (currentNode != null && currentNode.autoAdvance)
+        {
+            Debug.Log($"[StoryProgress] 대화 완료 후 진행: {currentStoryID}");
             TryAdvanceToNextStory();
         }
     }
