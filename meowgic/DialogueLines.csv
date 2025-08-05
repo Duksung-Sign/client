@@ -1,0 +1,205 @@
+﻿LineID,DialogueSetID,SpeakerName,Text,IsPlayer,NextLineID,Order,CustomSpeaker
+line_wakeup_001,library_intro,미오,안 좋은 꿈을 꿨어.,TRUE,line_wakeup_002,1,
+line_wakeup_002,library_intro,튜나,"미오, 미오! ",FALSE,line_wakeup_003,2,???
+line_wakeup_003,library_intro,미오,뭐지? 내가 잘못 들었나?,TRUE,line_wakeup_004,3,
+line_wakeup_004,library_intro,미오,여긴 나말고는 아무도 오지않는 곳인데?,TRUE,line_wakeup_005,4,
+line_wakeup_005,library_intro,튜나,미오! 여기야! 이쪽으로와!,FALSE,line_wakeup_006,5,???
+line_wakeup_006,library_intro,미오,확실히 환청은 아닌 것 같아.,TRUE,line_wakeup_007,6,
+line_wakeup_007,library_intro,미오,지하 쪽에서 들려오는 것 같은데 한 번 확인해볼까?,TRUE,,7,
+,,,,,,,
+,,,,,,,
+get_the_key_001,library_get_key,미오,"빛나는 열쇠야. 
+어딘가의 문을 열 수 있을 것 같아.",TRUE,,1,
+locked_001,library_door_locked,미오,"문이 안열려. 
+열쇠로 잠겨있는 것 같아.",TRUE,,1,
+,,,,,,,
+,,,,,,,
+utopia_mag_001,library_explore01,미오,‘외계 생명체들이 모여 사는 신비의 섬’,TRUE,utopia_mag_002,1,-
+utopia_mag_002,library_explore01,미오,"유토피아라고 불리는 그 섬에 대해 들어본 적이 있는가?
+특별함을 간직한 당신! 이곳이라면 자신의 개성을 마음껏 뽐낼 수 있을지도?' ",TRUE,utopia_mag_003,2,-
+utopia_mag_003,library_explore01,미오,"(중략)
+'외계 생명체의 섬이라고 불릴 정도로 다양한 생명체가 모여있는 이곳을 탐험해보고 싶다면 지금 당장 010-XXXX-XXXX, 계좌번호는…'",TRUE,utopia_mag_004,3,-
+utopia_mag_004,library_explore01,미오,뭐야 신종 사기인가.,TRUE,,4,
+,,,,,,,
+myth_001,library_explore02,미오,‘강력한 고대 마법에 대한 소문’,TRUE,myth_002,1,-
+myth_002,library_explore02,미오,최근 아직 발견되지 않은 고대 마법이 있을 수 있다는 가설이 떠오르고 있다.' ,TRUE,myth_003,2,-
+myth_003,library_explore02,미오,체다가 말했던 그 소문인가.,TRUE,myth_004,3,
+myth_004,library_explore02,미오,"고고학 연구냥인  ‘고먐미’ 박사에 의하면 이 마법은 특정 조건을 갖춘 고양이만이 획득할 수 있으며…(중략)
+… 그러나 실제로 획득한 자는 없는 것으로 알려져 있다.'",TRUE,myth_005,4,-
+myth_005,library_explore02,미오,결국 헛소문이라는거네.,TRUE,,5,
+,,,,,,,
+trash_press_001,library_explore03,미오,‘그들이 우리 세계에 미치는 위협’,TRUE,trash_press_002,1,-
+trash_press_002,library_explore03,미오,"손가락 개수가 다른 고양이를 본 적이 있는가?
+그들은 저주받은 존재로, 아주 불결하고 위험한…'",TRUE,trash_press_003,2,-
+trash_press_003,library_explore03,미오,더는 읽고싶지 않아.,TRUE,,3,
+,,,,,,,
+hello_tuna_001,library_tuna_meeting,미오,"믿기지 않지만 이쪽에서 소리가 나는 것 같아.
+이 책, 낡아보이는데 이상하게 빛나고 있... ",TRUE,hello_tuna_002,1,
+hello_tuna_002,library_tuna_meeting,튜나,"휴! 
+답답해 죽는 줄 알았네!",,hello_tuna_003,2,???
+hello_tuna_003,library_tuna_meeting,미오,…...!,TRUE,hello_tuna_004,3,
+hello_tuna_004,library_tuna_meeting,미오,(참치캔이 책에서 튀어나왔어.),TRUE,hello_tuna_005,4,
+hello_tuna_005,library_tuna_meeting,미오,(게다가 말까지 하잖아. 꿈이라도 꾸는 걸까?),TRUE,hello_tuna_006,5,
+hello_tuna_006,library_tuna_meeting,튜나,"엣헴!
+소개가 늦었지? 난 튜나라고해.",,hello_tuna_007,6,
+hello_tuna_007,library_tuna_meeting,미오,······.,TRUE,hello_tuna_008,7,
+hello_tuna_008,library_tuna_meeting,튜나,"여기서 얼마나 기다렸는지 몰라.
+네가 올 때마다 말을 걸었는데 역시 안들렸던거지? 매번말걸어도아무반응도없고. 내가진짜애타게소리질렀는데이번에도못듣고지나갔으면아주… ",,hello_tuna_009,8,
+hello_tuna_009,library_tuna_meeting,미오,"(수다쟁이 참치캔이 나오는 악몽이라니. 
+아니, 내가 좋아하는 참치캔이 나온거니까 악몽보단 좋은꿈이라고 해야하나?)",TRUE,hello_tuna_010,9,
+hello_tuna_010,library_tuna_meeting,튜나,"아무튼 이제라도 봐서 다행이야. 
+가뜩이나지하실에혼자있어서외로운데그나마이도서관을찾는고양이는너하나밖에 없고말이야. 그하나뿐인고양이조차도내말이들리지않는다니. 나정말힘든시간을보내왔다니까?",,hello_tuna_011,10,
+hello_tuna_011,library_tuna_meeting,미오,저기…,TRUE,hello_tuna_012,11,
+hello_tuna_012,library_tuna_meeting,튜나,"이것말고도 할 말이 정말 많은데…
+그래도네가그녀석보단낫네. 걘날처음봤을때책으로때려죽이려고…",,hello_tuna_013,12,
+hello_tuna_013,library_tuna_meeting,미오,튜나!,TRUE,hello_tuna_014,13,
+hello_tuna_014,library_tuna_meeting,튜나,응?,,hello_tuna_015,14,
+hello_tuna_015,library_tuna_meeting,튜나,"아, 미안! 너무 오랜만에 말해봐서 그런지 잠깐 흥분했네
+엣헴, 다시 소개할게. 난 묘어의 수호자 '튜나'라고해.",,hello_tuna_016,15,
+hello_tuna_016,library_tuna_meeting,미오,"아, 난 미오라고해. 묘어라니 대체…?",TRUE,hello_tuna_017,16,
+hello_tuna_017,library_tuna_meeting,튜나,"묘어는 아주 강력한 고대 마법 중 하나야.
+선택 받은자만이 이 힘을 가질 수 있지.
+운좋게도 넌 지금 묘어의 수호자인 나에게 선택받았어. 마음껏 기뻐해도 좋아!",,hello_tuna_018,17,
+hello_tuna_018,library_tuna_meeting,미오,(혹시 체다가 말했던 그 소문의 고대마법?),TRUE,hello_tuna_019,18,
+hello_tuna_019,library_tuna_meeting,미오,나를 선택했다고? 나를 알아?,TRUE,hello_tuna_020,19,
+hello_tuna_020,library_tuna_meeting,튜나,"그럼! 알고말고! 네가 어렸을 때부터…아니, 네가 태어나기 전부터……",,hello_tuna_021,20,
+hello_tuna_021,library_tuna_meeting,튜나,"아 잠깐잠깐, 지금 한가롭게 이런 얘길 할 때가 아냐!",,hello_tuna_022,21,
+hello_tuna_022,library_tuna_meeting,미오,왜? ,TRUE,hello_tuna_023,22,
+,,,,,,,
+emergency_001,emergency_situation,미오,밖에서 무슨 소리가 들리는 것 같은데.,TRUE,emergency_002,1,
+emergency_002,emergency_situation,체다,"미오! 여기있었구나! 빨리 도망쳐야해!
+지금 마을이 갑자기…!",,emergency_003,2,
+emergency_003,emergency_situation,미오,체다? 대체 무슨…? …...!,TRUE,emergency_004,3,
+emergency_004,emergency_situation,체다,"…...!
+미오! 위험해!",,emergency_005,4,
+emergency_005,emergency_situation,체다,윽!,,emergency_006,5,
+emergency_006,emergency_situation,미오,체다! 안돼!,TRUE,emergency_007,6,
+emergency_007,emergency_situation,튜나,"조심해, 미오! 이쪽으로도 온다!",,emergency_008,7,
+emergency_008,emergency_situation,미오,체다…체다…...,TRUE,emergency_009,8,
+emergency_009,emergency_situation,튜나,"정신차려, 미오!
+우선 저 몬스터를 물리치자.
+그렇지 않으면 모두가 위험해!",,emergency_010,9,
+emergency_010,emergency_situation,미오,"하지만, 난…
+싸움 같은 건 할 줄 몰라…",TRUE,emergency_011,10,
+emergency_011,emergency_situation,튜나,"걱정마! 넌 방금 아주 강력한 묘어의 힘을 얻었으니까.
+내가 도와줄테니 내말을 듣고 그대로 따라해봐!",,,11,
+,,,,,,,
+battle_tutorial_001,first_battle_tutorial,튜나,전투가 시작되면 공격 스킬을 고를 수 있어.,,battle_tutorial_002,1,
+battle_tutorial_002,first_battle_tutorial,튜나,먼저 공격하기를 누르고 원하는 스킬을 눌러봐.,,battle_tutorial_003,2,
+battle_tutorial_003,first_battle_tutorial,튜나,"묘어에서 가장 중요한 건 표정과 양손!
+먼저 양손을 카메라에 대고 인식해볼까?",,battle_tutorial_004,3,
+battle_tutorial_004,first_battle_tutorial,튜나,"좋아. 잘했어!
+이제 아까 확인한 묘어 동작을 구사하면 돼.",,battle_tutorial_005,4,
+battle_tutorial_005,first_battle_tutorial,미오,아까 잠깐 봐서 기억이 잘…,TRUE,battle_tutorial_006,5,
+battle_tutorial_006,first_battle_tutorial,튜나,"걱정마! 전투 중에도 (고서 아이템 위치)에서 획득한 고서 페이지를 언제든지 확인할 수 있어.
+단, 특정 몬스터와의 전투에선 고서 페이지를 확인할 틈이 없을 수도 있으니 미리 충분히 연습해두는 걸 추천할게.",,battle_tutorial_007,6,
+battle_tutorial_007,first_battle_tutorial,튜나,준비 됐으면 해볼까?,,battle_tutorial_008,7,
+battle_tutorial_008,first_battle_tutorial,튜나,이런! 말하는 사이에 공격할 수 있는 시간이 지나버렸어!,,battle_tutorial_009,8,
+battle_tutorial_009,first_battle_tutorial,튜나,"공격에 실패하면 몬스터의 공격이 이어지고 네 정신력이 소모돼.
+정신력이 모두 소모되지 않도록 주의해!",,battle_tutorial_010,9,
+battle_tutorial_010,first_battle_tutorial,튜나,다시 한 번 공격해보자.,,battle_tutorial_011,10,
+battle_tutorial_011,first_battle_tutorial,튜나,"정말 잘했어! 역시 내가 선택한 고양이다워!
+이 기세로 계속 공격하자!",,,11,
+,,,,,,,
+after_battle_001,after_first_battle,미오,몬스터가…사라졌어.,TRUE,after_battle_002,1,
+after_battle_002,after_first_battle,체다,윽…미오?,,after_battle_003,2,
+after_battle_003,after_first_battle,미오,체다! 괜찮아?,TRUE,after_battle_004,3,
+after_battle_004,after_first_battle,체다,"난 괜찮아. 
+그보다 너 어떻게 된거야? 몬스터는 네가 물리친거지?
+설마 그 소문의 힘을 얻은거야?",,after_battle_005,4,
+after_battle_005,after_first_battle,미오,"잘 모르겠지만 아마도 그런 것 같아.
+일단 병원으로 가자. 설명은 나중에 해줄게.",TRUE,after_battle_006,5,
+after_battle_006,after_first_battle,체다,"병원이 무사할지 모르겠어.
+갑자기 마을에 몬스터들이 들이닥쳐서 다들 도망치고 있거든.",,after_battle_007,6,
+after_battle_007,after_first_battle,튜나,"미오, 어서 마을로 가보는 게 좋겠어.
+네 힘이라면 마을 사람들을 도울 수 있을테니까.",,after_battle_008,7,
+after_battle_008,after_first_battle,미오,…응. 일단 가보자.,TRUE,after_battle_009,8,
+,,,,,,,
+village_intro,village_intro_001,체다,"아까보다 상황이 심각해.
+일단 난 사람들을 대피시킬게. 미오 너도 안전한 곳으로 대피하는 게 좋겠어",,village_intro_002,1,
+village_intro,village_intro_002,미오,…난 몬스터들과 싸울게.,TRUE,village_intro_003,2,
+village_intro,village_intro_003,체다,"뭐? 혼자서 괜찮겠어?
+혼자 저 많은 몬스터들을 어떻게 하려고!",,village_intro_004,3,
+village_intro,village_intro_004,미오,"걱정이 안되는 건 아니지만…내가 쓸모있다고 느낀 적은 처음이야.
+이 기회를 놓치고 싶지는 않아.",TRUE,village_intro_005,4,
+village_intro,village_intro_005,체다,"······.
+그래도…...",,village_intro_006,5,
+village_intro,village_intro_006,튜나,"미오, 넌 충분히 강하니까 걱정마
+그리고 나도 함께니까 괜찮을거야.",,village_intro_007,6,
+village_intro,village_intro_007,미오,그래. 튜나도 함께니까 괜찮을거야.,TRUE,village_intro_008,7,
+village_intro,village_intro_008,체다,튜나?,,village_intro_009,8,
+village_intro,village_intro_009,미오,응? 여기 있는 이 참치캔 이름이…...,TRUE,village_intro_010,9,
+village_intro,village_intro_010,체다,"미오, 중요한 걸 말하는 걸 깜빡했는데 체다에겐 내가 안보여.",,village_intro_011,10,
+,village_intro_011,미오,······.,TRUE,village_intro_012,11,
+village_intro,village_intro_012,체다,"잠깐, 그런 눈빛으로 보지마!
+나도 정신이 없었다고!",,village_intro_013,12,
+village_intro,village_intro_013,미오,"아! 아무것도 아니야. 정말 괜찮아.
+몸 조심하고 이따보자.",TRUE,village_intro_014,13,
+village_intro,village_intro_014,체다,"응, 무리하지말고, 도움이 필요하면 바로 날 찾아줘!",,,14,
+,,,,,,,
+village_cleared,village_cleared_001,체다,미오! 무사해서 다행이야!,,village_cleared_002,1,
+village_cleared,village_cleared_002,미오,체다!,TRUE,village_cleared_003,2,
+village_cleared,village_cleared_003,체다,"그 많은 몬스터들을 다 물리친거야?
+정말 대단해!",,village_cleared_004,3,
+village_cleared,village_cleared_004,미오,"내가 대단한 건 아냐.
+그냥 그 힘이…",TRUE,village_cleared_005,4,
+village_cleared,village_cleared_005,체다,"어쨌든 그 힘을 써서 네가 직접 몬스터와 싸운거잖아!
+정말 용기있는 행동이었어. 만약 나였다면 그렇게까진 못했을거야.",,village_cleared_006,5,
+village_cleared,village_cleared_006,미오,······.,TRUE,village_cleared_007,6,
+village_cleared,village_cleared_007,튜나,체다는 정말 좋은 친구구나.,,village_cleared_008,7,
+village_cleared,village_cleared_008,병사,"저...갑작스럽게 대화에 끼어들어 죄송합니다.
+한시가 급한 상황이라서요. 잠시 괜찮으십니까?",,village_cleared_009,8,
+village_cleared,village_cleared_009,미오,네? 저요…?,TRUE,village_cleared_010,9,
+village_cleared,village_cleared_010,병사,"네, 저는 마을을 지키는 보위병입니다만, 아까 당신이 싸우는 것을 지켜봤습니다.
+우리의 무기로는 도저히 당해낼 수 없었는데 순식간에 해치우시더군요.",,village_cleared_011,10,
+village_cleared,village_cleared_011,병사,"여기뿐만 아니라 다른 마을들도 몬스터들이 습격해서 도움이 필요한 상황입니다.
+부디 싸움의 비결을 알려주십시오.
+물론 보상은 두둑히 드리겠습니다.",,village_cleared_012,11,
+village_cleared,village_cleared_012,튜나,"곤란하네.
+묘어는 다른 누군가에게 넘길 수 있는 힘이 아니야.
+선택받은 자만이 쓸 수 있지. 거절하는 게 좋겠어.",,village_cleared_013,12,
+village_cleared,village_cleared_013,미오,"죄송해요. 그건 어려울 것 같아요.
+대신, 제가 같이 싸워도 될까요?",TRUE,village_cleared_014,13,
+village_cleared,village_cleared_014,전원,?!!,,village_cleared_015,14,
+village_cleared,village_cleared_015,병사,"영광입니다!
+당신같은 인재를 영입할 수 있다니, 분명 기사단장님도 기뻐하실겁니다.
+그럼 준비가 되면 마을 입구 쪽으로 와주십시오. 기다리겠습니다.",,village_cleared_016,15,
+village_cleared,village_cleared_016,체다,"미오? 그게 무슨 소리야!
+너도 나랑 같이 병원에 가야지.",,village_cleared_017,16,
+village_cleared,village_cleared_017,미오,"난 별로 다치지 않아서 괜찮아.
+그보다 나 이 힘에 대해서 더 알고싶어.
+왜 갑자기 이 힘이 나에게 생긴건지, 그리고 이 몬스터들은 어디에서 온건지, 왜 하필 내 힘으로 몬스터를 무찌를 수 있는지. 이런 것들 말이야.",TRUE,village_cleared_018,17,
+village_cleared,village_cleared_018,튜나,······.,,village_cleared_019,18,
+village_cleared,village_cleared_019,체다,"네 선택이 그렇다면…내가 말릴 수는 없겠지.
+대신 절대 무리하지말기로 약속해.
+네가 다치는 건 보고싶지 않으니까.",,village_cleared_020,19,
+village_cleared,village_cleared_020,미오,"응. 고마워
+나중에 보자.",TRUE,village_cleared_021,20,
+,,,,,,,
+,,,,,,,
+village_complete,village_complete_001,미오,튜나.,TRUE,village_complete_002,1,
+village_complete,village_complete_002,튜나,응? 으응.,,village_complete_003,2,
+village_complete,village_complete_003,미오,"넌 분명 이 상황에 대해 알고 있는거지?
+처음 도서관에서 날 찾았을 때도 더 늦게 발견했으면 큰일날 뻔 했다고 했잖아.
+몬스터를 봤을 때도 전혀 당황하지 않았고.",TRUE,village_complete_004,3,
+village_complete,village_complete_004,튜나,······.,,village_complete_005,4,
+village_complete,village_complete_005,튜나,"그래 맞아. 
+나름 눈치가 빠르네. 다시봤어 미오!",,village_complete_006,5,
+village_complete,village_complete_006,미오,그럼 내 질문에 대해 전부 답해줄 수 있어?,TRUE,village_complete_007,6,
+village_complete,village_complete_007,튜나,"으음~그게 말이야.
+나도 정말 대답해주고 싶은데 나에겐 계약이 걸려있어.
+다른 능력자에 대해서는 발설할 수 없는…",,village_complete_008,7,
+village_complete,village_complete_008,미오,"다른 능력자? 나말고 다른 묘어 능력자가 또 있다는 소리지?
+이 일에 근원이 그 능력자라는 뜻이야?",TRUE,village_complete_009,8,
+village_complete,village_complete_009,튜나,"윽, 실수했다! 이 이상은 말해줄 수 없어.
+방금 말한 걸로도 내 온몸이 찌릿!했다고…!만약이이상정보를누설하면난수호신으로서의자격도박탈당하고내능력은더이상쓰일수없고너같이재밌는고양이를만난다거나",,village_complete_010,9,
+village_complete,village_complete_010,미오,(지금까지 얻은 정보를 종합해보면…몬스터의 침략은 나랑 같은 능력자가 원인인 것 같아. 하지만 왜지? 묘어와 저 불쾌한 몬스터들은 대체 어떤 관계가 있는걸까?),TRUE,village_complete_011,10,
+village_complete,village_complete_011,튜나,미오! 또 내말무시하고있지!,,village_complete_012,11,
+village_complete,village_complete_012,미오,"아, 응.",TRUE,village_complete_013,12,
+village_complete,village_complete_013,튜나,"아, 응. 이 아니잖아! 너무한거아니야?",,village_complete_014,13,
+village_complete,village_complete_014,미오,정보 고마워! 이제 아까 그 병사를 찾아가보자.,TRUE,village_complete_015,14,
+village_complete,village_complete_015,튜나,"으으으, 아량 넓은 내가 봐줘야지.
+천천히 가!",,village_complete_016,15,
+,,,,,,,
+skill_added,skill_added_001,미오,"새로운 고서 페이지를 획득했어.
+추가된 스킬을 확인해보자.",TRUE,,1,

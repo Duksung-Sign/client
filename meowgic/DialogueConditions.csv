@@ -1,0 +1,14 @@
+﻿DialogueSetID,ConditionType,Target,Value,Description
+,,,,
+library_get_key,item_obtained,key,1,열쇠 획득
+library_door_locked,item_obtained,key,0,"열쇠 없을 때 문 클릭
+조건1: 열쇠 미소지
+조건2: 문탐색"
+library_explore01,item_inspected,book01,1,책1 탐색
+library_explore02,item_inspected,book02,1,책2 탐색
+library_explore03,item_inspected,book03,1,책3 탐색
+library_tuna_meeting,item_obtained,ancient_book,1,고서 탐색 후 튜나와의 대화
+emergency_situation,dialogue_finished,library_tuna_meeting,,"튜나랑 첫만남 후, 체다 등장"
+first_battle_tutorial,dialogue_finished,emergency_situation,,첫 배틀 튜토리얼
+after_first_battle,battle_over,tutorial,,첫 배틀 종료 후 튜나와의 대화
+skill_added,item_obtained,ancient_book,1,고서 획득 때마다 나오는 대사(고정으로 하고싶은데 value를 어떻게 설정해야할지 모르겠음)
