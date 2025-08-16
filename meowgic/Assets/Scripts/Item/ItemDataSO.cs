@@ -17,6 +17,10 @@ public class ItemDataSO : ScriptableObject
     [TextArea(3, 5)]
     public string itemDescription = "";
 
+    [Header("탐색 관련 (Inspectable 타입용)")]
+    [Tooltip("탐색 시 표시할 대화 ID (Inspectable 타입 전용)")]
+    public string inspectionDialogueID = "";
+
     [Header("타입 및 분류")]
     [Tooltip("아이템 타입")]
     public ItemType itemType = ItemType.Collectible;
