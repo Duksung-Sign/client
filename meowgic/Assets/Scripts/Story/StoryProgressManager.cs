@@ -232,7 +232,7 @@ public class StoryProgressManager : MonoBehaviour
     public static StoryProgressManager Instance;
 
     [Header("현재 스토리 상태")]
-    [SerializeField] private string currentStoryID = "prologue";
+    [SerializeField] private string currentStoryID = "library_intro";
 
     [Header("CSV 파일 경로")]
     [SerializeField] private string storyNodesPath = "StoryData/StoryNodes";
@@ -414,6 +414,7 @@ public class StoryProgressManager : MonoBehaviour
             ["prologue_finished"] = CheckPrologueFinished,
             ["dialogue_finished"] = CheckDialogueFinished,
             ["item_obtained"] = CheckItemObtained,
+            ["item_inspected"] = CheckItemInspected,
             ["quest_completed"] = CheckQuestCompleted,
             ["map_entered"] = CheckMapEntered,
             ["battle_won"] = CheckBattleWon,
@@ -439,6 +440,30 @@ public class StoryProgressManager : MonoBehaviour
         int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
         int currentAmount = PlayerPrefs.GetInt($"Item_{target}_Count", 0);
         return currentAmount >= requiredAmount;
+    }
+
+    // 아이템 탐색 완료 체크 함수
+    bool CheckItemInspected(string target, string value)
+    {
+        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
+        int inspectedCount = PlayerPrefs.GetInt($"Item_{target}_Inspected", 0);
+        return inspectedCount >= requiredAmount;
+    }
+
+    // 아이템 탐색 완료 이벤트 처리 메서드
+    public void OnItemInspected(string itemID)
+    {
+        Debug.Log($"[StoryProgress] 아이템 탐색 이벤트: {itemID}");
+
+        var currentNode = GetCurrentStoryNode();
+        if (currentNode != null && !string.IsNullOrEmpty(currentNode.nextStoryID))
+        {
+            if (CanAdvanceStory(currentNode.nextStoryID))
+            {
+                Debug.Log($"[StoryProgress] 아이템 {itemID} 탐색으로 조건 충족! 스토리 진행");
+                TryAdvanceStory(currentNode.nextStoryID);
+            }
+        }
     }
 
     bool CheckQuestCompleted(string target, string value)
@@ -790,7 +815,7 @@ public class StoryProgressManager : MonoBehaviour
 
     void LoadCurrentStoryProgress()
     {
-        currentStoryID = PlayerPrefs.GetString("CurrentStoryID", "prologue");
+        currentStoryID = PlayerPrefs.GetString("CurrentStoryID", "library_intro");
     }
 
     // ===== 공개 메서드들 =====
@@ -846,7 +871,7 @@ public class StoryProgressManager : MonoBehaviour
     [ContextMenu("Reset Story Progress")]
     public void ResetStoryProgress()
     {
-        currentStoryID = "prologue";
+        currentStoryID = "library_intro";
         SaveCurrentStoryProgress();
         Debug.Log("[StoryProgress] 스토리 진행도 초기화");
     }
