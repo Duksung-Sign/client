@@ -74,7 +74,8 @@ public class InteractionDetector : MonoBehaviour
         foreach (Collider2D col in colliders)
         {
             if (col.GetComponent<ItemManager>() != null ||
-                col.GetComponent<NPCController>() != null)
+                col.GetComponent<NPCController>() != null ||
+                col.GetComponent<DoorController>() != null)
             {
                 nearbyObjects.Add(col.gameObject);
             }
@@ -178,8 +179,17 @@ public class InteractionDetector : MonoBehaviour
         ItemManager item = target.GetComponent<ItemManager>();
         if (item != null && item.itemData != null)
         {
-            // 일단 모든 아이템을 "획득"으로 처리 (나중에 타입 시스템 추가 시 수정)
-            return "획득";
+            // 아이템 타입에 따라 액션 텍스트 결정
+            if (item.itemData.itemType == ItemDataSO.ItemType.Inspectable)
+            {
+                // 탐색용 아이템은 항상 "읽기"
+                return "읽기";
+            }
+            else
+            {
+                // 일반 아이템은 획득
+                return "획득";
+            }
         }
 
         NPCController npc = target.GetComponent<NPCController>();
@@ -201,6 +211,10 @@ public class InteractionDetector : MonoBehaviour
         NPCController npc = target.GetComponent<NPCController>();
         if (npc != null)
             return npc.npcName;
+
+        DoorController door = target.GetComponent<DoorController>();
+        if (door != null)
+            return "수상한 문";
 
         return target.name;
     }
@@ -231,6 +245,13 @@ public class InteractionDetector : MonoBehaviour
                 // NPC와 대화 시작하면서 DialogueManager에 초상화 정보 전달
                 SetDialoguePortraits(npc);
                 npc.Interact();
+                return;
+            }
+
+            DoorController door = currentTarget.GetComponent<DoorController>();
+            if (door != null)
+            {
+                door.OnDoorClick();
                 return;
             }
         }

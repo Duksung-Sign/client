@@ -99,8 +99,17 @@ public static class DialogueCSVParser
                 string[] values = ParseCSVLine(row);
                 if (values.Length >= 8)
                 {
+                    string lineID = values[0].Trim();
+
+                    // 빈 LineID 건너뛰기
+                    if (string.IsNullOrEmpty(lineID))
+                    {
+                        Debug.LogWarning($"빈 LineID 발견, 건너뜀: 줄 {i}");
+                        continue;
+                    }
+
                     var line = new DialogueLine(
-                        values[0].Trim(), // LineID
+                        lineID, // LineID
                         values[1].Trim(), // DialogueSetID
                         values[2].Trim(), // SpeakerName
                         values[3].Trim(), // Text
@@ -365,6 +374,14 @@ public class DialogueManager : MonoBehaviour
 
             foreach (var line in lines)
             {
+                if (dialogueLines.ContainsKey(line.lineID))
+                {
+                    Debug.LogError($"[DialogueManager] 중복된 LineID 발견: {line.lineID}");
+                }
+                else
+                {
+                    Debug.Log($"[DialogueManager] 라인 추가: {line.lineID}");
+                }
                 dialogueLines[line.lineID] = line;
             }
 
@@ -445,6 +462,7 @@ public class DialogueManager : MonoBehaviour
             ["story_reached"] = CheckStoryReached,
             ["quest_completed"] = CheckQuestCompleted,
             ["item_obtained"] = CheckItemObtained,
+            ["item_inspected"] = CheckItemInspected,
             ["dialogue_finished"] = CheckDialogueFinished
         };
     }
@@ -469,6 +487,13 @@ public class DialogueManager : MonoBehaviour
         int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
         int currentAmount = PlayerPrefs.GetInt($"Item_{target}_Count", 0);
         return currentAmount >= requiredAmount;
+    }
+
+    bool CheckItemInspected(string target, string value)
+    {
+        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
+        int inspectedCount = PlayerPrefs.GetInt($"Item_{target}_Inspected", 0);
+        return inspectedCount >= requiredAmount;
     }
 
     bool CheckDialogueFinished(string target, string value)
@@ -569,13 +594,15 @@ public class DialogueManager : MonoBehaviour
 
     void DisplayCurrentLine()
     {
+        var currentLine = dialogueLines[currentLineID];
+        Debug.Log($"[DialogueManager] DisplayCurrentLine 호출: currentLineID = {currentLineID}");
+
         if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
         {
+            Debug.LogError($"[DialogueManager] 라인을 찾을 수 없음: {currentLineID}, Dictionary 크기: {dialogueLines.Count}");
             EndDialogue();
             return;
         }
-
-        var currentLine = dialogueLines[currentLineID];
 
         if (logDialogueEvents)
             Debug.Log($"[DialogueManager] 대화 라인 표시: {currentLineID} - {currentLine.speakerName}");
@@ -652,25 +679,36 @@ public class DialogueManager : MonoBehaviour
     }
 
     public void NextLine()
-{
-    if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
     {
-        EndDialogue();
-        return;
+        if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
+        {
+            EndDialogue();
+            return;
+        }
+
+        var currentLine = dialogueLines[currentLineID];
+
+        if (string.IsNullOrEmpty(currentLine.nextLineID))
+        {
+            EndDialogue();
+        }
+        else
+        {
+            currentLineID = currentLine.nextLineID;
+            DisplayCurrentLine();
+        }
     }
 
-    var currentLine = dialogueLines[currentLineID];
+    // 현재 탐색 중인 아이템 추적
+    private ItemManager currentInspectingItem = null;
+    private bool isInspectionFirstTime = false;
 
-    if (string.IsNullOrEmpty(currentLine.nextLineID))
+    // 현재 탐색 중인 아이템 설정 (ItemManager에서 호출)
+    public void SetCurrentInspectingItem(ItemManager item, bool isFirstTime)
     {
-        EndDialogue();
+        currentInspectingItem = item;
+        isInspectionFirstTime = isFirstTime;
     }
-    else
-    {
-        currentLineID = currentLine.nextLineID;
-        DisplayCurrentLine();
-    }
-}
 
     public void EndDialogue()
     {
@@ -682,6 +720,14 @@ public class DialogueManager : MonoBehaviour
 
             if (logDialogueEvents)
                 Debug.Log($"[DialogueManager] 대화 완료: {currentDialogueSetID}");
+
+            // 탐색용 대화 완료 시 ItemManager에 알림 (단순화됨)
+            if (currentInspectingItem != null)
+            {
+                currentInspectingItem.OnInspectionDialogueCompleted();
+                currentInspectingItem = null;
+                isInspectionFirstTime = false;
+            }
 
             // StoryProgressManager에 진행 알림
             if (StoryProgressManager.Instance != null)

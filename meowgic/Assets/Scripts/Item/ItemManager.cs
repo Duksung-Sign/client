@@ -194,10 +194,97 @@ public class ItemManager : MonoBehaviour
 
         if (debugItemSystem)
         {
-            Debug.Log($"아이템 상호작용: {GetItemDisplayName()} (퀘스트: {itemData.isQuestItem})");
+            Debug.Log($"아이템 상호작용: {GetItemDisplayName()} (타입: {itemData.itemType})");
         }
 
-        CollectItem();
+        // 아이템 타입에 따라 다르게 처리
+        if (itemData.itemType == ItemDataSO.ItemType.Inspectable)
+        {
+            InspectItem();
+        }
+        else
+        {
+            CollectItem();
+        }
+    }
+
+    // 탐색용 아이템 처리
+    protected virtual void InspectItem()
+    {
+        string itemID = GetItemID();
+
+        if (debugItemSystem)
+        {
+            Debug.Log($"{GetItemDisplayName()} 탐색!");
+        }
+
+        // 첫 탐색인지 확인
+        bool isFirstInspection = PlayerPrefs.GetInt($"Item_{itemID}_Inspected", 0) == 0;
+
+        // DialogueManager에 현재 탐색 중인 아이템 알림
+        if (DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.SetCurrentInspectingItem(this, isFirstInspection);
+        }
+
+        // 대화 ID가 설정되어 있으면 대화 표시
+        if (!string.IsNullOrEmpty(itemData.inspectionDialogueID))
+        {
+            if (DialogueManager.Instance != null)
+            {
+                DialogueManager.Instance.StartDialogue(itemData.inspectionDialogueID);
+            }
+        }
+        else
+        {
+            // 대화가 없는 경우 기본 설명 표시
+            if (DialogueManager.Instance != null)
+            {
+                string description = !string.IsNullOrEmpty(itemData.itemDescription)
+                                   ? itemData.itemDescription
+                                   : $"{GetItemDisplayName()}이다.";
+                DialogueManager.Instance.ShowItemDescription(description);
+            }
+
+            // 첫 탐색인 경우만 완료 처리
+            if (isFirstInspection)
+            {
+                CompleteInspection();
+            }
+        }
+    }
+
+    // 대화 완료 시 호출될 메서드
+    public void OnInspectionDialogueCompleted()
+    {
+        string itemID = GetItemID();
+        bool isFirstInspection = PlayerPrefs.GetInt($"Item_{itemID}_Inspected", 0) == 0;
+
+        if (isFirstInspection)
+        {
+            CompleteInspection();
+        }
+    }
+
+    // 탐색 완료 처리
+    private void CompleteInspection()
+    {
+        string itemID = GetItemID();
+
+        // 탐색 완료 상태 저장
+        PlayerPrefs.SetInt($"Item_{itemID}_Inspected", 1);
+        PlayerPrefs.Save();
+
+        if (debugItemSystem)
+        {
+            Debug.Log($"아이템 탐색 완료: {itemID}");
+        }
+
+        // StoryProgressManager에 탐색 완료 알림
+        if (StoryProgressManager.Instance != null)
+        {
+            StoryProgressManager.Instance.OnItemInspected(itemID);
+        }
     }
 
     protected virtual void CollectItem()
