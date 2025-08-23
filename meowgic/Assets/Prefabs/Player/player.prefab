@@ -129,10 +129,8 @@ MonoBehaviour:
     m_Bits: 4294967295
   promptUI: {fileID: 0}
   promptText: {fileID: 0}
-  promptCanvas: {fileID: 0}
   characterPortraitImage: {fileID: 0}
   playerStats: {fileID: 719124127467514211}
-  promptOffset: {x: 0, y: 1.5, z: 0}
 --- !u!50 &5015103736688237093
 Rigidbody2D:
   serializedVersion: 4
@@ -231,7 +229,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerName: "\uBBF8\uC624"
-  playerPortrait: {fileID: 0}
+  playerPortrait: {fileID: 21300000, guid: cc217fb0a3a816c4da2253270d6ed324, type: 3}
   maxHP: 30
   attackPower: 10
   defense: 5
