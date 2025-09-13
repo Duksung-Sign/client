@@ -280,6 +280,23 @@ public class ItemManager : MonoBehaviour
             Debug.Log($"아이템 탐색 완료: {itemID}");
         }
 
+        // ancient book인 경우 스킬북 해금
+        if (itemID == "ancient_book")
+        {
+            // 고서 탐색 시 스킬북 해금
+            if (SkillBookManager.Instance != null)
+            {
+                SkillBookManager.Instance.UnlockSkillBook();
+                Debug.Log("고서 탐색으로 스킬북이 해금되었습니다!");
+            }
+        }
+
+        // 대화 시작
+        if (!string.IsNullOrEmpty(itemData.inspectionDialogueID) && DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.StartDialogue(itemData.inspectionDialogueID);
+        }
+
         // StoryProgressManager에 탐색 완료 알림
         if (StoryProgressManager.Instance != null)
         {
@@ -296,6 +313,23 @@ public class ItemManager : MonoBehaviour
 
         // 아이템 획득 상태 저장 (CSV 스토리 시스템과 완전 호환)
         SaveItemObtained();
+
+        // 페이지 아이템인지 확인
+        string itemID = GetItemID();
+        if (itemID == "page1" || itemID == "page2" || itemID == "page3")
+        {
+            if (SkillBookManager.Instance != null)
+            {
+                SkillBookManager.Instance.UnlockSkillByPageItem(itemID);
+                Debug.Log($"페이지 아이템 {itemID}로 새로운 스킬이 해금되었습니다!");
+            }
+        }
+
+        if (itemID == "ancient_book")
+        {
+            SkillBookManager.Instance.UnlockSkillBook();
+            Debug.Log("고서 획득으로 스킬북 해금");
+        }
 
         // 퀘스트 아이템 vs 일반 아이템 처리
         if (itemData.isQuestItem)
