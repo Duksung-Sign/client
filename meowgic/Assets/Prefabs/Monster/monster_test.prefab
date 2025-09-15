@@ -99,7 +99,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40f6f110dd92c534789569ba9bbeee0b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  monsterData: {fileID: 11400000, guid: 414cc9b30ede1ed449c9641370e14c56, type: 2}
+  monsterData: {fileID: 11400000, guid: 8ecee2d1565d6564db2900b633cf2fbe, type: 2}
   currentState: 0
   overrideRanges: 1
   customPatrolRange: 2.5
