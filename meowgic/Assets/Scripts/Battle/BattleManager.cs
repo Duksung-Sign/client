@@ -4,46 +4,135 @@ using System.Collections;
 
 public class BattleManager : MonoBehaviour
 {
-    [Header("배틀 변수자")]
     public MonsterDataSO currentMonster;
-
-    [Header("현재 배틀 상태")]
     private int currentPlayerHP;
     private int currentMonsterHP;
 
-    [Header("UI 참조")]
-    private BattleUIManager uiManager;
-
-    [Header("미디어파이프 참조")]
     private HolisticJsonSender holisticExtractor;
 
-    [Header("배틀 상태")]
     private bool isPlayerTurn = true;
     private bool waitingForGesture = false;
     private string selectedSkill = "";
-
-    // *** 타임아웃 이슈 해결을 위한 추가 변수들 ***
     private bool gestureResponseReceived = false;
-    private string receivedPrediction = "";
-    private Coroutine gestureTimeoutCoroutine;
-
-    // 배틀 결과 추적을 위한 추가 변수들
-    private string battleResult = ""; // "victory", "escape", "defeat"
-    private string defeatedMonsterID = ""; // 처치 몬스터의 ID
-
-    // 안정화 관련 UI 안내
+    private string battleResult = "";
+    private string defeatedMonsterID = "";
     private bool isInitialStabilizationComplete = false;
+    private bool battleInitialized = false;
+
+    // 캐릭터 대사들 (다이나믹 버블용)
+    private static class CharacterDialogue
+    {
+        public static string AttackSuccess(string monsterName, int damage)
+            => $"성공이야! {monsterName}에게 {damage}의 피해를 입혔어!";
+
+        public const string AttackFail = "인식 실패! 다시 해 보자!";
+
+        public static string MonsterAttack(string monsterName, int damage)
+            => $"{monsterName}의 공격! {damage}의 피해를 입었어.";
+
+        public static string EscapeBlocked(string monsterName)
+            => $"{monsterName}에게서 벗어날 수 없다.";
+
+        public const string EscapeFail = "탈출에 실패했어!";
+    }
+
+    // 시스템 메시지들 (statusText용)
+    private static class SystemMessages
+    {
+        public const string MediaPipeStabilizing = "양 손바닥을 보여주세요.";
+        public const string MediaPipeReady = "안정화 완료!";
+        public const string WaitingForGesture = "제스처를 인식 중...";
+        public const string InitializingBattle = "전투 준비 중...";
+    }
+
+    // [수정됨] Awake에서 새로운 이벤트도 구독
+    void Awake()
+    {
+        if (BattleEventManager.Instance != null)
+        {
+            // 기존 이벤트 구독
+            BattleEventManager.Instance.OnPlayerSkillSelected += HandlePlayerSkillSelection;
+            BattleEventManager.Instance.OnPlayerAttemptEscape += AttemptEscape;
+            BattleEventManager.Instance.OnRequestStartGestureRecognition += StartGestureRecognition;
+
+            // [추가] 새로운 이벤트 구독
+            BattleEventManager.Instance.OnPlayerRequestsAttack += HandleAttackRequest;
+        }
+    }
+
+    // [수정됨] OnDestroy에서 새로운 이벤트도 구독 해제
+    void OnDestroy()
+    {
+        if (BattleEventManager.Instance != null)
+        {
+            // 기존 이벤트 구독 해제
+            BattleEventManager.Instance.OnPlayerSkillSelected -= HandlePlayerSkillSelection;
+            BattleEventManager.Instance.OnPlayerAttemptEscape -= AttemptEscape;
+            BattleEventManager.Instance.OnRequestStartGestureRecognition -= StartGestureRecognition;
+
+            // [추가] 새로운 이벤트 구독 해제
+            BattleEventManager.Instance.OnPlayerRequestsAttack -= HandleAttackRequest;
+        }
+
+        if (holisticExtractor != null)
+        {
+            holisticExtractor.OnGestureRecognitionComplete -= OnGestureRecognized;
+        }
+    }
 
     void Start()
     {
-        uiManager = FindObjectOfType<BattleUIManager>();
-        holisticExtractor = FindObjectOfType<HolisticJsonSender>();
+        StartCoroutine(InitializeBattleSequence());
+    }
 
+    private IEnumerator InitializeBattleSequence()
+    {
+        // UI 컴포넌트 초기화 및 null 체크
+        yield return StartCoroutine(InitializeComponents());
+
+        if (!ValidateComponents())
+        {
+            Debug.LogError("필수 컴포넌트 초기화 실패!");
+            yield break;
+        }
+
+        // 데이터 로드
         LoadMonsterData();
         LoadPlayerData();
-        InitializeBattle();
 
-        StartCoroutine(MonitorStabilization());
+        BattleEventManager.Instance.RequestUpdateStatus(SystemMessages.InitializingBattle);
+
+        // MediaPipe 안정화 대기
+        yield return StartCoroutine(MonitorStabilization());
+
+        // 전투 시작
+        InitializeBattle();
+        battleInitialized = true;
+        PlayerTurnStart();
+    }
+
+    private IEnumerator InitializeComponents()
+    {
+        holisticExtractor = FindObjectOfType<HolisticJsonSender>();
+        if (holisticExtractor != null)
+        {
+            holisticExtractor.OnGestureRecognitionComplete += OnGestureRecognized;
+        }
+
+        // 컴포넌트들이 Start() 메서드를 실행할 시간을 줌
+        yield return new WaitForEndOfFrame();
+    }
+
+    private bool ValidateComponents()
+    {
+        bool valid = true;
+
+        if (holisticExtractor == null)
+        {
+            Debug.LogWarning("HolisticJsonSender를 찾을 수 없습니다. 제스처 인식이 비활성화됩니다.");
+        }
+
+        return valid;
     }
 
     void LoadMonsterData()
@@ -53,17 +142,11 @@ public class BattleManager : MonoBehaviour
             currentMonster = GameManager.Instance.currentBattleMonster;
             currentMonsterHP = currentMonster.maxHP;
 
-            // 수정: monsterName -> GetDisplayName()
-            Debug.Log($"몬스터 로드: {currentMonster.GetDisplayName()} (HP: {currentMonsterHP})");
-
-            if (uiManager != null && currentMonster.monsterSprite != null)
-            {
-                uiManager.SetMonsterImage(currentMonster.monsterSprite);
-            }
+            Debug.Log($"몬스터 로드 완료: {currentMonster.GetDisplayName()}, HP: {currentMonsterHP}");
         }
         else
         {
-            Debug.LogError("GameManager에서 몬스터 정보를 가져올 수 없습니다!");
+            Debug.LogError("전투할 몬스터 데이터가 없습니다!");
         }
     }
 
@@ -73,240 +156,133 @@ public class BattleManager : MonoBehaviour
         if (statsMgr != null)
         {
             currentPlayerHP = statsMgr.GetCurrentHP();
-            Debug.Log($"플레이어 로드: HP {currentPlayerHP}/{statsMgr.GetMaxHP()}, ATK {statsMgr.GetAttackPower()}");
+            Debug.Log($"플레이어 HP 로드: {currentPlayerHP}");
         }
         else
         {
-            Debug.LogError("PlayerStatsManager 인스턴스를 찾을 수 없습니다!");
-            currentPlayerHP = 30;
+            Debug.LogError("PlayerStatsManager를 찾을 수 없습니다!");
+            currentPlayerHP = 100; // 기본값
         }
     }
 
     void InitializeBattle()
     {
         isPlayerTurn = true;
-        battleResult = "";
-        defeatedMonsterID = "";
-
-        // *** 배틀 시작 시 제스처 상태 완전 리셋 ***
         ResetGestureState();
 
-        if (uiManager != null)
-        {
-            uiManager.ShowMainBattleUI();
-        }
-
-        Debug.Log("배틀 초기화 완료 + 제스처 상태 리셋");
+        BattleEventManager.Instance.RequestUpdateStatus("");
     }
 
     private IEnumerator MonitorStabilization()
     {
         if (holisticExtractor == null)
         {
+            Debug.Log("HolisticJsonSender 없음 - 제스처 인식 건너뜀");
+            isInitialStabilizationComplete = true;
             yield break;
         }
 
-        int retryCount = 0;
-        const int maxRetries = 3; // 최대 3번 재시도
+        BattleEventManager.Instance.RequestUpdateStatus(SystemMessages.MediaPipeStabilizing);
 
-        while (retryCount < maxRetries && !isInitialStabilizationComplete)
-        {
-            yield return StartCoroutine(AttemptStabilization(retryCount));
-
-            if (!isInitialStabilizationComplete)
-            {
-                retryCount++;
-
-                if (retryCount < maxRetries)
-                {
-                    // 재시도 안내
-                    if (uiManager != null)
-                    {
-                        uiManager.ShowResult($"안정화를 재시도하고 있어! ({retryCount + 1}/{maxRetries})\n손을 카메라에 더 가까이 보여줘!");
-                    }
-                    yield return new WaitForSeconds(2f);
-                }
-            }
-        }
-
-        // 모든 재시도 실패 시 사용자 선택권 제공
-        if (!isInitialStabilizationComplete)
-        {
-            yield return StartCoroutine(HandleStabilizationFailure());
-        }
-    }
-
-    private IEnumerator AttemptStabilization(int attemptNumber)
-    {
-        // 시도 번호에 따른 안내 메시지
-        string initialMessage = attemptNumber == 0 ?
-            "미디어파이프 초기화 중이야!\n3초 동안 양 손바닥을 카메라에 보여줘!" :
-            $"안정화를 시도하고 있어! ({attemptNumber + 1}/3)\n손을 카메라에 더 가까이 보여줘!";
-
-        if (uiManager != null)
-        {
-            uiManager.ShowResult(initialMessage);
-        }
-
-        // MediaPipe 안정화 대기
+        // 최대 10초 대기 (무한 대기 방지)
+        float maxWaitTime = 10f;
         float waitTime = 0f;
-        const float maxWaitTime = 8f; // 최대 8초 대기
 
-        while (waitTime < maxWaitTime)
+        while (waitTime < maxWaitTime && !holisticExtractor.IsMediaPipeReady())
         {
-            // 안정화 상태 체크
-            if (holisticExtractor.IsMediaPipeStable() &&
-                holisticExtractor.GetConsecutiveRealDataFrames() >= 3)
-            {
-                isInitialStabilizationComplete = true;
-
-                if (uiManager != null)
-                {
-                    uiManager.ShowResult("미디어파이프 안정화 완료!\n이제 묘어를 준비하자!");
-                }
-
-                // 3초 후 메인 UI로 전환
-                yield return new WaitForSeconds(3f);
-                if (uiManager != null)
-                {
-                    uiManager.ShowMainBattleUI();
-                }
-                yield break;
-            }
-
-            // 진행 상황 업데이트 (매 2초마다)
-            if (waitTime % 2f < 0.1f && uiManager != null)
-            {
-                int frames = holisticExtractor.GetConsecutiveRealDataFrames();
-                float progress = Mathf.Clamp01(waitTime / maxWaitTime) * 100f;
-
-                string progressMsg = attemptNumber == 0 ?
-                    $"양 손바닥을 카메라에 보여줘!\n진행률: {frames}/3 프레임 ({progress:F0}%)" :
-                    $"재시도 중이야!\n손가락을 펴서 보여줘! ({progress:F0}%)";
-
-                uiManager.ShowResult(progressMsg);
-            }
-
-            waitTime += 0.1f;
-            yield return new WaitForSeconds(0.1f);
-        }
-    }
-
-    private IEnumerator HandleStabilizationFailure()
-    {
-        if (uiManager != null)
-        {
-            uiManager.ShowResult("안정화에 실패했어!\n조명을 밝게! 손은 잘 나와야!");
-        }
-
-        yield return new WaitForSeconds(4f);
-
-        if (uiManager != null)
-        {
-            uiManager.ShowResult("5초 후에 다시 시작할게! 손을 준비해줘!");
-        }
-
-        // 5초 카운트다운
-        for (int i = 5; i >= 1; i--)
-        {
-            yield return new WaitForSeconds(1f);
-            if (uiManager != null)
-            {
-                uiManager.ShowResult($"{i}초 후 다시 시작한다? 준비됐지?");
-            }
-        }
-
-        // 재시도
-        yield return StartCoroutine(AttemptStabilization(0));
-
-        if (!isInitialStabilizationComplete)
-        {
-            // 최종 실패 시 더미 데이터로 진행
-            if (uiManager != null)
-            {
-                uiManager.ShowResult("실패하고 말았어.");
-                yield return new WaitForSeconds(2f);
-            }
-            yield return StartCoroutine(ProceedWithDummyData());
-        }
-    }
-
-    private IEnumerator ProceedWithDummyData()
-    {
-        if (uiManager != null)
-        {
-            uiManager.ShowResult("내가 도와줄게.\n인식이 정확하지 않을 수 있어!");
-        }
-
-        // HolisticExtractor를 더미 모드로 전환
-        if (holisticExtractor != null)
-        {
-            holisticExtractor.SwitchToDummyData();
+            waitTime += Time.deltaTime;
+            yield return null;
         }
 
         isInitialStabilizationComplete = true;
 
-        yield return new WaitForSeconds(3f);
-
-        if (uiManager != null)
+        if (waitTime >= maxWaitTime)
         {
-            uiManager.ShowMainBattleUI();
+            Debug.LogWarning("MediaPipe 안정화 타임아웃 - 제스처 인식 없이 진행");
+            BattleEventManager.Instance.RequestUpdateStatus("제스처 인식 비활성화");
         }
-        Debug.Log("더미 데이터 모드로 배틀 시작");
+        else
+        {
+            BattleEventManager.Instance.RequestUpdateStatus(SystemMessages.MediaPipeReady);
+        }
+
+        yield return new WaitForSeconds(1.5f);
     }
 
-    void ResetBattleUI()
+    void PlayerTurnStart()
     {
-        if (uiManager != null)
-        {
-            uiManager.ShowMainBattleUI();
-        }
-    }
+        if (!battleInitialized) return;
 
-    public void UseSkill(string skillName)
-    {
-        if (!isPlayerTurn || waitingForGesture) return;
-        if (!isInitialStabilizationComplete) return; // 안정화 완료 전에는 스킬 사용 불가
-
-        // 상태 리셋
+        isPlayerTurn = true;
         ResetGestureState();
-        selectedSkill = skillName;
+
+        BattleEventManager.Instance.RequestUpdateStatus("");
+
+        // [추가] 플레이어 턴 시작 시 메인 UI 표시
+        BattleEventManager.Instance.RequestShowMainUI(true);
+        BattleEventManager.Instance.RequestShowSkillPanel(false);
+
+        BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.PlayerTurnStarted);
+        Debug.Log("플레이어 턴 시작 - 메인 UI 표시");
+    }
+
+    // [추가] 공격 버튼 클릭 처리 - UI 흐름을 BattleManager가 통제
+    private void HandleAttackRequest()
+    {
+        if (!isPlayerTurn || waitingForGesture || !battleInitialized)
+        {
+            Debug.Log($"공격 요청 무시됨 - 턴: {isPlayerTurn}, 대기: {waitingForGesture}, 초기화: {battleInitialized}");
+            return;
+        }
+
+        Debug.Log("BattleManager: 공격 요청 접수. UI 변경 지시.");
+
+        // UIManager에게 메인 UI를 숨기고 스킬 패널을 보여주라고 '명령'한다.
+        BattleEventManager.Instance.RequestShowMainUI(false);
+        BattleEventManager.Instance.RequestShowSkillPanel(true);
+    }
+
+    // [수정됨] 스킬 선택 처리 - 스킬 패널 닫기도 BattleManager가 지시
+    private void HandlePlayerSkillSelection(string skillName)
+    {
+        if (!isPlayerTurn || waitingForGesture || !battleInitialized)
+        {
+            Debug.Log($"스킬 선택 무시됨 - 턴: {isPlayerTurn}, 대기: {waitingForGesture}, 초기화: {battleInitialized}");
+            return;
+        }
+
+        selectedSkill = skillName.Trim().ToLower();
+        Debug.Log($"BattleManager: 스킬 선택({skillName}) 접수. 스킬 패널 닫기 지시.");
+
+        // 스킬이 선택되었으니, UIManager에게 스킬 패널을 닫으라고 '명령'한다.
+        BattleEventManager.Instance.RequestShowSkillPanel(false);
+
+        BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.PlayerSkillSelected);
+        StartGestureRecognition();
+    }
+
+    public void StartGestureRecognition()
+    {
+        if (!isPlayerTurn || waitingForGesture || !isInitialStabilizationComplete || !battleInitialized)
+        {
+            Debug.Log($"제스처 인식 시작 실패 - 턴: {isPlayerTurn}, 대기: {waitingForGesture}, 안정화: {isInitialStabilizationComplete}, 초기화: {battleInitialized}");
+            return;
+        }
+
+        if (holisticExtractor == null)
+        {
+            Debug.Log("HolisticJsonSender 없음 - 자동 성공 처리");
+            ProcessGestureResult(selectedSkill); // 제스처 인식 없이 자동 성공
+            return;
+        }
+
+        ResetGestureState();
         waitingForGesture = true;
 
-        Debug.Log($"스킬 선택: {skillName} (상태 완전 리셋됨)");
+        BattleEventManager.Instance.RequestUpdateStatus(SystemMessages.WaitingForGesture);
+        BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.GestureRecognitionStarted);
+        Debug.Log("제스처 인식 시작");
 
-        StartCoroutine(SkillCountdownAndGuidance(skillName));
-    }
-
-    private IEnumerator SkillCountdownAndGuidance(string skillName)
-    {
-        string skillDisplayName = GetSkillDisplayName(skillName);
-
-        // 준비 안내
-        if (uiManager != null)
-        {
-            uiManager.ShowResult($"묘어를 사용할 준비를 해줘!");
-        }
-
-        yield return new WaitForSeconds(1f);
-
-        // 3, 2, 1 카운트다운
-        for (int i = 3; i >= 1; i--)
-        {
-            if (uiManager != null)
-            {
-                uiManager.ShowResult($"{i}초 후 시작한다?\n{skillDisplayName}을(를) 준비해!");
-            }
-            yield return new WaitForSeconds(1f);
-        }
-
-        // 스킬 실행 안내
-        if (uiManager != null)
-        {
-            uiManager.ShowResult($"{skillDisplayName}을(를) 보여줘!");
-        }
-
-        // 실제 제스처 인식 시작
         StartCoroutine(WaitForGestureRecognition());
     }
 
@@ -314,19 +290,6 @@ public class BattleManager : MonoBehaviour
     {
         waitingForGesture = false;
         gestureResponseReceived = false;
-        receivedPrediction = "";
-        Debug.Log("제스처 상태 완전 리셋");
-    }
-
-    string GetSkillDisplayName(string skillName)
-    {
-        switch (skillName)
-        {
-            case "hello": return "안녕하세요";
-            case "sorry": return "죄송합니다";
-            case "thank": return "감사합니다";
-            default: return skillName;
-        }
     }
 
     IEnumerator WaitForGestureRecognition()
@@ -334,224 +297,155 @@ public class BattleManager : MonoBehaviour
         if (holisticExtractor != null)
         {
             holisticExtractor.StartGestureCollection();
-
-            // 1단계: 프레임 수집 대기 (최대 5초)
-            float collectWaitTime = 5f;
-            while (collectWaitTime > 0 && holisticExtractor.IsCollectingFrames())
-            {
-                collectWaitTime -= Time.deltaTime;
-                yield return null;
-            }
-
-            // 강제 전송이 필요한 경우
-            if (collectWaitTime <= 0 && holisticExtractor.GetCurrentFrameCount() > 0)
-            {
-                Debug.Log("수집 타임아웃 - 강제 전송");
-                holisticExtractor.ForceSendCurrentSequence();
-            }
-
-            // 2단계: 서버 응답 대기 (더 긴 시간, 10초)
-            float responseWaitTime = 10f;
-            Debug.Log("서버 응답 대기 시작...");
-
-            while (responseWaitTime > 0 && waitingForGesture && !gestureResponseReceived)
-            {
-                responseWaitTime -= Time.deltaTime;
-                yield return null;
-            }
-
-            // 타임아웃 처리
-            if (waitingForGesture && !gestureResponseReceived)
-            {
-                Debug.LogWarning("서버 응답 타임아웃 - none으로 처리");
-                ProcessGestureResult("none");
-            }
         }
-        else
+
+        float responseWaitTime = 15f;
+        while (responseWaitTime > 0 && !gestureResponseReceived)
         {
-            Debug.LogError("HolisticExtractor를 찾을 수 없음");
-            ProcessGestureResult("none");
+            responseWaitTime -= Time.deltaTime;
+
+            if (responseWaitTime > 0)
+            {
+                BattleEventManager.Instance.RequestUpdateStatus($"{SystemMessages.WaitingForGesture} ({responseWaitTime:F0}초)");
+            }
+
+            yield return null;
+        }
+
+        if (!gestureResponseReceived)
+        {
+            Debug.Log("제스처 인식 타임아웃");
+            ProcessGestureResult("timeout");
         }
     }
 
     public void OnGestureRecognized(string prediction)
     {
-        if (!waitingForGesture)
+        if (!waitingForGesture || gestureResponseReceived)
         {
-            Debug.Log($"제스처 대기 중이 아님 - 무시: {prediction}");
+            Debug.Log($"제스처 응답 무시됨 - 대기중: {waitingForGesture}, 이미받음: {gestureResponseReceived}");
             return;
         }
-
-        if (gestureResponseReceived)
-        {
-            Debug.Log($"이미 응답 받음 - 무시: {prediction}");
-            return;
-        }
-
-        Debug.Log($"수어 인식 결과 수신: {prediction}, 선택한 스킬: {selectedSkill}");
 
         gestureResponseReceived = true;
-        receivedPrediction = prediction;
+        string cleanPrediction = prediction?.Trim().ToLower() ?? "none";
 
-        ProcessGestureResult(prediction);
+        Debug.Log($"제스처 인식됨: {cleanPrediction} (선택된 스킬: {selectedSkill})");
+        ProcessGestureResult(cleanPrediction);
     }
 
     private void ProcessGestureResult(string prediction)
     {
-        if (!waitingForGesture) return;
+        if (!isPlayerTurn) return;
 
         waitingForGesture = false;
-        gestureResponseReceived = true;
+        BattleEventManager.Instance.RequestUpdateStatus("");
 
-        if (prediction == selectedSkill)
+        // 제스처 매칭 확인 (공백 및 대소문자 무시)
+        bool isMatch = !string.IsNullOrEmpty(selectedSkill) &&
+                      !string.IsNullOrEmpty(prediction) &&
+                      selectedSkill.Equals(prediction, System.StringComparison.OrdinalIgnoreCase);
+
+        Debug.Log($"제스처 매칭 결과: {isMatch} (선택: {selectedSkill}, 인식: {prediction})");
+
+        if (isMatch)
         {
+            BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.PlayerAttackSuccess);
             ExecutePlayerAttack();
         }
         else
         {
+            BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.PlayerAttackFail);
             PlayerAttackFailed();
         }
-
-        StartCoroutine(DelayedGestureStateReset());
-    }
-
-    private IEnumerator DelayedGestureStateReset()
-    {
-        yield return new WaitForSeconds(1f);
-        ResetGestureState();
-        Debug.Log("지연된 제스처 상태 리셋 완료");
     }
 
     void ExecutePlayerAttack()
     {
         var statsMgr = PlayerStatsManager.Instance;
-        int damage = Mathf.Max(1, statsMgr.GetAttackPower() - currentMonster.defense);
-        currentMonsterHP -= damage;
+        int damage = statsMgr?.GetAttackPower() ?? 10; // 기본 공격력
+        currentMonsterHP = Mathf.Max(0, currentMonsterHP - damage);
 
-        // 수정: monsterName -> GetDisplayName()
-        string message = $"성공이야!\n{currentMonster.GetDisplayName()}에게 {damage}의 피해를 입혔어!";
+        string message = CharacterDialogue.AttackSuccess(currentMonster?.GetDisplayName() ?? "몬스터", damage);
+        BattleEventManager.Instance.RequestShowCharacterDialogue(message);
+
+        Debug.Log($"플레이어 공격 성공! 데미지: {damage}, 몬스터 HP: {currentMonsterHP}");
 
         if (currentMonsterHP <= 0)
         {
-            message += $"\n{currentMonster.GetDisplayName()}을(를) 물리쳤다!";
-
-            // 승리 처리
-            battleResult = "victory";
-            defeatedMonsterID = GetMonsterUniqueID(); // 몬스터 고유 ID 저장
-
             EndBattle(true);
         }
         else
         {
-            message += $"\n{currentMonster.GetDisplayName()} HP: {currentMonsterHP}";
             isPlayerTurn = false;
             StartCoroutine(MonsterTurn());
         }
-
-        if (uiManager != null)
-        {
-            uiManager.ShowResult(message);
-        }
-
-        Debug.Log(message);
     }
 
     void PlayerAttackFailed()
     {
-        string message = $"인식 실패야!\n다음에 다시 시도하자!";
-
-        if (uiManager != null)
-        {
-            uiManager.ShowResult(message);
-        }
+        BattleEventManager.Instance.RequestShowCharacterDialogue(CharacterDialogue.AttackFail);
+        Debug.Log("플레이어 공격 실패!");
 
         isPlayerTurn = false;
         StartCoroutine(MonsterTurn());
-
-        Debug.Log(message);
     }
 
     IEnumerator MonsterTurn()
     {
-        yield return new WaitForSeconds(2f);
-        var statsMgr = PlayerStatsManager.Instance;
-        int damage = Mathf.Max(1, currentMonster.attackPower - statsMgr.GetDefense());
-        statsMgr.TakeDamage(damage);
-        currentPlayerHP = statsMgr.GetCurrentHP();
+        yield return new WaitForSeconds(2.5f);
 
-        // 수정: monsterName -> GetDisplayName()
-        string message = $"{currentMonster.GetDisplayName()}의 공격!\n{damage}의 피해를 받았어!";
+        var statsMgr = PlayerStatsManager.Instance;
+        int damage = currentMonster?.attackPower ?? 5; // 기본 공격력
+
+        if (statsMgr != null)
+        {
+            statsMgr.TakeDamage(damage);
+            currentPlayerHP = statsMgr.GetCurrentHP();
+        }
+        else
+        {
+            currentPlayerHP = Mathf.Max(0, currentPlayerHP - damage);
+        }
+
+        string message = CharacterDialogue.MonsterAttack(currentMonster?.GetDisplayName() ?? "몬스터", damage);
+        BattleEventManager.Instance.RequestShowCharacterDialogue(message);
+
+        Debug.Log($"몬스터 공격! 데미지: {damage}, 플레이어 HP: {currentPlayerHP}");
 
         if (currentPlayerHP <= 0)
         {
-            message += "\n아프지고 말았어.";
-            battleResult = "defeat";
             EndBattle(false);
         }
         else
         {
-            message += $"\n플레이어 HP: {currentPlayerHP}";
-            isPlayerTurn = true;
-
-            if (uiManager != null)
-            {
-                uiManager.ShowResult(message);
-                StartCoroutine(DelayedBattleUIReset());
-            }
-        }
-
-        Debug.Log(message);
-    }
-
-    IEnumerator DelayedBattleUIReset()
-    {
-        yield return new WaitForSeconds(3f);
-
-        if (isPlayerTurn)
-        {
-            // *** 플레이어 턴으로 돌아올 때 상태 확실히 리셋 ***
-            ResetGestureState();
-            ResetBattleUI();
-            Debug.Log("배틀 UI 리셋 + 제스처 상태 리셋");
+            yield return new WaitForSeconds(2.5f);
+            PlayerTurnStart(); // 다시 플레이어 턴으로, 메인 UI가 표시됨
         }
     }
 
     public void AttemptEscape()
     {
-        if (!isPlayerTurn) return;
+        if (!isPlayerTurn || !battleInitialized) return;
 
-        if (!currentMonster.canEscape)
+        if (currentMonster != null && !currentMonster.canEscape)
         {
-            if (uiManager != null)
-            {
-                // 수정: monsterName -> GetDisplayName()
-                uiManager.ShowResult($"{currentMonster.GetDisplayName()}에게서 벗어날 수 없다.");
-                StartCoroutine(DelayedBattleUIReset());
-            }
+            string message = CharacterDialogue.EscapeBlocked(currentMonster.GetDisplayName());
+            BattleEventManager.Instance.RequestShowCharacterDialogue(message);
+            Debug.Log("도망 불가능한 몬스터");
             return;
         }
 
         bool escapeSuccess = Random.Range(0f, 1f) > 0.5f;
-
         if (escapeSuccess)
         {
-            battleResult = "escape";
-            defeatedMonsterID = GetMonsterUniqueID(); // 도망쳤을 때도 몬스터 ID 저장
-
-            if (uiManager != null)
-            {
-                uiManager.ShowResult("무사히 도망쳤어!");
-            }
-
-            StartCoroutine(ReturnToField());
+            Debug.Log("도망 성공!");
+            EndBattle(false);
         }
         else
         {
-            if (uiManager != null)
-            {
-                uiManager.ShowResult("이런, 붙잡혔다!");
-            }
-
+            BattleEventManager.Instance.RequestShowCharacterDialogue(CharacterDialogue.EscapeFail);
+            Debug.Log("도망 실패!");
             isPlayerTurn = false;
             StartCoroutine(MonsterTurn());
         }
@@ -559,100 +453,41 @@ public class BattleManager : MonoBehaviour
 
     void EndBattle(bool playerWon)
     {
+        battleInitialized = false; // 전투 종료
+
         if (playerWon)
         {
-            // 승리 처리 (경험치, 아이템 등)
-            StartCoroutine(ReturnToField());
+            battleResult = "victory";
+            Debug.Log("플레이어 승리!");
         }
         else
         {
-            // 패배 처리
-            StartCoroutine(GameOver());
-        }
-    }
-
-    public void ContinueBattle()
-    {
-        if (isPlayerTurn && uiManager != null)
-        {
-            // *** Continue 버튼 클릭 시에도 상태 리셋 ***
-            ResetGestureState();
-            uiManager.ShowMainBattleUI();
-            Debug.Log("배틀 계속 + 제스처 상태 리셋");
-        }
-    }
-
-    // 몬스터 고유 ID 가져오기
-    string GetMonsterUniqueID()
-    {
-        // MonsterController에서 PlayerPrefs에 저장한 ID 가져오기
-        string monsterID = PlayerPrefs.GetString("CurrentMonsterID", "");
-
-        if (string.IsNullOrEmpty(monsterID) && currentMonster != null)
-        {
-            // 백업: 몬스터 데이터의 이름으로 ID 생성
-            // 수정: monsterName -> GetDisplayName()
-            monsterID = $"{currentMonster.GetDisplayName()}_backup_{System.DateTime.Now.Ticks}";
-            Debug.LogWarning($"몬스터 ID를 찾을 수 없어 백업 ID 생성: {monsterID}");
+            Debug.Log("전투 종료");
         }
 
-        return monsterID;
+        StartCoroutine(ReturnToField());
     }
 
     IEnumerator ReturnToField()
     {
-        yield return new WaitForSeconds(2f);
-
-        PlayerPrefs.SetInt("FirstBattleCompleted", 1);
-        PlayerPrefs.Save();
-        Debug.Log("첫 배틀 완료 상태 저장됨");
-
-        // GameManager에 배틀 결과 전달
-        if (GameManager.Instance != null)
+        if (battleResult == "victory" && currentMonster != null)
         {
-            // 배틀 결과에 따라 다른 처리
-            switch (battleResult)
-            {
-                case "victory":
-                    // 몬스터를 처웠으므로 해당 몬스터 제거
-                    GameManager.Instance.SetMonsterDefeated(defeatedMonsterID);
-                    Debug.Log($"몬스터 {defeatedMonsterID} 제거 설정 (승리)");
-                    break;
-
-                case "escape":
-                    // 도망쳤어도 몬스터 제거 (한 번 만난 몬스터는 사라짐)
-                    GameManager.Instance.SetMonsterDefeated(defeatedMonsterID);
-                    Debug.Log($"몬스터 {defeatedMonsterID} 제거 설정 (도망)");
-                    break;
-            }
-
-            // 배틀 상태 정리
-            GameManager.Instance.EndBattle();
+            GameManager.Instance?.SetMonsterDefeated(currentMonster.name);
         }
 
-        // PlayerPrefs 정리
-        PlayerPrefs.DeleteKey("CurrentMonsterID");
+        yield return new WaitForSeconds(3f); // 결과 확인 시간 증가
 
-        // 원래 씬으로 돌아가기
-        string previousScene = PlayerPrefs.GetString("PreviousScene", "Maptest");
-        Debug.Log($"원래 씬으로 복귀: {previousScene}");
+        string returnScene = GameManager.Instance?.GetPreviousScene();
 
-        SceneManager.LoadScene(previousScene);
-    }
-
-    IEnumerator GameOver()
-    {
-        yield return new WaitForSeconds(2f);
-
-        // GameManager에 패배 상태 전달
-        if (GameManager.Instance != null)
+        if (!string.IsNullOrEmpty(returnScene))
         {
-            GameManager.Instance.EndBattle();
+            Debug.Log($"이전 씬으로 이동: {returnScene}");
+            SceneManager.LoadScene(returnScene);
         }
-
-        // PlayerPrefs 정리
-        PlayerPrefs.DeleteKey("CurrentMonsterID");
-
-        SceneManager.LoadScene("MainMenu");
+        else
+        {
+            Debug.LogError("돌아갈 씬을 찾을 수 없습니다! 게임을 재시작하세요.");
+            SceneManager.LoadScene("MainMenu");
+        }
     }
 }
