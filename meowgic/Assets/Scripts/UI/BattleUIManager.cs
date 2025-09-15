@@ -1,86 +1,137 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
 
 public class BattleUIManager : MonoBehaviour
 {
-    [Header("UI ¿ä¼Ò")]
+    [Header("UI ìš”ì†Œ")]
     public Image monsterImage;
-    public TextMeshProUGUI descriptionText;
     public Button attackButton;
     public Button escapeButton;
-
-    [Header("½ºÅ³ ¼±ÅÃ UI")]
     public GameObject skillSelectionPanel;
     public Button helloSkillButton;
     public Button sorrySkillButton;
     public Button thankSkillButton;
 
-    [Header("°á°ú Ç¥½Ã UI")]
-    public GameObject resultPanel;
-    public TextMeshProUGUI resultText;
+    [Header("ì±„ë„ 1: ìºë¦­í„° ëŒ€ì‚¬ UI (ì „íˆ¬ ê²°ê³¼, ëŒ€ì‚¬)")]
+    public DynamicSpeechBubble canSpeechBubble;
 
-    private BattleManager battleManager;
+    [Header("ì±„ë„ 2: íŠœí† ë¦¬ì–¼ UI (íŠœí† ë¦¬ì–¼ ì „ìš©)")]
+    public DynamicSpeechBubble tutorSpeechBubble;
 
-    // ½ºÅ³ ¹öÆ°µéÀ» ¹è¿­·Î °ü¸®
-    private Button[] skillButtons;
+    [Header("ì±„ë„ 3: ì‹œìŠ¤í…œ ìƒíƒœ UI (ë¯¸ë””ì–´íŒŒì´í”„ ë“±)")]
+    public TextMeshProUGUI statusText;
+
+    private Coroutine hideDialogueCoroutine;
+    private Coroutine hideTutorialCoroutine;
+
+    private bool isDialogueActive = false;
+    private bool isTutorialActive = false;
+    private bool isStatusActive = false;
+
+    void Awake()
+    {
+        if (BattleEventManager.Instance != null)
+        {
+            // ê¸°ì¡´ ì´ë²¤íŠ¸ êµ¬ë…
+            BattleEventManager.Instance.OnRequestShowTutorialMessage += ShowTutorialMessage;
+            BattleEventManager.Instance.OnRequestShowCharacterDialogue += ShowCharacterDialogue;
+            BattleEventManager.Instance.OnRequestUpdateStatus += UpdateStatusText;
+
+            // ìƒˆë¡œìš´ UI ì œì–´ ì´ë²¤íŠ¸ êµ¬ë…
+            BattleEventManager.Instance.OnRequestShowMainUI += ShowMainUI;
+            BattleEventManager.Instance.OnRequestShowSkillPanel += ShowSkillPanel;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (BattleEventManager.Instance != null)
+        {
+            // ê¸°ì¡´ ì´ë²¤íŠ¸ êµ¬ë… í•´ì œ
+            BattleEventManager.Instance.OnRequestShowTutorialMessage -= ShowTutorialMessage;
+            BattleEventManager.Instance.OnRequestShowCharacterDialogue -= ShowCharacterDialogue;
+            BattleEventManager.Instance.OnRequestUpdateStatus -= UpdateStatusText;
+
+            // ìƒˆë¡œìš´ UI ì œì–´ ì´ë²¤íŠ¸ êµ¬ë… í•´ì œ
+            BattleEventManager.Instance.OnRequestShowMainUI -= ShowMainUI;
+            BattleEventManager.Instance.OnRequestShowSkillPanel -= ShowSkillPanel;
+        }
+
+        if (hideDialogueCoroutine != null)
+        {
+            StopCoroutine(hideDialogueCoroutine);
+        }
+
+        if (hideTutorialCoroutine != null)
+        {
+            StopCoroutine(hideTutorialCoroutine);
+        }
+    }
 
     void Start()
     {
-        battleManager = FindObjectOfType<BattleManager>();
-
-        // ½ºÅ³ ¹öÆ° ¹è¿­ ÃÊ±âÈ­
-        skillButtons = new Button[] { helloSkillButton, sorrySkillButton, thankSkillButton };
-
-        attackButton.onClick.AddListener(OnAttackButtonClicked);
-        escapeButton.onClick.AddListener(OnEscapeButtonClicked);
-
-        helloSkillButton.onClick.AddListener(() => OnSkillSelected("hello"));
-        sorrySkillButton.onClick.AddListener(() => OnSkillSelected("sorry"));
-        thankSkillButton.onClick.AddListener(() => OnSkillSelected("thank"));
-
-        // ±âº»ÀûÀ¸·Î ³ª¿À´Â UI
-        ShowMainBattleUI();
+        ValidateUIComponents();
+        InitializeUIState();
+        SetupButtonEvents();
+        Debug.Log("BattleUIManager ì´ˆê¸°í™” ì™„ë£Œ");
     }
 
-    public void ShowMainBattleUI()
+    private void ValidateUIComponents()
     {
-        skillSelectionPanel.SetActive(false);
-        resultPanel.SetActive(false);
-        attackButton.gameObject.SetActive(true);
-        escapeButton.gameObject.SetActive(true);
+        if (attackButton == null) Debug.LogError("Attack Buttonì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+        if (escapeButton == null) Debug.LogError("Escape Buttonì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+        if (skillSelectionPanel == null) Debug.LogError("Skill Selection Panelì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
 
-        // ¹öÆ°µéÀ» ´Ù½Ã È°¼ºÈ­
-        attackButton.interactable = true;
-        escapeButton.interactable = true;
+        if (helloSkillButton == null) Debug.LogWarning("Hello Skill Buttonì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+        if (sorrySkillButton == null) Debug.LogWarning("Sorry Skill Buttonì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+        if (thankSkillButton == null) Debug.LogWarning("Thank Skill Buttonì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
 
-        descriptionText.text = "¹«¾ùÀ» ÇÒ±î?";
+        if (tutorSpeechBubble == null)
+        {
+            Debug.LogWarning("Tutor Speech Bubbleì´ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤! ë°±ì—… UIë¥¼ ì‚¬ìš©í•©ë‹ˆë‹¤.");
+        }
 
-        Debug.Log("¸ŞÀÎ ¹èÆ² UI Ç¥½Ã");
+        if (statusText == null)
+        {
+            Debug.LogWarning("Status Textê°€ í• ë‹¹ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+        }
     }
 
-    public void ShowSkillSelection()
+    private void InitializeUIState()
     {
-        skillSelectionPanel.SetActive(true);
-        attackButton.gameObject.SetActive(false);
-        escapeButton.gameObject.SetActive(false);
+        if (canSpeechBubble != null)
+        {
+            canSpeechBubble.gameObject.SetActive(false);
+            isDialogueActive = false;
+        }
 
-        // ½ºÅ³ ¹öÆ°µé È°¼ºÈ­
-        EnableSkillButtons(true);
+        if (tutorSpeechBubble != null)
+        {
+            tutorSpeechBubble.gameObject.SetActive(false);
+            isTutorialActive = false;
+        }
 
-        descriptionText.text = "¾î¶² ½ºÅ³À» »ç¿ëÇÒ±î?";
+        if (statusText != null)
+        {
+            statusText.gameObject.SetActive(false);
+            isStatusActive = false;
+        }
+
+        if (skillSelectionPanel != null)
+        {
+            skillSelectionPanel.SetActive(false);
+        }
     }
 
-    public void ShowResult(string message)
+    private void SetupButtonEvents()
     {
-        resultPanel.SetActive(true);
-        resultText.text = message;
-        skillSelectionPanel.SetActive(false);
-
-        // °á°ú¸¦ º¸¿©ÁÙ ¶§´Â ¸ğµç ¹öÆ° ºñÈ°¼ºÈ­
-        DisableBattleButtons();
+        attackButton?.onClick.AddListener(OnAttackButtonClicked);
+        escapeButton?.onClick.AddListener(OnEscapeButtonClicked);
+        helloSkillButton?.onClick.AddListener(() => OnSkillButtonClicked("hello"));
+        sorrySkillButton?.onClick.AddListener(() => OnSkillButtonClicked("sorry"));
+        thankSkillButton?.onClick.AddListener(() => OnSkillButtonClicked("thank"));
     }
 
     public void SetMonsterImage(Sprite sprite)
@@ -88,103 +139,226 @@ public class BattleUIManager : MonoBehaviour
         if (monsterImage != null && sprite != null)
         {
             monsterImage.sprite = sprite;
+            Debug.Log("ëª¬ìŠ¤í„° ì´ë¯¸ì§€ ì„¤ì •ë¨");
         }
-    }
-
-    void OnAttackButtonClicked()
-    {
-        ShowSkillSelection();
-    }
-
-    void OnEscapeButtonClicked()
-    {
-        if (battleManager != null)
+        else
         {
-            battleManager.AttemptEscape();
-        }
-    }
-
-    void OnSkillSelected(string skillName)
-    {
-        if (battleManager != null)
-        {
-            battleManager.UseSkill(skillName);
-        }
-    }
-
-    void OnBackButtonClicked()
-    {
-        ShowMainBattleUI();
-    }
-
-    /// <summary>
-    /// ¸Ş½ÃÁö ÅØ½ºÆ®¸¦ Áö¿ì°í ¹èÆ² UI¸¦ ÃÊ±â »óÅÂ·Î µÇµ¹¸³´Ï´Ù
-    /// </summary>
-    public void ClearMessage()
-    {
-        if (resultText != null)
-        {
-            resultText.text = "";
-        }
-
-        if (resultPanel != null)
-        {
-            resultPanel.SetActive(false);
+            Debug.LogWarning($"ëª¬ìŠ¤í„° ì´ë¯¸ì§€ ì„¤ì • ì‹¤íŒ¨ - Image: {monsterImage != null}, Sprite: {sprite != null}");
         }
     }
 
     /// <summary>
-    /// ¹èÆ² ¹öÆ°µéÀ» ´Ù½Ã È°¼ºÈ­ÇÕ´Ï´Ù
+    /// ìºë¦­í„° ëŒ€ì‚¬ë¥¼ canSpeechBubbleë¡œ í‘œì‹œ
     /// </summary>
-    public void ShowBattleButtons()
+    private void ShowCharacterDialogue(string dialogue)
     {
-        // ¸ŞÀÎ ¹èÆ² UI¸¦ ´Ù½Ã º¸¿©ÁÜ
-        ShowMainBattleUI();
+        if (string.IsNullOrEmpty(dialogue) || canSpeechBubble == null) return;
+
+        if (hideDialogueCoroutine != null) StopCoroutine(hideDialogueCoroutine);
+
+        canSpeechBubble.gameObject.SetActive(true);
+        canSpeechBubble.SetText(dialogue);
+        isDialogueActive = true;
+
+        hideDialogueCoroutine = StartCoroutine(HideCharacterDialogueAfterDelay(3f));
+    }
+
+    private IEnumerator HideCharacterDialogueAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (canSpeechBubble != null && isDialogueActive)
+        {
+            canSpeechBubble.gameObject.SetActive(false);
+        }
+        isDialogueActive = false;
+        hideDialogueCoroutine = null;
+        Debug.Log("ìºë¦­í„° ëŒ€ì‚¬ ìˆ¨ê¹€");
     }
 
     /// <summary>
-    /// ½ºÅ³ »ç¿ë ÁßÀÌ°Å³ª ¸ó½ºÅÍ ÅÏÀÏ ¶§ ¹öÆ°µéÀ» ºñÈ°¼ºÈ­
+    /// íŠœí† ë¦¬ì–¼ ë©”ì‹œì§€ë¥¼ tutorSpeechBubbleë¡œ í‘œì‹œ
     /// </summary>
-    public void DisableBattleButtons()
+    private void ShowTutorialMessage(string message)
     {
-        // ¸ŞÀÎ ¹öÆ°µé ºñÈ°¼ºÈ­
+        if (string.IsNullOrEmpty(message) || tutorSpeechBubble == null) return;
+
+        if (hideTutorialCoroutine != null) StopCoroutine(hideTutorialCoroutine);
+
+        tutorSpeechBubble.SetText(message);
+        tutorSpeechBubble.gameObject.SetActive(true);
+        isTutorialActive = true;
+
+        hideTutorialCoroutine = StartCoroutine(HideTutorialMessageAfterDelay(3f));
+    }
+
+    private IEnumerator HideTutorialMessageAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (tutorSpeechBubble != null && isTutorialActive)
+        {
+            tutorSpeechBubble.gameObject.SetActive(false);
+            isTutorialActive = false;
+            Debug.Log("íŠœí† ë¦¬ì–¼ ë©”ì‹œì§€ ìˆ¨ê¹€");
+        }
+        hideTutorialCoroutine = null;
+    }
+
+    public void HideTutorialMessage()
+    {
+        if (hideTutorialCoroutine != null)
+        {
+            StopCoroutine(hideTutorialCoroutine);
+            hideTutorialCoroutine = null;
+        }
+
+        if (tutorSpeechBubble != null && isTutorialActive)
+        {
+            tutorSpeechBubble.gameObject.SetActive(false);
+            isTutorialActive = false;
+            Debug.Log("íŠœí† ë¦¬ì–¼ ë©”ì‹œì§€ ìˆ¨ê¹€");
+        }
+    }
+
+    public void ShowSpeechBubble(DialogueLine line)
+    {
+        if (line != null)
+        {
+            BattleEventManager.Instance?.ShowTutorialMessage(line.text);
+        }
+    }
+
+    public void HideSpeechBubble()
+    {
+        HideTutorialMessage();
+    }
+
+    /// <summary>
+    /// ì‹œìŠ¤í…œ ìƒíƒœ ë©”ì‹œì§€ í‘œì‹œ (ë¯¸ë””ì–´íŒŒì´í”„ ë“±)
+    /// </summary>
+    private void UpdateStatusText(string message)
+    {
+        if (statusText == null) return;
+        if (string.IsNullOrEmpty(message))
+        {
+            statusText.gameObject.SetActive(false);
+            isStatusActive = false;
+        }
+        else
+        {
+            statusText.text = message;
+            statusText.gameObject.SetActive(true);
+            isStatusActive = true;
+        }
+    }
+
+    public void HideStatusText()
+    {
+        if (statusText != null && isStatusActive)
+        {
+            statusText.gameObject.SetActive(false);
+            isStatusActive = false;
+            Debug.Log("ìƒíƒœ í…ìŠ¤íŠ¸ ìˆ¨ê¹€");
+        }
+    }
+
+    // ===== [ìˆ˜ì •ë¨] BattleManagerê°€ ëª…ë ¹í•˜ëŠ” UI ì œì–´ ë©”ì„œë“œë“¤ =====
+
+    /// <summary>
+    /// BattleManagerê°€ ëª…ë ¹: ë©”ì¸ UI(ê³µê²©í•˜ê¸°, ë„ë§ê°€ê¸°) í‘œì‹œ/ìˆ¨ê¹€
+    /// </summary>
+    public void ShowMainUI(bool show)
+    {
         if (attackButton != null)
         {
-            attackButton.interactable = false;
+            attackButton.gameObject.SetActive(show);
+            attackButton.interactable = show;
         }
 
         if (escapeButton != null)
         {
-            escapeButton.interactable = false;
+            escapeButton.gameObject.SetActive(show);
+            escapeButton.interactable = show;
         }
 
-        // ½ºÅ³ ¹öÆ°µé ºñÈ°¼ºÈ­
-        EnableSkillButtons(false);
+        Debug.Log($"ë©”ì¸ UI {(show ? "í‘œì‹œ" : "ìˆ¨ê¹€")}");
     }
 
     /// <summary>
-    /// ½ºÅ³ ¹öÆ°µéÀÇ È°¼ºÈ­/ºñÈ°¼ºÈ­¸¦ Á¦¾î
+    /// BattleManagerê°€ ëª…ë ¹: ìŠ¤í‚¬ íŒ¨ë„ í‘œì‹œ/ìˆ¨ê¹€
     /// </summary>
-    void EnableSkillButtons(bool enable)
+    public void ShowSkillPanel(bool show)
     {
-        if (skillButtons != null)
+        if (skillSelectionPanel != null)
         {
-            foreach (var button in skillButtons)
-            {
-                if (button != null)
-                {
-                    button.interactable = enable;
-                }
-            }
+            skillSelectionPanel.SetActive(show);
         }
+        Debug.Log($"ìŠ¤í‚¬ íŒ¨ë„ {(show ? "í‘œì‹œ" : "ìˆ¨ê¹€")}");
+    }
+
+    private void HideAllBubbles()
+    {
+        if (canSpeechBubble != null) canSpeechBubble.gameObject.SetActive(false);
+        if (tutorSpeechBubble != null) tutorSpeechBubble.gameObject.SetActive(false);
+        isDialogueActive = false;
+        isTutorialActive = false;
+    }
+
+    // ===== [ìˆ˜ì •ë¨] ë²„íŠ¼ ì´ë²¤íŠ¸ í•¸ë“¤ëŸ¬ - ì´ì œ BattleManagerì— 'ë³´ê³ 'ë§Œ í•¨ =====
+
+    /// <summary>
+    /// ê³µê²© ë²„íŠ¼ í´ë¦­ - BattleManagerì—ê²Œ ë³´ê³ ë§Œ í•¨ (UI ë³€ê²½ì€ BattleManagerê°€ ì§€ì‹œ)
+    /// </summary>
+    void OnAttackButtonClicked()
+    {
+        Debug.Log("ê³µê²© ë²„íŠ¼ í´ë¦­ë¨ -> BattleManagerì— ë³´ê³ ");
+        BattleEventManager.Instance.PlayerRequestsAttack();
+    }
+
+    void OnEscapeButtonClicked()
+    {
+        BattleEventManager.Instance.AttemptEscape();
     }
 
     /// <summary>
-    /// °á°ú ÆĞ³ÎÀ» ¼û±â°í ¸ŞÀÎ UI·Î µ¹¾Æ°©´Ï´Ù (Continue ¹öÆ°¿ë)
+    /// ìŠ¤í‚¬ ë²„íŠ¼ í´ë¦­ - BattleManagerì—ê²Œ ë³´ê³ ë§Œ í•¨ (íŒ¨ë„ ë‹«ê¸°ëŠ” BattleManagerê°€ ì§€ì‹œ)
     /// </summary>
-    public void HideResultAndShowMain()
+    void OnSkillButtonClicked(string skillName)
     {
-        ClearMessage();
-        ShowMainBattleUI();
+        Debug.Log($"ìŠ¤í‚¬ ë²„íŠ¼ í´ë¦­ë¨: {skillName} -> BattleManagerì— ë³´ê³ ");
+        BattleEventManager.Instance.SelectPlayerSkill(skillName);
+    }
+
+    public void DisableAllButtons()
+    {
+        if (attackButton != null)
+            attackButton.interactable = false;
+
+        if (escapeButton != null)
+            escapeButton.interactable = false;
+
+        Debug.Log("ëª¨ë“  ë²„íŠ¼ ë¹„í™œì„±í™”");
+    }
+
+    public void ClearAllUI()
+    {
+        HideTutorialMessage();
+        HideStatusText();
+
+        if (hideDialogueCoroutine != null)
+        {
+            StopCoroutine(hideDialogueCoroutine);
+            hideDialogueCoroutine = null;
+        }
+
+        if (canSpeechBubble != null)
+            canSpeechBubble.gameObject.SetActive(false);
+
+        isDialogueActive = false;
+        isTutorialActive = false;
+        isStatusActive = false;
+
+        Debug.Log("ëª¨ë“  UI ì •ë¦¬ë¨");
     }
 }
