@@ -7,6 +7,8 @@ using UnityEngine.Networking;
 using Mediapipe.Unity.Sample.Holistic;
 using Mediapipe.Unity;
 using Mediapipe;
+using System.IO;
+using Newtonsoft.Json;
 
 public class HolisticJsonSender : MonoBehaviour
 {
@@ -22,7 +24,7 @@ public class HolisticJsonSender : MonoBehaviour
     {
         public float hello;
         public float sorry;
-        public float thank;
+        public float thx;
         public float none;
     }
 
@@ -53,7 +55,6 @@ public class HolisticJsonSender : MonoBehaviour
     [Header("Battle Mode (배틀 전용)")]
     private bool isCollectingForBattle = false;
     private int battleFramesCollected = 0;
-    private BattleManager battleManager;
 
     [Header("Target")]
     public HolisticTrackingSolution holisticSolution;
@@ -67,6 +68,8 @@ public class HolisticJsonSender : MonoBehaviour
     [Header("UI Integration")]
     public bool enableUIFeedback = true;
 
+    public event System.Action<string> OnGestureRecognitionComplete;
+
     [Header("Data Validation")]
     [Tooltip("실제 데이터가 연속으로 몇 프레임 필요한지")]
     public int requiredConsecutiveFrames = 5;
@@ -75,7 +78,9 @@ public class HolisticJsonSender : MonoBehaviour
     [Tooltip("MediaPipe 안정화 대기 시간 (초)")]
     public float mediapipeStabilizationTime = 5f;
     [Tooltip("최소 손 visibility 임계값")]
-    public float minHandVisibility = 0f;
+    public float minHandVisibility = 0.7f;
+    [Tooltip("보간을 위한 최대 프레임 간격")]
+    public int maxInterpolationFrames = 3;
 
     [Header("Data Collection")]
     public bool collectPose = true;
@@ -84,21 +89,13 @@ public class HolisticJsonSender : MonoBehaviour
 
     [Header("Face Optimization")]
     public FaceReductionMode faceMode = FaceReductionMode.KeyPointsOnly;
-    public int faceSkipRatio = 5;
 
     [Header("Pose Optimization")]
     public PoseReductionMode poseMode = PoseReductionMode.KeyPointsOnly;
-    public int poseSkipRatio = 3;
-
-    [Header("Test Mode")]
-    public bool useDummyData = false;
-    [Tooltip("더미 데이터 사용 강제 여부")]
-    public bool forceDummyData = false;
 
     [Header("Sequence Mode (Sign Language)")]
     public bool useSequenceMode = true;
-    public int sequenceFrameCount = 30; // 30프레임씩 모아서 전송
-    public bool showSequenceDetails = false;
+    public int sequenceFrameCount = 30;
 
     [Header("Debug")]
     public bool saveToTextFile = true;
@@ -108,7 +105,6 @@ public class HolisticJsonSender : MonoBehaviour
     {
         Disabled,
         KeyPointsOnly,
-        ReducedPoints,
         FullFace
     }
 
@@ -116,11 +112,9 @@ public class HolisticJsonSender : MonoBehaviour
     {
         Disabled,
         KeyPointsOnly,
-        ReducedPoints,
         FullPose
     }
 
-    // === 새로운 안정성 관련 변수들 ===
     private int consecutiveRealDataFrames = 0;
     private bool isMediaPipeStable = false;
     private float mediapipeStartTime;
@@ -130,34 +124,29 @@ public class HolisticJsonSender : MonoBehaviour
     private string actualSaveDirectory;
     private List<List<float>> frameSequence = new List<List<float>>();
 
-    // *** 크래시 방지용 추가 변수들 ***
     private bool isInitialized = false;
     private bool isDestroying = false;
-    private readonly object lockObject = new object(); // 스레드 안전성
-
+    private readonly object lockObject = new object();
     private bool gestureHandled = false;
 
-    // MediaPipe 랜드마크 데이터 캐싱용 변수들 (현재는 Current* 프로퍼티 직접 사용)
-    private readonly object landmarkLock = new object();
+    private List<SimpleLandmark> lastValidLeftHand = null;
+    private List<SimpleLandmark> lastValidRightHand = null;
+    private List<SimpleLandmark> lastValidPose = null;
+    private List<SimpleLandmark> lastValidFace = null;
+    private int framesSinceLastValidData = 0;
 
-    // MediaPipe Face Landmark의 주요 포인트 인덱스
+    private SimpleFrame previousSimpleFrame = null;
+
     private readonly int[] faceKeyIndices = {
-        0, 17, 18, 200, 199, 175,
-        46, 53, 52, 65, 55, 70,
-        276, 283, 282, 295, 285, 300,
-        33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246,
-        362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382,
-        1, 2, 5, 4, 6, 168, 8, 9, 10, 151, 195, 197, 196, 3, 51, 48, 115, 131, 134, 102, 49, 220, 305, 281, 360, 279,
-        61, 84, 17, 314, 405, 320, 307, 375, 321, 308, 324, 318,
-        78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308
+        1, 33, 263, 61,
+        0, 13, 14, 17, 70, 107, 336, 296, 133, 362, 2, 98, 327, 152, 234, 454,
+        291
     };
 
-    // MediaPipe Pose Landmark의 주요 포인트 인덱스 (수어에 중요한 부분)
+
     private readonly int[] poseKeyIndices = {
-        11, 12,  // 어깨
-        13, 14,  // 팔꿈치
-        15, 16,  // 손목
-        23, 24,  // 엉덩이
+        11, 12, 13, 14, 15, 16, 23, 24, 
+        24 
     };
 
     void Start()
@@ -168,10 +157,7 @@ public class HolisticJsonSender : MonoBehaviour
 
             Debug.Log("HolisticJsonSender 초기화 시작");
 
-            // 통계 초기화
             InitializeDataQualityStats();
-
-            // 기존 InvokeRepeating 모두 정리
             CancelInvoke();
             StopAllCoroutines();
 
@@ -183,28 +169,17 @@ public class HolisticJsonSender : MonoBehaviour
             if (holisticSolution != null)
             {
                 Debug.Log($"Found HolisticTrackingSolution: {holisticSolution.name}");
-                Debug.Log($"Face mode: {faceMode}, Pose mode: {poseMode}");
-
                 SetupMediaPipeEventHandlers();
                 mediapipeStartTime = Time.time;
             }
             else
             {
-                Debug.LogWarning("HolisticTrackingSolution not found! 더미 데이터 모드로 전환");
-                useDummyData = true;
-                forceDummyData = true;
+                Debug.LogError("HolisticTrackingSolution not found! Cannot proceed without MediaPipe.");
+                enabled = false;
+                return;
             }
 
-            // 저장 디렉토리 설정
             SetupSaveDirectory();
-
-            battleManager = FindObjectOfType<BattleManager>();
-            if (battleManager != null)
-            {
-                Debug.Log("BattleManager found - 배틀 모드 활성화");
-            }
-
-            // 초기화 완료 후 데이터 수집 시작
             isInitialized = true;
             StartDataCollection();
 
@@ -217,159 +192,33 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-    public bool IsMediaPipeStable()
-    {
-        return isMediaPipeStable;
-    }
-
-    public int GetConsecutiveRealDataFrames()
-    {
-        return consecutiveRealDataFrames;
-    }
-
-    public bool IsMediaPipeReady()
-    {
-        return isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames;
-    }
-
-    public bool IsCollectingFrames()
-    {
-        if (isDestroying || !isInitialized) return false;
-
-        lock (lockObject)
-        {
-            return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
-        }
-    }
-
-    public int GetCurrentFrameCount()
-    {
-        lock (lockObject)
-        {
-            return battleFramesCollected;
-        }
-    }
-
-    public float GetCollectionProgress()
-    {
-        lock (lockObject)
-        {
-            return sequenceFrameCount > 0 ? (float)battleFramesCollected / sequenceFrameCount : 0f;
-        }
-    }
-
-    public string GetStabilizationStatus()
-    {
-        if (isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames)
-            return "완전 준비됨";
-        else if (isMediaPipeStable)
-            return $"안정화 중 ({consecutiveRealDataFrames}/{requiredConsecutiveFrames})";
-        else
-            return "초기화 중...";
-    }
-
-    public bool IsReadyForGesture()
-    {
-        return isMediaPipeStable && consecutiveRealDataFrames >= 3; // 3프레임이면 충분
-    }
-
-    public float GetReadinessProgress()
-    {
-        return Mathf.Clamp01((float)consecutiveRealDataFrames / requiredConsecutiveFrames);
-    }
-
-    public void ForceSendCurrentSequence()
-    {
-        if (isDestroying || !isInitialized) return;
-
-        try
-        {
-            lock (lockObject)
-            {
-                if (frameSequence != null && frameSequence.Count > 0)
-                {
-                    Debug.Log($"[배틀] 강제 전송: {frameSequence.Count}프레임");
-                    SendSequenceToServer();
-                    StopBattleCollection();
-                }
-                else
-                {
-                    Debug.LogWarning("[배틀] 전송할 프레임이 없습니다");
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"강제 전송 오류: {e.Message}");
-        }
-    }
-
-    private void UpdateBattleManagerUI(string message)
-    {
-        if (enableUIFeedback && battleManager != null)
-        {
-            var uiManager = FindObjectOfType<BattleUIManager>();
-            if (uiManager != null)
-            {
-                uiManager.ShowResult(message);
-            }
-            Debug.Log($"[UI 업데이트] {message}");
-        }
-    }
-
-    private void UpdateCollectionProgress()
-    {
-        if (enableUIFeedback && isCollectingForBattle)
-        {
-            float progress = (float)battleFramesCollected / sequenceFrameCount * 100f;
-            UpdateBattleManagerUI($"제스처 인식 중...\n진행률: {battleFramesCollected}/{sequenceFrameCount} ({progress:F0}%)");
-        }
-    }
-
     private void InitializeDataQualityStats()
     {
-        dataQualityStats["realData"] = 0;
-        dataQualityStats["dummyData"] = 0;
-        dataQualityStats["lowQuality"] = 0;
+        dataQualityStats["validFrames"] = 0;
+        dataQualityStats["interpolatedFrames"] = 0;
+        dataQualityStats["skippedFrames"] = 0;
     }
 
     private void SetupMediaPipeEventHandlers()
     {
-        Debug.Log("MediaPipe 연동 준비 완료 - Current 프로퍼티 사용");
-        // MediaPipe 안정화를 위한 코루틴 시작
+        Debug.Log("MediaPipe 연동 준비 완료");
         StartCoroutine(WaitForMediaPipeStabilization());
     }
 
-    // *** 누락된 메서드 추가 ***
     private IEnumerator WaitForMediaPipeStabilization()
     {
         Debug.Log($"MediaPipe 안정화 대기 중... ({mediapipeStabilizationTime}초)");
-
         yield return new WaitForSeconds(mediapipeStabilizationTime);
 
-        // 실제 데이터 체크
-        if (!forceDummyData && CheckMediaPipeDataAvailability())
+        if (CheckMediaPipeDataAvailability())
         {
             isMediaPipeStable = true;
-            useDummyData = false;
             Debug.Log("MediaPipe 안정화 완료 - 실제 데이터 사용 가능");
-
-            // *** BattleManager에 안정화 완료 알림 ***
-            if (battleManager != null)
-            {
-                Debug.Log("BattleManager에 안정화 완료 알림");
-            }
         }
         else
         {
-            Debug.LogWarning("MediaPipe 데이터 불안정 - 더미 데이터 모드 유지");
-            useDummyData = true;
-
-            // *** BattleManager에 안정화 실패 알림 ***
-            if (battleManager != null)
-            {
-                Debug.Log("BattleManager에 안정화 실패 알림");
-            }
+            Debug.LogError("MediaPipe 데이터를 사용할 수 없습니다. 다시 시도해주세요.");
+            enabled = false;
         }
     }
 
@@ -421,16 +270,8 @@ public class HolisticJsonSender : MonoBehaviour
 
         try
         {
-            if (useDummyData || forceDummyData)
-            {
-                Debug.Log("더미 데이터 모드 시작");
-                InvokeRepeating(nameof(SafeGenerateTestData), 1f, 0.1f);
-            }
-            else
-            {
-                Debug.Log("실제 데이터 추출 모드 시작");
-                StartCoroutine(DelayedDataCollection());
-            }
+            Debug.Log("실제 데이터 추출 모드 시작");
+            StartCoroutine(DelayedDataCollection());
         }
         catch (Exception e)
         {
@@ -446,62 +287,6 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.Log("실제 데이터 추출 시작");
             InvokeRepeating(nameof(SafeExtractData), 0f, 0.1f);
-        }
-    }
-
-    private void SafeGenerateTestData()
-    {
-        if (isDestroying || !isInitialized) return;
-
-        try
-        {
-            frameCount++;
-            if (frameCount % frameSkip != 0) return;
-
-            var frame = CreateTestFrame();
-            if (frame != null)
-            {
-                ProcessOptimizedFrame(frame);
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"더미 데이터 생성 오류: {e.Message}");
-        }
-    }
-
-    private SimpleFrame CreateTestFrame()
-    {
-        try
-        {
-            var frame = new SimpleFrame
-            {
-                frame = frameCount,
-                time = DateTimeOffset.Now.ToUnixTimeMilliseconds()
-            };
-
-            // 최적화된 포즈 데이터
-            if (collectPose && poseMode != PoseReductionMode.Disabled)
-            {
-                frame.pose = GenerateOptimizedPoseData();
-            }
-
-            // 최적화된 얼굴 데이터
-            if (collectFace && faceMode != FaceReductionMode.Disabled)
-            {
-                frame.faceKey = GenerateOptimizedFaceData();
-            }
-
-            // 손 데이터 (각각 21개) - 수어를 위해 항상 생성
-            frame.leftHand = GenerateDummyHand();
-            frame.rightHand = GenerateDummyHand();
-
-            return frame;
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"테스트 프레임 생성 오류: {e.Message}");
-            return null;
         }
     }
 
@@ -522,27 +307,7 @@ public class HolisticJsonSender : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"데이터 추출 실패, 더미 데이터로 전환: {e.Message}");
-            SwitchToDummyDataSafely();
-        }
-    }
-
-    private void SwitchToDummyDataSafely()
-    {
-        try
-        {
-            useDummyData = true;
-            CancelInvoke(nameof(SafeExtractData));
-
-            if (!isDestroying && isInitialized)
-            {
-                InvokeRepeating(nameof(SafeGenerateTestData), 0.1f, 0.1f);
-                Debug.Log("더미 데이터 모드로 안전하게 전환");
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"더미 데이터 전환 실패: {e.Message}");
+            Debug.LogError($"데이터 추출 실패: {e.Message}");
         }
     }
 
@@ -556,39 +321,53 @@ public class HolisticJsonSender : MonoBehaviour
                 time = DateTimeOffset.Now.ToUnixTimeMilliseconds()
             };
 
-            // 1) MediaPipe 로부터 포즈도 가져오기
+            // 현재 프레임 데이터 추출
             var poseData = FindPoseDataSafely();
-            bool poseValid = poseData != null && poseData.Count > 5;     // 포인트 5개 이상이면 유효
-
-            // 2) 손 데이터 추출
             var leftHandData = FindLeftHandDataSafely();
             var rightHandData = FindRightHandDataSafely();
+            var faceData = FindFaceDataSafely();
 
+            // 데이터 유효성 검사
+            bool poseValid = IsValidPoseData(poseData);
             bool leftHandValid = IsValidHandData(leftHandData);
             bool rightHandValid = IsValidHandData(rightHandData);
+            bool faceValid = IsValidFaceData(faceData);
 
-            // 3) 손 OR 포즈 중 하나라도 있으면 실제 데이터로 인정
-            bool hasValidData = leftHandValid || rightHandValid || poseValid;
+            // 유효한 데이터 캐싱
+            if (poseValid) lastValidPose = new List<SimpleLandmark>(poseData);
+            if (leftHandValid) lastValidLeftHand = new List<SimpleLandmark>(leftHandData);
+            if (rightHandValid) lastValidRightHand = new List<SimpleLandmark>(rightHandData);
+            if (faceValid) lastValidFace = new List<SimpleLandmark>(faceData);
 
-            // 4) 품질 판정
-            DataQuality dataQuality = hasValidData
-                ? (leftHandValid && rightHandValid ? DataQuality.High : DataQuality.Medium)
-                : DataQuality.Low;
-            consecutiveRealDataFrames = hasValidData
-                ? consecutiveRealDataFrames + 1
-                : 0;
+            // 데이터 할당
+            frame.pose = GetBestAvailablePoseData(poseData, poseValid);
+            frame.leftHand = GetBestAvailableHandData(leftHandData, leftHandValid, true);
+            frame.rightHand = GetBestAvailableHandData(rightHandData, rightHandValid, false);
+            frame.faceKey = GetBestAvailableFaceData(faceData, faceValid);
 
-            // 5) 실제 데이터 또는 더미 대입
-            frame.leftHand = leftHandValid ? leftHandData : GenerateDummyHand();
-            frame.rightHand = rightHandValid ? rightHandData : GenerateDummyHand();
-            // 포즈는 dummy 없이 무조건 넣어두기 (fallback)
-            frame.pose = poseData ?? new List<SimpleLandmark>();
+            // 통계 업데이트
+            bool hasValidData = leftHandValid || rightHandValid || poseValid || faceValid;
 
-            // 6) 통계 갱신 & 로깅
-            UpdateDataQualityStats(dataQuality);
+            if (hasValidData)
+            {
+                consecutiveRealDataFrames++;
+                framesSinceLastValidData = 0;
+                dataQualityStats["validFrames"]++;
+            }
+            else if (framesSinceLastValidData <= maxInterpolationFrames)
+            {
+                framesSinceLastValidData++;
+                dataQualityStats["interpolatedFrames"]++;
+            }
+            else
+            {
+                // 너무 오래 유효한 데이터가 없으면 프레임 스킵
+                dataQualityStats["skippedFrames"]++;
+                return null;
+            }
+
             if (enableLogging && frameCount % 50 == 0)
             {
-                Debug.Log($"[데이터 품질:{dataQuality}] Hands ok:{leftHandValid | rightHandValid}, Pose ok:{poseValid}");
                 LogDataQualityStats();
             }
 
@@ -601,46 +380,111 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
-
-    private enum DataQuality
-    {
-        Low,    // 더미 데이터만
-        Medium, // 한쪽 손만 실제 데이터
-        High    // 양손 모두 실제 데이터
-    }
-
     private bool IsValidHandData(List<SimpleLandmark> handData)
     {
-        return handData.Count >= 10;
+        if (handData == null || handData.Count < 21) return false;
+
+        float avgVisibility = handData.Average(l => l.visibility);
+        return avgVisibility >= minHandVisibility;
     }
 
-    private void UpdateDataQualityStats(DataQuality quality)
+    private bool IsValidPoseData(List<SimpleLandmark> poseData)
     {
-        switch (quality)
+        if (poseData == null || poseData.Count < 25) return false;
+
+        float avgVisibility = 0f;
+        foreach (int idx in poseKeyIndices.Take(8))
         {
-            case DataQuality.High:
-                dataQualityStats["realData"]++;
-                break;
-            case DataQuality.Medium:
-                dataQualityStats["realData"]++;
-                break;
-            case DataQuality.Low:
-                dataQualityStats["dummyData"]++;
-                break;
+            if (idx < poseData.Count)
+                avgVisibility += poseData[idx].visibility;
         }
+        avgVisibility /= 8;
+
+        return avgVisibility >= 0.5f;
+    }
+
+    private bool IsValidFaceData(List<SimpleLandmark> faceData)
+    {
+        return faceData != null && faceData.Count >= 468;
+    }
+
+    private List<SimpleLandmark> GetBestAvailableHandData(List<SimpleLandmark> currentData, bool isValid, bool isLeft)
+    {
+        if (isValid) return currentData;
+
+        var lastValid = isLeft ? lastValidLeftHand : lastValidRightHand;
+        if (lastValid != null && framesSinceLastValidData <= maxInterpolationFrames)
+        {
+            return ApplySmallNoise(lastValid);
+        }
+
+        return null;
+    }
+
+    private List<SimpleLandmark> GetBestAvailablePoseData(List<SimpleLandmark> currentData, bool isValid)
+    {
+        if (isValid) return OptimizePoseData(currentData);
+
+        if (lastValidPose != null && framesSinceLastValidData <= maxInterpolationFrames)
+        {
+            return ApplySmallNoise(lastValidPose);
+        }
+
+        return null;
+    }
+
+    private List<SimpleLandmark> GetBestAvailableFaceData(List<SimpleLandmark> currentData, bool isValid)
+    {
+        if (isValid) return OptimizeFaceData(currentData);
+
+        if (lastValidFace != null && framesSinceLastValidData <= maxInterpolationFrames)
+        {
+            return lastValidFace;
+        }
+
+        return null;
+    }
+
+    private List<SimpleLandmark> ApplySmallNoise(List<SimpleLandmark> landmarks)
+    {
+        var noisyLandmarks = new List<SimpleLandmark>();
+        foreach (var lm in landmarks)
+        {
+            noisyLandmarks.Add(new SimpleLandmark
+            {
+                x = lm.x + UnityEngine.Random.Range(-0.001f, 0.001f),
+                y = lm.y + UnityEngine.Random.Range(-0.001f, 0.001f),
+                z = lm.z + UnityEngine.Random.Range(-0.0005f, 0.0005f),
+                visibility = lm.visibility
+            });
+        }
+        return noisyLandmarks;
     }
 
     private void LogDataQualityStats()
     {
-        int total = dataQualityStats["realData"] + dataQualityStats["dummyData"];
+        int total = dataQualityStats["validFrames"] + dataQualityStats["interpolatedFrames"] + dataQualityStats["skippedFrames"];
         if (total > 0)
         {
-            float realDataPercentage = (float)dataQualityStats["realData"] / total * 100f;
-            Debug.Log($"[통계] 실제 데이터: {realDataPercentage:F1}%, 더미 데이터: {100f - realDataPercentage:F1}%");
+            float validPercentage = (float)dataQualityStats["validFrames"] / total * 100f;
+            float interpolatedPercentage = (float)dataQualityStats["interpolatedFrames"] / total * 100f;
+            float skippedPercentage = (float)dataQualityStats["skippedFrames"] / total * 100f;
+
+            Debug.Log($"[통계] 유효: {validPercentage:F1}%, 보간: {interpolatedPercentage:F1}%, 스킵: {skippedPercentage:F1}%");
+            Debug.Log($"[품질] 연속 유효 프레임: {consecutiveRealDataFrames}");
         }
     }
 
-    // === 개선된 배틀 수집 시작 메서드 ===
+    public bool IsMediaPipeStable()
+    {
+        return isMediaPipeStable;
+    }
+
+    public bool IsMediaPipeReady()
+    {
+        return isMediaPipeStable && consecutiveRealDataFrames >= requiredConsecutiveFrames;
+    }
+
     public void StartGestureCollection()
     {
         if (isDestroying || !isInitialized)
@@ -649,10 +493,9 @@ public class HolisticJsonSender : MonoBehaviour
             return;
         }
 
-        // 데이터 품질 체크
-        if (!forceDummyData && !useDummyData && consecutiveRealDataFrames < requiredConsecutiveFrames)
+        if (!IsMediaPipeReady())
         {
-            Debug.LogWarning($"실제 데이터가 불안정합니다. 연속 실제 데이터: {consecutiveRealDataFrames}/{requiredConsecutiveFrames}");
+            Debug.LogWarning($"MediaPipe가 준비되지 않았습니다. 연속 실제 데이터: {consecutiveRealDataFrames}/{requiredConsecutiveFrames}");
             StartCoroutine(WaitForStableDataThenCollect());
             return;
         }
@@ -660,36 +503,35 @@ public class HolisticJsonSender : MonoBehaviour
         StartCoroutine(DelayedStartCollection());
     }
 
-    private IEnumerator DelayedStartCollection()
-    {
-        Debug.Log($"스킬 버튼 누름 → {collectionStartDelay:F1}초 후에 수집 시작");
-        yield return new WaitForSeconds(collectionStartDelay);
-        StartCollectionImmediate();
-    }
-
     private IEnumerator WaitForStableDataThenCollect()
     {
         Debug.Log($"안정적인 데이터 대기 중... (목표: {requiredConsecutiveFrames}프레임)");
 
         float waitTime = 0f;
-        const float maxWaitTime = 5f; // 최대 5초 대기
+        const float maxWaitTime = 5f;
 
-        while (waitTime < maxWaitTime && consecutiveRealDataFrames < requiredConsecutiveFrames)
+        while (waitTime < maxWaitTime && !IsMediaPipeReady())
         {
             yield return new WaitForSeconds(0.1f);
             waitTime += 0.1f;
         }
 
-        if (consecutiveRealDataFrames >= requiredConsecutiveFrames)
+        if (IsMediaPipeReady())
         {
             Debug.Log("안정적인 데이터 확보 완료!");
             StartCollectionImmediate();
         }
         else
         {
-            Debug.LogWarning("안정적인 데이터 확보 실패 - 강제로 수집 시작");
-            StartCollectionImmediate();
+            Debug.LogError("안정적인 데이터를 확보할 수 없습니다. MediaPipe 상태를 확인해주세요.");
         }
+    }
+
+    private IEnumerator DelayedStartCollection()
+    {
+        Debug.Log($"스킬 버튼 누름 → {collectionStartDelay:F1}초 후에 수집 시작");
+        yield return new WaitForSeconds(collectionStartDelay);
+        StartCollectionImmediate();
     }
 
     private void StartCollectionImmediate()
@@ -700,43 +542,10 @@ public class HolisticJsonSender : MonoBehaviour
             frameSequence = new List<List<float>>();
             battleFramesCollected = 0;
             isCollectingForBattle = true;
-
-            // 새 턴이 시작되면 응답 처리 플래그도 리셋
             gestureHandled = false;
 
-            Debug.Log($"=== 스킬 사용! {sequenceFrameCount}프레임 수집 시작 === (데이터 품질: 연속 {consecutiveRealDataFrames}프레임)");
-        }
-    }
-
-    private List<SimpleLandmark> FindOptimizedPoseDataSafely()
-    {
-        try
-        {
-            var fullPoseData = FindPoseDataSafely();
-            return fullPoseData != null && fullPoseData.Count > 0
-                ? OptimizePoseData(fullPoseData)
-                : GenerateOptimizedPoseData();
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"포즈 데이터 추출 실패: {e.Message}");
-            return GenerateOptimizedPoseData();
-        }
-    }
-
-    private List<SimpleLandmark> FindOptimizedFaceDataSafely()
-    {
-        try
-        {
-            var fullFaceData = FindFaceDataSafely();
-            return fullFaceData != null && fullFaceData.Count > 0
-                ? OptimizeFaceData(fullFaceData)
-                : GenerateOptimizedFaceData();
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"얼굴 데이터 추출 실패: {e.Message}");
-            return GenerateOptimizedFaceData();
+            previousSimpleFrame = null;
+            Debug.Log($"=== 스킬 사용! {sequenceFrameCount}프레임 수집 시작 ===");
         }
     }
 
@@ -745,26 +554,30 @@ public class HolisticJsonSender : MonoBehaviour
         var optimized = new List<SimpleLandmark>();
         try
         {
-            switch (poseMode)
+            if (poseMode == PoseReductionMode.KeyPointsOnly)
             {
-                case PoseReductionMode.KeyPointsOnly:
-                    foreach (int index in poseKeyIndices)
+                foreach (int index in poseKeyIndices.Take(8))
+                {
+                    if (index < fullPoseData.Count)
                     {
-                        if (index < fullPoseData.Count)
-                        {
-                            optimized.Add(fullPoseData[index]);
-                        }
+                        optimized.Add(fullPoseData[index]);
                     }
-                    break;
-                case PoseReductionMode.ReducedPoints:
-                    for (int i = 0; i < fullPoseData.Count; i += poseSkipRatio)
+                }
+                if (fullPoseData.Count > 24)
+                {
+                    var hipCenter = new SimpleLandmark
                     {
-                        optimized.Add(fullPoseData[i]);
-                    }
-                    break;
-                case PoseReductionMode.FullPose:
-                    optimized = new List<SimpleLandmark>(fullPoseData);
-                    break;
+                        x = (fullPoseData[23].x + fullPoseData[24].x) / 2f,
+                        y = (fullPoseData[23].y + fullPoseData[24].y) / 2f,
+                        z = (fullPoseData[23].z + fullPoseData[24].z) / 2f,
+                        visibility = (fullPoseData[23].visibility + fullPoseData[24].visibility) / 2f
+                    };
+                    optimized.Add(hipCenter);
+                }
+            }
+            else
+            {
+                optimized = new List<SimpleLandmark>(fullPoseData);
             }
         }
         catch (Exception e)
@@ -777,38 +590,27 @@ public class HolisticJsonSender : MonoBehaviour
     private List<SimpleLandmark> OptimizeFaceData(List<SimpleLandmark> fullFaceData)
     {
         var optimized = new List<SimpleLandmark>();
-
         try
         {
-            switch (faceMode)
+            if (faceMode == FaceReductionMode.KeyPointsOnly)
             {
-                case FaceReductionMode.KeyPointsOnly:
-                    foreach (int index in faceKeyIndices)
+                foreach (int index in faceKeyIndices)
+                {
+                    if (index < fullFaceData.Count)
                     {
-                        if (index < fullFaceData.Count)
-                        {
-                            optimized.Add(fullFaceData[index]);
-                        }
+                        optimized.Add(fullFaceData[index]);
                     }
-                    break;
-
-                case FaceReductionMode.ReducedPoints:
-                    for (int i = 0; i < fullFaceData.Count; i += faceSkipRatio)
-                    {
-                        optimized.Add(fullFaceData[i]);
-                    }
-                    break;
-
-                case FaceReductionMode.FullFace:
-                    optimized = new List<SimpleLandmark>(fullFaceData);
-                    break;
+                }
+            }
+            else
+            {
+                optimized = new List<SimpleLandmark>(fullFaceData);
             }
         }
         catch (Exception e)
         {
             Debug.LogError($"얼굴 데이터 최적화 오류: {e.Message}");
         }
-
         return optimized;
     }
 
@@ -863,74 +665,7 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.LogWarning($"포즈 데이터 추출 오류: {e.Message}");
         }
-
         return poseData;
-    }
-
-    private List<SimpleLandmark> GenerateOptimizedPoseData()
-    {
-        var landmarks = new List<SimpleLandmark>();
-
-        try
-        {
-            int pointCount = poseMode switch
-            {
-                PoseReductionMode.KeyPointsOnly => poseKeyIndices.Length,
-                PoseReductionMode.ReducedPoints => 33 / poseSkipRatio,
-                PoseReductionMode.FullPose => 33,
-                _ => 0
-            };
-
-            for (int i = 0; i < pointCount; i++)
-            {
-                landmarks.Add(new SimpleLandmark
-                {
-                    x = UnityEngine.Random.Range(0.2f, 0.8f),
-                    y = UnityEngine.Random.Range(0.2f, 0.8f),
-                    z = UnityEngine.Random.Range(-0.3f, 0.3f),
-                    visibility = UnityEngine.Random.Range(0.7f, 1.0f)
-                });
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"포즈 더미 데이터 생성 오류: {e.Message}");
-        }
-
-        return landmarks;
-    }
-
-    private List<SimpleLandmark> GenerateOptimizedFaceData()
-    {
-        var landmarks = new List<SimpleLandmark>();
-
-        try
-        {
-            int pointCount = faceMode switch
-            {
-                FaceReductionMode.KeyPointsOnly => faceKeyIndices.Length,
-                FaceReductionMode.ReducedPoints => 468 / faceSkipRatio,
-                FaceReductionMode.FullFace => 468,
-                _ => 0
-            };
-
-            for (int i = 0; i < pointCount; i++)
-            {
-                landmarks.Add(new SimpleLandmark
-                {
-                    x = UnityEngine.Random.Range(0.3f, 0.7f),
-                    y = UnityEngine.Random.Range(0.2f, 0.6f),
-                    z = UnityEngine.Random.Range(-0.1f, 0.1f),
-                    visibility = UnityEngine.Random.Range(0.8f, 1.0f)
-                });
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"얼굴 더미 데이터 생성 오류: {e.Message}");
-        }
-
-        return landmarks;
     }
 
     private List<SimpleLandmark> FindLeftHandDataSafely()
@@ -957,7 +692,6 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.LogWarning($"왼손 데이터 추출 오류: {e.Message}");
         }
-
         return handData;
     }
 
@@ -985,33 +719,7 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.LogWarning($"오른손 데이터 추출 오류: {e.Message}");
         }
-
         return handData;
-    }
-
-    private List<SimpleLandmark> GenerateDummyHand()
-    {
-        var landmarks = new List<SimpleLandmark>();
-
-        try
-        {
-            for (int i = 0; i < 21; i++)
-            {
-                landmarks.Add(new SimpleLandmark
-                {
-                    x = UnityEngine.Random.Range(0.1f, 0.9f),
-                    y = UnityEngine.Random.Range(0.3f, 0.7f),
-                    z = UnityEngine.Random.Range(-0.2f, 0.2f),
-                    visibility = UnityEngine.Random.Range(0.6f, 1.0f)
-                });
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"손 더미 데이터 생성 오류: {e.Message}");
-        }
-
-        return landmarks;
     }
 
     private void ProcessOptimizedFrame(SimpleFrame frame)
@@ -1024,34 +732,24 @@ public class HolisticJsonSender : MonoBehaviour
             {
                 if (!isCollectingForBattle) return;
 
-                // 초기 5프레임만 손 유효 여부 로그
-                bool leftValid = frame.leftHand.Count >= 5;
-                bool rightValid = frame.rightHand.Count >= 5;
-                if (enableLogging && battleFramesCollected < 5)
-                {
-                    Debug.Log($"[배틀] 프레임 {battleFramesCollected + 1}: LeftValid={leftValid}, RightValid={rightValid}");
-                }
+                var flattenedFrame = FlattenFrameDataCoordinatesOnly(frame, previousSimpleFrame);
 
-                var flattenedFrame = FlattenFrameData(frame);
-                if (flattenedFrame == null || flattenedFrame.Count != 148)
+                if (flattenedFrame == null || flattenedFrame.Count != 244)
                 {
-                    Debug.LogWarning($"잘못된 프레임 데이터: {flattenedFrame?.Count ?? 0} elements (예상: 148)");
+                    Debug.LogWarning($"프레임 데이터 생성/차원 오류로 스킵: {flattenedFrame?.Count ?? 0}");
                     return;
                 }
 
                 frameSequence.Add(flattenedFrame);
                 battleFramesCollected++;
 
-                // *** UI 진행률 업데이트 (매 5프레임마다) ***
-                if (battleFramesCollected % 5 == 0)
-                {
-                    UpdateCollectionProgress();
-                }
+                previousSimpleFrame = frame;
+
+                Debug.Log($"프레임 {battleFramesCollected}/{sequenceFrameCount} 수집됨");
 
                 if (battleFramesCollected >= sequenceFrameCount)
                 {
                     Debug.Log($"{sequenceFrameCount}프레임 수집 완료! 서버로 전송합니다.");
-                    UpdateBattleManagerUI("서버로 전송 중...\n잠시만 기다려 주세요!");
                     SendSequenceToServer();
                     StopBattleCollection();
                 }
@@ -1064,6 +762,240 @@ public class HolisticJsonSender : MonoBehaviour
         }
     }
 
+    private List<float> FlattenFrameDataCoordinatesOnly(SimpleFrame currentFrame, SimpleFrame prevFrame)
+    {
+        try
+        {
+            var flattened = new List<float>();
+
+            AddAllLandmarkData(flattened, currentFrame.leftHand, 21);
+            AddAllLandmarkData(flattened, currentFrame.rightHand, 21);
+            AddAllLandmarkData(flattened, currentFrame.pose, 9);
+            AddAllLandmarkData(flattened, currentFrame.faceKey, 21);
+
+            AddJointAngles(flattened, currentFrame.pose);
+
+            AddFingerStates(flattened, currentFrame.leftHand, currentFrame.rightHand);
+
+            AddPalmNormals(flattened, currentFrame.leftHand, currentFrame.rightHand);
+
+            AddVelocityData(flattened, currentFrame, prevFrame);
+
+            AddMaskFlags(flattened, currentFrame.leftHand, currentFrame.rightHand, currentFrame.pose, currentFrame.faceKey);
+
+            if (flattened.Count != 244)
+            {
+                Debug.LogError($"[FATAL] 최종 차원 불일치! 예상: 244, 실제: {flattened.Count}.");
+                while (flattened.Count < 244) flattened.Add(0f);
+                if (flattened.Count > 244) flattened = flattened.GetRange(0, 244);
+            }
+
+            return flattened;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[FATAL] 244차원 벡터 생성 중 치명적 오류 발생: {e.Message}\n{e.StackTrace}");
+            return new List<float>(new float[244]);
+        }
+    }
+
+    private void AddAllLandmarkData(List<float> flattened, List<SimpleLandmark> landmarks, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            if (landmarks != null && i < landmarks.Count)
+            {
+                flattened.Add(landmarks[i].x);
+                flattened.Add(landmarks[i].y);
+                flattened.Add(landmarks[i].z);
+            }
+            else
+            {
+                flattened.AddRange(new float[] { 0, 0, 0 });
+            }
+        }
+    }
+
+    private void AddJointAngles(List<float> flattened, List<SimpleLandmark> pose)
+    {
+        try
+        {
+            if (pose != null && pose.Count >= 9)
+            {
+                Vector3 leftShoulder = new Vector3(pose[0].x, pose[0].y, pose[0].z);
+                Vector3 leftElbow = new Vector3(pose[2].x, pose[2].y, pose[2].z);
+                Vector3 leftWrist = new Vector3(pose[4].x, pose[4].y, pose[4].z);
+                Vector3 rightShoulder = new Vector3(pose[1].x, pose[1].y, pose[1].z);
+                Vector3 rightElbow = new Vector3(pose[3].x, pose[3].y, pose[3].z);
+                Vector3 rightWrist = new Vector3(pose[5].x, pose[5].y, pose[5].z);
+                Vector3 hipCenter = new Vector3(pose[8].x, pose[8].y, pose[8].z);
+
+                float leftElbowAngle = CalculateAngle(leftShoulder, leftElbow, leftWrist);
+                float leftShoulderAngle = CalculateAngle(leftElbow, leftShoulder, hipCenter);
+                float rightElbowAngle = CalculateAngle(rightShoulder, rightElbow, rightWrist);
+                float rightShoulderAngle = CalculateAngle(rightElbow, rightShoulder, hipCenter);
+
+                flattened.Add(Mathf.Cos(leftElbowAngle));
+                flattened.Add(Mathf.Sin(leftElbowAngle));
+                flattened.Add(Mathf.Cos(leftShoulderAngle));
+                flattened.Add(Mathf.Sin(leftShoulderAngle));
+                flattened.Add(Mathf.Cos(rightElbowAngle));
+                flattened.Add(Mathf.Sin(rightElbowAngle));
+                flattened.Add(Mathf.Cos(rightShoulderAngle));
+                flattened.Add(Mathf.Sin(rightShoulderAngle));
+            }
+            else
+            {
+                flattened.AddRange(new float[8]);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"관절 각도 추가 오류: {e.Message}");
+            flattened.AddRange(new float[8]);
+        }
+    }
+
+    private void AddFingerStates(List<float> flattened, List<SimpleLandmark> leftHand, List<SimpleLandmark> rightHand)
+    {
+        AddSingleHandFingerStates(flattened, leftHand);
+        AddSingleHandFingerStates(flattened, rightHand);
+    }
+
+    private void AddSingleHandFingerStates(List<float> flattened, List<SimpleLandmark> hand)
+    {
+        if (hand != null && hand.Count == 21)
+        {
+            int[][] fingerIndices = {
+                new int[] { 5, 6, 7, 8 },    
+                new int[] { 9, 10, 11, 12 }, 
+                new int[] { 13, 14, 15, 16 },
+                new int[] { 17, 18, 19, 20 } 
+            };
+
+            foreach (var finger in fingerIndices)
+            {
+                Vector3 p1 = new Vector3(hand[finger[0]].x, hand[finger[0]].y, hand[finger[0]].z);
+                Vector3 p2 = new Vector3(hand[finger[1]].x, hand[finger[1]].y, hand[finger[1]].z);
+                Vector3 p3 = new Vector3(hand[finger[2]].x, hand[finger[2]].y, hand[finger[2]].z);
+
+                Vector3 v1 = p2 - p1;
+                Vector3 v2 = p3 - p2;
+
+                if (v1.magnitude < 1e-6 || v2.magnitude < 1e-6)
+                {
+                    flattened.Add(0.0f);
+                    continue;
+                }
+
+                float cos = Vector3.Dot(v1.normalized, v2.normalized);
+                cos = Mathf.Clamp(cos, -1.0f, 1.0f);
+                float state = (cos + 1.0f) / 2.0f;
+                flattened.Add(state);
+            }
+        }
+        else
+        {
+            flattened.AddRange(new float[4]);
+        }
+    }
+
+    private void AddPalmNormals(List<float> flattened, List<SimpleLandmark> leftHand, List<SimpleLandmark> rightHand)
+    {
+        AddSingleHandPalmNormal(flattened, leftHand);
+        AddSingleHandPalmNormal(flattened, rightHand);
+    }
+
+    private void AddSingleHandPalmNormal(List<float> flattened, List<SimpleLandmark> hand)
+    {
+        if (hand != null && hand.Count >= 21)
+        {
+            Vector3 wrist = new Vector3(hand[0].x, hand[0].y, hand[0].z);
+            Vector3 indexMcp = new Vector3(hand[5].x, hand[5].y, hand[5].z);
+            Vector3 pinkyMcp = new Vector3(hand[17].x, hand[17].y, hand[17].z);
+
+            Vector3 v1 = indexMcp - wrist;
+            Vector3 v2 = pinkyMcp - wrist;
+            Vector3 normal = Vector3.Cross(v1, v2).normalized;
+
+            flattened.Add(normal.x);
+            flattened.Add(normal.y);
+            flattened.Add(normal.z);
+        }
+        else
+        {
+            flattened.AddRange(new float[3]);
+        }
+    }
+
+    private void AddVelocityData(List<float> flattened, SimpleFrame currentFrame, SimpleFrame prevFrame)
+    {
+        float speed_your = 0.0f;
+        float speed_friend = 0.0f;
+
+        if (prevFrame != null)
+        {
+            var currentCoords = new List<Vector3>();
+            var prevCoords = new List<Vector3>();
+            if (currentFrame.leftHand != null && prevFrame.leftHand != null) { currentCoords.AddRange(LandmarksToVectors(currentFrame.leftHand)); prevCoords.AddRange(LandmarksToVectors(prevFrame.leftHand)); }
+            if (currentFrame.rightHand != null && prevFrame.rightHand != null) { currentCoords.AddRange(LandmarksToVectors(currentFrame.rightHand)); prevCoords.AddRange(LandmarksToVectors(prevFrame.rightHand)); }
+            if (currentFrame.pose != null && prevFrame.pose != null) { currentCoords.AddRange(LandmarksToVectors(currentFrame.pose)); prevCoords.AddRange(LandmarksToVectors(prevFrame.pose)); }
+            if (currentFrame.faceKey != null && prevFrame.faceKey != null) { currentCoords.AddRange(LandmarksToVectors(currentFrame.faceKey)); prevCoords.AddRange(LandmarksToVectors(prevFrame.faceKey)); }
+
+            if (currentCoords.Count > 0 && currentCoords.Count == prevCoords.Count)
+            {
+                float totalChange = 0;
+                for (int i = 0; i < currentCoords.Count; i++)
+                {
+                    totalChange += Mathf.Pow(currentCoords[i].x - prevCoords[i].x, 2);
+                    totalChange += Mathf.Pow(currentCoords[i].y - prevCoords[i].y, 2);
+                    totalChange += Mathf.Pow(currentCoords[i].z - prevCoords[i].z, 2);
+                }
+                speed_your = Mathf.Sqrt(totalChange) / currentCoords.Count;
+            }
+
+            var currentHandCoords = new List<Vector3>();
+            var prevHandCoords = new List<Vector3>();
+            if (currentFrame.leftHand != null && prevFrame.leftHand != null) { currentHandCoords.AddRange(LandmarksToVectors(currentFrame.leftHand)); prevHandCoords.AddRange(LandmarksToVectors(prevFrame.leftHand)); }
+            if (currentFrame.rightHand != null && prevFrame.rightHand != null) { currentHandCoords.AddRange(LandmarksToVectors(currentFrame.rightHand)); prevHandCoords.AddRange(LandmarksToVectors(prevFrame.rightHand)); }
+
+            if (currentHandCoords.Count > 0 && currentHandCoords.Count == prevHandCoords.Count)
+            {
+                float handChangeSum = 0;
+                for (int i = 0; i < currentHandCoords.Count; i++)
+                {
+                    handChangeSum += Vector3.Distance(currentHandCoords[i], prevHandCoords[i]);
+                }
+                speed_friend = handChangeSum / currentHandCoords.Count;
+            }
+        }
+
+        flattened.Add(speed_your);
+        flattened.Add(speed_friend);
+    }
+
+    private List<Vector3> LandmarksToVectors(List<SimpleLandmark> landmarks)
+    {
+        return landmarks.Select(lm => new Vector3(lm.x, lm.y, lm.z)).ToList();
+    }
+
+
+    private void AddMaskFlags(List<float> flattened, List<SimpleLandmark> leftHand, List<SimpleLandmark> rightHand, List<SimpleLandmark> pose, List<SimpleLandmark> face)
+    {
+        flattened.Add(leftHand != null && leftHand.Count >= 21 ? 1f : 0f);
+        flattened.Add(rightHand != null && rightHand.Count >= 21 ? 1f : 0f);
+        flattened.Add(pose != null && pose.Count >= 9 ? 1f : 0f);
+        flattened.Add(face != null && face.Count >= 21 ? 1f : 0f);
+    }
+
+    private float CalculateAngle(Vector3 point1, Vector3 vertex, Vector3 point2)
+    {
+        Vector3 v1 = (point1 - vertex).normalized;
+        Vector3 v2 = (point2 - vertex).normalized;
+        float dot = Vector3.Dot(v1, v2);
+        dot = Mathf.Clamp(dot, -1f, 1f);
+        return Mathf.Acos(dot);
+    }
 
     private void ResetBattleCollection()
     {
@@ -1089,94 +1021,6 @@ public class HolisticJsonSender : MonoBehaviour
         {
             isCollectingForBattle = false;
             battleFramesCollected = 0;
-            Debug.Log("=== 30프레임 수집 완료! 수집 중지 ===");
-        }
-    }
-
-    private List<float> FlattenFrameData(SimpleFrame frame)
-    {
-        try
-        {
-            var flattened = new List<float>();
-
-            AddHandData(flattened, frame.leftHand, "Left");
-            AddHandData(flattened, frame.rightHand, "Right");
-            AddPoseKeypoints(flattened, frame.pose);
-
-            int targetSize = 148;
-            if (flattened.Count < targetSize)
-            {
-                int padding = targetSize - flattened.Count;
-                for (int i = 0; i < padding; i++)
-                {
-                    flattened.Add(0f);
-                }
-            }
-            else if (flattened.Count > targetSize)
-            {
-                flattened = flattened.GetRange(0, targetSize);
-            }
-
-            return flattened;
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"프레임 데이터 평면화 오류: {e.Message}");
-            return null;
-        }
-    }
-
-    private void AddHandData(List<float> flattened, List<SimpleLandmark> handLandmarks, string handName)
-    {
-        try
-        {
-            for (int i = 0; i < 21; i++)
-            {
-                if (handLandmarks != null && i < handLandmarks.Count)
-                {
-                    flattened.Add(handLandmarks[i].x);
-                    flattened.Add(handLandmarks[i].y);
-                    flattened.Add(handLandmarks[i].z);
-                }
-                else
-                {
-                    flattened.Add(0f);
-                    flattened.Add(0f);
-                    flattened.Add(0f);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"{handName} 손 데이터 추가 오류: {e.Message}");
-        }
-    }
-
-    private void AddPoseKeypoints(List<float> flattened, List<SimpleLandmark> pose)
-    {
-        try
-        {
-            int[] poseIndices = { 11, 12, 13, 14, 15, 16, 23, 24 };
-
-            foreach (int index in poseIndices)
-            {
-                if (pose != null && index < pose.Count)
-                {
-                    flattened.Add(pose[index].x);
-                    flattened.Add(pose[index].y);
-                    flattened.Add(pose[index].z);
-                }
-                else
-                {
-                    flattened.Add(0f);
-                    flattened.Add(0f);
-                    flattened.Add(0f);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"포즈 키포인트 추가 오류: {e.Message}");
         }
     }
 
@@ -1208,351 +1052,130 @@ public class HolisticJsonSender : MonoBehaviour
             float[][] sequenceArray;
             lock (lockObject)
             {
+                Debug.Log($"프레임 시퀀스 개수: {frameSequence.Count}");
+                if (frameSequence.Count == 0)
+                {
+                    Debug.LogError("frameSequence가 비어있음!");
+                    yield break;
+                }
+
                 sequenceArray = new float[frameSequence.Count][];
                 for (int i = 0; i < frameSequence.Count; i++)
-                    sequenceArray[i] = frameSequence[i].ToArray();
+                {
+                    if (frameSequence[i] != null)
+                    {
+                        sequenceArray[i] = frameSequence[i].ToArray();
+                    }
+                    else
+                    {
+                        Debug.LogError($"프레임 {i}가 null!");
+                        sequenceArray[i] = new float[244]; 
+                    }
+                }
             }
 
             var sequenceData = new SequenceData { sequence = sequenceArray };
-            json = JsonUtility.ToJson(sequenceData, true);
+            json = JsonConvert.SerializeObject(sequenceData);
 
-            if (string.IsNullOrEmpty(json) || json == "{}")
-                json = CreateManualJson(frameSequence);
+            Debug.Log($"생성된 JSON 길이: {json.Length}");
 
-            if (enableLogging)
-                Debug.Log($"시퀀스 준비 완료 - 프레임: {sequenceArray.Length}, JSON 크기: {json.Length}");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"시퀀스 준비 중 오류: {e.Message}");
-        }
-
-        if (saveToTextFile)
-            SaveSequenceToFile(json);
-
-        if (sendToServer && !string.IsNullOrEmpty(serverUrl))
-            yield return StartCoroutine(SendSequenceToServerCoroutine(json));
-    }
-
-    private IEnumerator SendSequenceToServerCoroutine(string json)
-    {
-        UnityWebRequest request = null;
-
-        try
-        {
-            request = new UnityWebRequest(serverUrl, "POST")
+            if (saveToTextFile)
             {
-                uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(json)),
-                downloadHandler = new DownloadHandlerBuffer()
-            };
-
-            request.SetRequestHeader("Content-Type", "application/json");
-            request.timeout = 10;
+                SaveJsonToFile(json);
+            }
         }
         catch (Exception e)
         {
-            Debug.LogError($"웹 요청 생성 오류: {e.Message}");
+            Debug.LogError($"JSON 생성 오류: {e.Message}");
             yield break;
         }
 
-        yield return request.SendWebRequest();
-
-        try
+        if (!sendToServer)
         {
+            Debug.Log("[배틀] 서버 전송 비활성화 - 로컬 저장만 수행");
+            yield break;
+        }
+
+        using (UnityWebRequest request = new UnityWebRequest(serverUrl, "POST"))
+        {
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            yield return request.SendWebRequest();
+
             if (request.result == UnityWebRequest.Result.Success)
             {
-                string responseText = request.downloadHandler.text;
-
-                if (!string.IsNullOrEmpty(responseText))
+                try
                 {
-                    try
+                    var response = JsonConvert.DeserializeObject<ServerResponse>(request.downloadHandler.text);
+                    Debug.Log($"[서버 응답] 예측: {response.prediction}");
+
+                    if (!gestureHandled)
                     {
-                        ServerResponse response = JsonUtility.FromJson<ServerResponse>(responseText);
-                        if (response != null)
-                        {
-                            ProcessServerResponse(response);
-                        }
-                        else
-                        {
-                            Debug.LogWarning("서버 응답 파싱 실패");
-                        }
-                    }
-                    catch (Exception parseEx)
-                    {
-                        Debug.LogWarning($"응답 파싱 오류: {parseEx.Message}");
+                        gestureHandled = true;
+                        OnGestureRecognitionComplete?.Invoke(response.prediction);
                     }
                 }
-
-                if (enableLogging)
-                    Debug.Log("시퀀스 전송 성공!");
+                catch (Exception e)
+                {
+                    Debug.LogError($"서버 응답 파싱 오류: {e.Message}");
+                }
             }
             else
             {
-                Debug.LogWarning($"시퀀스 전송 실패: {request.error}");
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"서버 응답 처리 오류: {e.Message}");
-        }
-        finally
-        {
-            try
-            {
-                request?.Dispose();
-            }
-            catch (Exception disposeEx)
-            {
-                Debug.LogWarning($"웹 요청 정리 오류: {disposeEx.Message}");
+                Debug.LogError($"서버 전송 실패: {request.error}");
             }
         }
     }
 
-    private void ProcessServerResponse(ServerResponse response)
+    private void SaveJsonToFile(string json)
     {
         try
         {
-            if (gestureHandled) return;
-            gestureHandled = true;
-
-            if (battleManager != null && !isDestroying)
-            {
-                battleManager.OnGestureRecognized(response.prediction);
-            }
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string fileName = $"battle_sequence_{timestamp}.json";
+            string filePath = Path.Combine(actualSaveDirectory, fileName);
+            File.WriteAllText(filePath, json);
+            Debug.Log($"JSON 저장 완료: {filePath}");
         }
         catch (Exception e)
         {
-            Debug.LogError($"서버 응답 처리 오류: {e.Message}");
+            Debug.LogError($"JSON 파일 저장 실패: {e.Message}");
         }
     }
 
-
-    private string CreateManualJson(List<List<float>> sequence)
+    public bool IsCollectingFrames()
     {
-        try
+        if (isDestroying || !isInitialized) return false;
+
+        lock (lockObject)
         {
-            var json = new System.Text.StringBuilder();
-            json.Append("{\"sequence\":[");
-
-            for (int i = 0; i < sequence.Count; i++)
-            {
-                if (i > 0) json.Append(",");
-                json.Append("[");
-
-                var frame = sequence[i];
-                for (int j = 0; j < frame.Count; j++)
-                {
-                    if (j > 0) json.Append(",");
-                    json.Append(frame[j].ToString("F6", System.Globalization.CultureInfo.InvariantCulture));
-                }
-
-                json.Append("]");
-            }
-
-            json.Append("]}");
-            return json.ToString();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"수동 JSON 생성 오류: {e.Message}");
-            return "{}";
+            return isCollectingForBattle && battleFramesCollected < sequenceFrameCount;
         }
     }
 
-    private void SaveSequenceToFile(string json)
+    public int GetCurrentFrameCount()
     {
-        try
+        lock (lockObject)
         {
-            if (string.IsNullOrEmpty(actualSaveDirectory)) return;
-
-            string fileName = $"sequence_{DateTimeOffset.Now.ToUnixTimeMilliseconds()}.json";
-            string filePath = System.IO.Path.Combine(actualSaveDirectory, fileName);
-
-            System.IO.File.WriteAllText(filePath, json);
-            if (enableLogging)
-                Debug.Log($"시퀀스 JSON 저장: {filePath}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"시퀀스 JSON 저장 실패: {e.Message}");
+            return battleFramesCollected;
         }
     }
 
-    [ContextMenu("Switch to Real Data")]
-    public void SwitchToRealData()
+    public float GetCollectionProgress()
     {
-        if (isDestroying) return;
-
-        try
+        lock (lockObject)
         {
-            useDummyData = false;
-            forceDummyData = false;
-            CancelInvoke();
-            StartCoroutine(DelayedDataCollection());
-            Debug.Log("실제 데이터 추출로 전환");
+            return sequenceFrameCount > 0 ? (float)battleFramesCollected / sequenceFrameCount : 0f;
         }
-        catch (Exception e)
-        {
-            Debug.LogError($"실제 데이터 전환 오류: {e.Message}");
-        }
-    }
-
-    [ContextMenu("Switch to Dummy Data")]
-    public void SwitchToDummyData()
-    {
-        if (isDestroying) return;
-        SwitchToDummyDataSafely();
-    }
-
-    [ContextMenu("Check MediaPipe Status")]
-    public void CheckMediaPipeStatus()
-    {
-        Debug.Log("=== MediaPipe 솔루션 상태 체크 ===");
-
-        if (holisticSolution == null)
-        {
-            Debug.LogWarning("HolisticTrackingSolution이 null입니다");
-            return;
-        }
-
-        if (holisticSolution.PublicGraphRunner == null)
-        {
-            Debug.LogWarning("GraphRunner가 null입니다 - MediaPipe가 아직 초기화되지 않았습니다");
-            return;
-        }
-
-        bool hasFaceData = holisticSolution.CurrentFaceLandmarks?.Landmark != null && holisticSolution.CurrentFaceLandmarks.Landmark.Count > 0;
-        bool hasPoseData = holisticSolution.CurrentPoseLandmarks?.Landmark != null && holisticSolution.CurrentPoseLandmarks.Landmark.Count > 0;
-        bool hasLeftHandData = holisticSolution.CurrentLeftHandLandmarks?.Landmark != null && holisticSolution.CurrentLeftHandLandmarks.Landmark.Count > 0;
-        bool hasRightHandData = holisticSolution.CurrentRightHandLandmarks?.Landmark != null && holisticSolution.CurrentRightHandLandmarks.Landmark.Count > 0;
-
-        Debug.Log($"현재 랜드마크 데이터 상태:");
-        Debug.Log($"- Face: {(hasFaceData ? holisticSolution.CurrentFaceLandmarks.Landmark.Count + "개" : "없음")}");
-        Debug.Log($"- Pose: {(hasPoseData ? holisticSolution.CurrentPoseLandmarks.Landmark.Count + "개" : "없음")}");
-        Debug.Log($"- Left Hand: {(hasLeftHandData ? holisticSolution.CurrentLeftHandLandmarks.Landmark.Count + "개" : "없음")}");
-        Debug.Log($"- Right Hand: {(hasRightHandData ? holisticSolution.CurrentRightHandLandmarks.Landmark.Count + "개" : "없음")}");
-
-        if (!hasFaceData && !hasPoseData && !hasLeftHandData && !hasRightHandData)
-        {
-            Debug.LogWarning("모든 랜드마크 데이터가 비어있습니다. MediaPipe가 아직 시작되지 않았거나 카메라 입력이 없을 수 있습니다.");
-        }
-
-        Debug.Log($"GraphRunner 상태: {holisticSolution.PublicGraphRunner.GetType().Name}");
-    }
-
-    [ContextMenu("Test Real Data Extraction")]
-    public void TestRealDataExtraction()
-    {
-        Debug.Log("=== 실제 데이터 추출 테스트 ===");
-
-        var faceData = FindFaceDataSafely();
-        var poseData = FindPoseDataSafely();
-        var leftHandData = FindLeftHandDataSafely();
-        var rightHandData = FindRightHandDataSafely();
-
-        var lh = FindLeftHandDataSafely();
-        if (lh.Count > 0)
-        {
-            Debug.Log($"LeftHand[0] vis={lh[0].visibility:F3}  x={lh[0].x:F3}, y={lh[0].y:F3}");
-        }
-
-        Debug.Log($"추출 결과:");
-        Debug.Log($"- Face: {faceData.Count}개 포인트");
-        Debug.Log($"- Pose: {poseData.Count}개 포인트");
-        Debug.Log($"- Left Hand: {leftHandData.Count}개 포인트");
-        Debug.Log($"- Right Hand: {rightHandData.Count}개 포인트");
-
-        if (faceData.Count == 0 && poseData.Count == 0 && leftHandData.Count == 0 && rightHandData.Count == 0)
-        {
-            Debug.LogWarning("모든 실제 데이터가 0개입니다. MediaPipe가 아직 초기화되지 않았거나 카메라 입력이 없을 수 있습니다.");
-        }
-        else
-        {
-            if (faceData.Count > 0)
-            {
-                var firstFace = faceData[0];
-                Debug.Log($"Face 샘플: x={firstFace.x:F3}, y={firstFace.y:F3}, z={firstFace.z:F3}, v={firstFace.visibility:F3}");
-            }
-            if (poseData.Count > 0)
-            {
-                var firstPose = poseData[0];
-                Debug.Log($"Pose 샘플: x={firstPose.x:F3}, y={firstPose.y:F3}, z={firstPose.z:F3}, v={firstPose.visibility:F3}");
-            }
-        }
-    }
-
-    [ContextMenu("Show Battle Stats")]
-    public void ShowBattleStats()
-    {
-        Debug.Log($"=== 배틀 모드 상태 ===");
-        Debug.Log($"초기화됨: {isInitialized}");
-        Debug.Log($"종료 중: {isDestroying}");
-        Debug.Log($"스킬 수집 중: {isCollectingForBattle}");
-        Debug.Log($"수집된 프레임: {battleFramesCollected}/{sequenceFrameCount}");
-        Debug.Log($"수집 진행률: {GetCollectionProgress() * 100:F1}%");
-        Debug.Log($"BattleManager 연결: {(battleManager != null ? "연결됨" : "없음")}");
-        Debug.Log($"Face mode: {faceMode}, Pose mode: {poseMode}");
-        Debug.Log($"더미 데이터 모드: {useDummyData}");
-    }
-
-    [ContextMenu("Reset Data Quality Stats")]
-    public void ResetDataQualityStats()
-    {
-        InitializeDataQualityStats();
-        consecutiveRealDataFrames = 0;
-        Debug.Log("데이터 품질 통계 리셋 완료");
-    }
-
-    [ContextMenu("Force Real Data Collection")]
-    public void ForceRealDataCollection()
-    {
-        useDummyData = false;
-        forceDummyData = false;
-        consecutiveRealDataFrames = requiredConsecutiveFrames;
-        Debug.Log("실제 데이터 수집 강제 활성화");
-    }
-
-    [ContextMenu("Show Data Quality Report")]
-    public void ShowDataQualityReport()
-    {
-        Debug.Log("=== 데이터 품질 리포트 ===");
-        Debug.Log($"MediaPipe 안정화: {isMediaPipeStable}");
-        Debug.Log($"연속 실제 데이터 프레임: {consecutiveRealDataFrames}");
-        Debug.Log($"필요한 연속 프레임: {requiredConsecutiveFrames}");
-        Debug.Log($"더미 데이터 모드: {useDummyData}");
-        Debug.Log($"강제 더미 데이터: {forceDummyData}");
-        LogDataQualityStats();
     }
 
     void OnDestroy()
     {
         isDestroying = true;
-
-        try
-        {
-            Debug.Log("HolisticJsonSender 정리 시작");
-
-            StopAllCoroutines();
-            CancelInvoke();
-
-            lock (lockObject)
-            {
-                isCollectingForBattle = false;
-                battleFramesCollected = 0;
-
-                frameSequence?.Clear();
-                frameSequence = null;
-            }
-
-            holisticSolution = null;
-            battleManager = null;
-            isInitialized = false;
-
-            Debug.Log("HolisticJsonSender 정리 완료");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"HolisticJsonSender 정리 중 오류: {e.Message}");
-        }
+        CancelInvoke();
+        StopAllCoroutines();
     }
 }
