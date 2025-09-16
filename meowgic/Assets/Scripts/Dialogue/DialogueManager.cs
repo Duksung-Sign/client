@@ -270,6 +270,15 @@ public class DialogueManager : MonoBehaviour
     public bool debugMode = true;
     public bool logDialogueEvents = true;
 
+    // 타이핑 효과, 추후 DialogueManager에서 DialogueUIManager로 분리 필요
+    [Header("타이핑 효과")]
+    public float typingSpeed = 0.05f; 
+    public bool skipTypingOnInput = true;
+
+    private Coroutine typingCoroutine;
+    private bool isTyping = false;
+    private string fullText = "";
+
     // 대화 데이터
     private Dictionary<string, DialogueLine> dialogueLines = new Dictionary<string, DialogueLine>();
     private Dictionary<string, DialogueSet> dialogueSets = new Dictionary<string, DialogueSet>();
@@ -279,6 +288,7 @@ public class DialogueManager : MonoBehaviour
     private string currentDialogueSetID;
     private string currentLineID;
     private bool isInDialogue = false;
+    private bool isLastLine = false;
     private bool isShowingItemDescription = false;
     private bool blockInput = false;
 
@@ -334,12 +344,31 @@ public class DialogueManager : MonoBehaviour
 
         if (isInDialogue && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
         {
-            NextLine();
+            if (isTyping && skipTypingOnInput)
+            {
+                CompleteTyping();
+                return;
+            }
+
+            if (isLastLine)
+            {
+                EndDialogue();
+            }
+            else
+            {
+                NextLine();
+            }
         }
 
         if (isShowingItemDescription &&
             (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
         {
+            if (isTyping && skipTypingOnInput)
+            {
+                CompleteTyping();
+                return;
+            }
+
             HideItemDescription();
         }
     }
@@ -508,7 +537,6 @@ public class DialogueManager : MonoBehaviour
         return PlayerPrefs.GetInt($"Dialogue_{target}_Finished", 0) == 1;
     }
 
-    // ===== 공개 메서드들 (기존 호환성 유지) =====
     public void StartDialogue(string dialogueSetID)
     {
         if (!dialogueSets.ContainsKey(dialogueSetID))
@@ -534,7 +562,6 @@ public class DialogueManager : MonoBehaviour
         if (logDialogueEvents)
             Debug.Log($"[DialogueManager] 대화 시작: {dialogueSetID} - {dialogueSet.description}");
 
-        // 플레이어 조작 금지
         var playerController = FindObjectOfType<PlayerController>();
         if (playerController != null)
         {
@@ -546,7 +573,6 @@ public class DialogueManager : MonoBehaviour
             StartCoroutine(DelayedActivatePanel());
         }
 
-        // 게임 상태 변경
         if (GameManager.Instance != null)
         {
             GameManager.Instance.SetDialogueState(true);
@@ -565,12 +591,20 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
+    public string GetDialogueText(string lineID)
+    {
+        if (dialogueLines.ContainsKey(lineID))
+        {
+            return dialogueLines[lineID].text;
+        }
+
+        return null;
+    }
+
     public void StartDialogue(NPCDataSO npcData, int dialogueID)
     {
-        // 기존 호환성을 위한 래퍼 메서드
         Debug.LogWarning("[DialogueManager] 구 방식 호출됨. CSV 기반 StartDialogue(string) 사용을 권장합니다.");
 
-        // 임시로 dialogueID를 string으로 변환
         string dialogueSetID = $"legacy_dialogue_{dialogueID}";
         StartDialogue(dialogueSetID);
     }
@@ -617,11 +651,13 @@ public class DialogueManager : MonoBehaviour
         if (logDialogueEvents)
             Debug.Log($"[DialogueManager] 대화 라인 표시: {currentLineID} - {currentLine.speakerName}");
 
-        if (dialogueText != null)
-            dialogueText.text = currentLine.text;
+        fullText = currentLine.text;
+        StartTyping(fullText);
 
         SetCurrentSpeaker(currentLine);
+        isLastLine = string.IsNullOrEmpty(currentLine.nextLineID);
     }
+
 
     void SetCurrentSpeaker(DialogueLine line)
     {
@@ -699,19 +735,8 @@ public class DialogueManager : MonoBehaviour
         }
 
         var currentLine = dialogueLines[currentLineID];
-        Debug.Log($"[DialogueManager] 현재 라인: {currentLine.lineID}, NextLineID: '{currentLine.nextLineID}'");
-
-        if (string.IsNullOrEmpty(currentLine.nextLineID))
-        {
-            Debug.Log($"[DialogueManager] NextLineID 비어있음 - 대화 종료");
-            EndDialogue();
-        }
-        else
-        {
-            Debug.Log($"[DialogueManager] 다음 라인으로 이동: {currentLine.nextLineID}");
-            currentLineID = currentLine.nextLineID;
-            DisplayCurrentLine();
-        }
+        currentLineID = currentLine.nextLineID;
+        DisplayCurrentLine();
     }
 
     // 현재 탐색 중인 아이템 추적
@@ -727,60 +752,52 @@ public class DialogueManager : MonoBehaviour
 
     public void EndDialogue()
     {
+        StartCoroutine(EndDialogueSequence());
+    }
+
+    private IEnumerator EndDialogueSequence()
+    {
+        if (!isInDialogue) yield break;
+
         string endingDialogueID = currentDialogueSetID;
+        isInDialogue = false;
 
         if (!string.IsNullOrEmpty(endingDialogueID))
         {
             PlayerPrefs.SetInt($"Dialogue_{endingDialogueID}_Finished", 1);
             PlayerPrefs.Save();
-
-            if (logDialogueEvents)
-                Debug.Log($"[DialogueManager] 대화 완료: {endingDialogueID}");
+            if (logDialogueEvents) Debug.Log($"[DialogueManager] 대화 완료 처리: {endingDialogueID}");
 
             if (currentInspectingItem != null)
             {
                 currentInspectingItem.OnInspectionDialogueCompleted();
                 currentInspectingItem = null;
             }
-
-            if (StoryProgressManager.Instance != null)
-            {
-                StoryProgressManager.Instance.OnDialogueCompleted();
-            }
         }
 
-        if (currentDialogueSetID == endingDialogueID)
-        {
-            isInDialogue = false;
-            currentDialogueSetID = "";
-            currentLineID = "";
-
-            var playerController = FindObjectOfType<PlayerController>();
-            if (playerController != null)
-            {
-                playerController.SetCanMove(true);
-            }
-
-            StartCoroutine(DelayedDeactivatePanel());
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetDialogueState(false);
-            }
-        }
-    }
-
-    IEnumerator DelayedDeactivatePanel()
-    {
-        yield return new WaitForSeconds(2f); 
+        yield return new WaitForSeconds(0.1f);
 
         if (dialoguePanel != null)
         {
             dialoguePanel.SetActive(false);
         }
+
+        currentDialogueSetID = "";
+        currentLineID = "";
+        isLastLine = false;
+
+        var playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.SetCanMove(true);
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetDialogueState(false);
+        }
     }
 
-    // ===== 아이템 설명 기능 =====
     public void ShowItemDescription(string description)
     {
         Debug.Log($"ShowItemDescription 호출됨: {description}");
@@ -811,10 +828,8 @@ public class DialogueManager : MonoBehaviour
 
         dialoguePanel.SetActive(true);
 
-        if (dialogueText != null)
-        {
-            dialogueText.text = description;
-        }
+        fullText = description;
+        StartTyping(fullText);
 
         var stats = FindObjectOfType<PlayerStats>();
         string name = stats != null && !string.IsNullOrEmpty(stats.playerName)
@@ -880,13 +895,63 @@ public class DialogueManager : MonoBehaviour
             Debug.Log($"[DialogueManager] 초상화 설정 완료 - Player: {(playerPortrait != null ? playerPortrait.name : "NULL")}, NPC: {(npcPortrait != null ? npcPortrait.name : "NULL")}");
     }
 
-    // ===== 공개 상태 확인 메서드들 =====
     public bool IsInDialogue()
     {
         return isInDialogue || isShowingItemDescription;
     }
 
-    // ===== 디버그 메서드들 =====
+    /* 
+     * 타이핑 효과 메서드
+     */
+
+    void StartTyping(string text)
+    {
+        // 기존 타이핑 코루틴이 있다면 중지
+        if (typingCoroutine != null)
+        {
+            StopCoroutine(typingCoroutine);
+        }
+
+        isTyping = true;
+        typingCoroutine = StartCoroutine(TypeText(text));
+    }
+
+    void CompleteTyping()
+    {
+        if (typingCoroutine != null)
+        {
+            StopCoroutine(typingCoroutine);
+            typingCoroutine = null;
+        }
+
+        isTyping = false;
+
+        if (dialogueText != null)
+        {
+            dialogueText.text = fullText;
+        }
+    }
+
+    IEnumerator TypeText(string text)
+    {
+        if (dialogueText == null)
+        {
+            isTyping = false;
+            yield break;
+        }
+
+        dialogueText.text = "";
+
+        for (int i = 0; i <= text.Length; i++)
+        {
+            dialogueText.text = text.Substring(0, i);
+            yield return new WaitForSeconds(typingSpeed);
+        }
+
+        isTyping = false;
+        typingCoroutine = null;
+    }
+
     [ContextMenu("Reload Dialogue Data")]
     public void ReloadDialogueData()
     {
