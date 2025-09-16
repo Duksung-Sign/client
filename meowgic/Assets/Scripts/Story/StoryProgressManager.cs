@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 // ===== 데이터 클래스들 =====
 [System.Serializable]
@@ -262,6 +263,8 @@ public class StoryProgressManager : MonoBehaviour
     public event Action<string, string, bool> OnConditionChecked;
     public event Action<string, string, string> OnActionExecuted;
 
+    private Coroutine _actionCoroutine;
+
     void Awake()
     {
         if (Instance == null)
@@ -496,7 +499,6 @@ public class StoryProgressManager : MonoBehaviour
         actionExecutors = new Dictionary<string, Action<string, string>>()
         {
             ["show_cutscene"] = ExecuteShowCutscene,
-            ["show_dialogue"] = ExecuteShowDialogue,
             ["enable_player"] = ExecuteEnablePlayer,
             ["disable_player"] = ExecuteDisablePlayer,
             ["set_spawn_point"] = ExecuteSetSpawnPoint,
@@ -518,15 +520,15 @@ public class StoryProgressManager : MonoBehaviour
         // 컷신 재생 로직 (CutsceneManager 등과 연동)
     }
 
-    void ExecuteShowDialogue(string target, string parameter)
+    IEnumerator ExecuteShowDialogue(string dialogueSetID)
     {
-        Debug.Log($"[StoryAction] 대화 표시: {target}");
-        // 새로운 CSV 기반 DialogueManager와 연동
-        if (DialogueManager.Instance != null)
-        {
-            DialogueManager.Instance.StartDialogue(target);
-        }
+        if (DialogueManager.Instance == null) yield break;
+
+        DialogueManager.Instance.StartDialogue(dialogueSetID);
+
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
     }
+
 
     void ExecuteEnablePlayer(string target, string parameter)
     {
@@ -634,38 +636,32 @@ public class StoryProgressManager : MonoBehaviour
             Debug.Log($"[StoryProgress] 스토리 노드 실행: {currentStoryID} - {currentNode.displayName}");
 
         OnStoryNodeEntered?.Invoke(currentStoryID, currentNode);
-        ExecuteStoryActions(currentStoryID);
-
-        if (currentNode.autoAdvance)
-        {
-            // 대화 액션이 있는지 체크
-            bool hasDialogue = HasDialogueAction(currentStoryID);
-
-            if (hasDialogue)
-            {
-                Debug.Log($"[StoryProgress] 대화 완료 대기 중: {currentStoryID}");
-                // 대화 완료는 DialogueManager에서 알려줄 예정
-            }
-            else
-            {
-                Debug.Log($"[StoryProgress] 즉시 진행: {currentStoryID}");
-                TryAdvanceToNextStory();
-            }
-        }
+        ExecuteStoryActions(currentStoryID); 
     }
 
     public void OnItemObtained(string itemID)
     {
         Debug.Log($"[StoryProgress] 아이템 획득 이벤트: {itemID}");
-
         var currentNode = GetCurrentStoryNode();
-        if (currentNode != null && !string.IsNullOrEmpty(currentNode.nextStoryID))
+        if (currentNode == null || string.IsNullOrEmpty(currentNode.nextStoryID)) return;
+
+        var nextNodeConditions = storyConditions.ContainsKey(currentNode.nextStoryID)
+                               ? storyConditions[currentNode.nextStoryID]
+                               : new List<StoryCondition>();
+
+        bool isKeyItem = nextNodeConditions.Any(c =>
+            c.conditionType == "item_obtained" &&
+            c.target == itemID);
+
+        if (isKeyItem)
         {
-            if (CanAdvanceStory(currentNode.nextStoryID))
-            {
-                Debug.Log($"[StoryProgress] 아이템 {itemID} 획득으로 조건 충족! 스토리 진행");
-                TryAdvanceStory(currentNode.nextStoryID);
-            }
+            Debug.Log($"[StoryProgress] 핵심 아이템 '{itemID}' 획득! 스토리 진행 시도.");
+            TryAdvanceStory(currentNode.nextStoryID);
+        }
+        else if (currentNode.autoAdvance && CanAdvanceStory(currentNode.nextStoryID))
+        {
+            Debug.Log($"[StoryProgress] 일반 아이템 {itemID} 획득 및 autoAdvance로 조건 충족! 스토리 진행");
+            TryAdvanceStory(currentNode.nextStoryID);
         }
     }
 
@@ -679,10 +675,17 @@ public class StoryProgressManager : MonoBehaviour
 
     public void OnDialogueCompleted()
     {
+        StartCoroutine(OnDialogueCompletedCoroutine());
+    }
+
+    private IEnumerator OnDialogueCompletedCoroutine()
+    {
+        yield return null;
+
         var currentNode = GetCurrentStoryNode();
         if (currentNode != null && currentNode.autoAdvance)
         {
-            Debug.Log($"[StoryProgress] 대화 완료 후 진행: {currentStoryID}");
+            Debug.Log($"[StoryProgress] 대화 완료 후 진행 (지연 후): {currentStoryID}");
             TryAdvanceToNextStory();
         }
     }
@@ -778,32 +781,68 @@ public class StoryProgressManager : MonoBehaviour
 
     void ExecuteStoryActions(string storyID)
     {
-        if (!storyActions.ContainsKey(storyID))
-            return;
-
-        var actions = storyActions[storyID];
-
-        foreach (var action in actions)
+        if (storyActions.ContainsKey(storyID))
         {
-            ExecuteAction(action);
+            if (_actionCoroutine != null)
+            {
+                StopCoroutine(_actionCoroutine);
+            }
+            _actionCoroutine = StartCoroutine(ExecuteActionsCoroutine(storyID));
         }
     }
 
-    void ExecuteAction(StoryAction action)
+    IEnumerator ExecuteActionsCoroutine(string storyID)
     {
-        if (!actionExecutors.ContainsKey(action.actionType))
+        var actions = storyActions[storyID];
+        foreach (var action in actions)
         {
-            Debug.LogWarning($"[StoryProgress] 알 수 없는 액션 타입: {action.actionType}");
-            return;
+            yield return StartCoroutine(ExecuteAction(action));
         }
 
-        if (logActionExecutions)
-        {
-            Debug.Log($"[StoryAction] 실행: {action.actionType}({action.target}) - {action.description}");
-            OnActionExecuted?.Invoke(action.actionType, action.target, action.parameter);
-        }
+        OnAllActionsCompleted();
+    }
 
-        actionExecutors[action.actionType](action.target, action.parameter);
+    IEnumerator ExecuteAction(StoryAction action)
+    {
+        switch (action.actionType)
+        {
+            case "show_dialogue":
+                yield return StartCoroutine(ExecuteShowDialogue(action.target));
+                break;
+            case "change_scene":
+                yield return SceneManager.LoadSceneAsync(action.target);
+                break;
+            case "show_cutscene":
+                if (CutsceneManager.Instance != null)
+                {
+                    yield return StartCoroutine(CutsceneManager.Instance.PlayCutscene(action.target));
+                }
+                break;
+            case "enable_player":
+                ExecuteEnablePlayer(action.target, action.parameter);
+                yield break;
+            default:
+                actionExecutors[action.actionType](action.target, action.parameter);
+                yield break;
+        }
+    }
+
+    void OnAllActionsCompleted()
+    {
+        StartCoroutine(OnAllActionsCompletedCoroutine());
+    }
+
+    private IEnumerator OnAllActionsCompletedCoroutine()
+    {
+        Debug.Log($"[StoryProgress] '{currentStoryID}'의 모든 액션 완료.");
+        yield return null;
+
+        var currentNode = GetCurrentStoryNode();
+        if (currentNode != null && currentNode.autoAdvance)
+        {
+            Debug.Log($"[StoryProgress] 자동 진행 (지연 후): {currentStoryID} -> {currentNode.nextStoryID}");
+            TryAdvanceToNextStory();
+        }
     }
 
     // ===== 저장/로드 =====
