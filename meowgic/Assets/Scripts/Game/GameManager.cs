@@ -16,7 +16,9 @@ public class GameManager : MonoBehaviour
     [HideInInspector]
     public MonsterDataSO currentBattleMonster;
     [HideInInspector]
-    public GameObject currentBattleMonsterObject; // 추가: 몬스터 오브젝트 참조
+    public GameObject currentBattleMonsterObject;
+    [HideInInspector]
+    public string currentBattleDialogueID;
 
     // 게임 상태들
     private bool isInDialogue = false;
@@ -81,6 +83,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public string GetCurrentBattleDialogueID()
+    {
+        return currentBattleDialogueID;
+    }
+
     /// <summary>
     /// 몬스터 자동 할당, 필드에서 부딪히면 그 몬스터가 저장
     /// </summary>
@@ -93,20 +100,36 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 배틀 시작 (몬스터 오브젝트도 함께 저장)
+    /// 배틀 시작 (필드 몬스터용)
+    /// MonsterController가 호출합니다.
     /// </summary>
-    /// <param name="monster">몬스터 데이터</param>
-    /// <param name="monsterObject">몬스터 게임오브젝트</param>
     public void StartBattle(MonsterDataSO monster, GameObject monsterObject)
     {
         currentBattleMonster = monster;
         currentBattleMonsterObject = monsterObject;
+        currentBattleDialogueID = null; // 필드 전투는 튜토리얼 대사가 없음
 
-        // 현재 씬 저장
         PlayerPrefs.SetString("PreviousScene", SceneManager.GetActiveScene().name);
+        SceneManager.LoadScene("BattleScene");
+    }
 
-        // 수정: monsterName -> GetDisplayName()
-        Debug.Log($"배틀 시작: {monster.GetDisplayName()}");
+    /// <summary>
+    /// 몬스터 데이터와 대화 ID로 전투 시작 (이벤트/컷씬용)
+    /// CutsceneManager가 호출합니다.
+    /// </summary>
+    public void StartBattle(MonsterDataSO monster, string battleDialogueID = null)
+    {
+        if (monster == null)
+        {
+            Debug.LogError("전투를 시작할 몬스터 데이터가 없습니다!");
+            return;
+        }
+
+        currentBattleMonster = monster;
+        currentBattleDialogueID = battleDialogueID; // 전달받은 대화 ID 저장
+        currentBattleMonsterObject = null; // 이벤트 전투는 필드 오브젝트가 없음
+
+        PlayerPrefs.SetString("PreviousScene", SceneManager.GetActiveScene().name);
         SceneManager.LoadScene("BattleScene");
     }
 
@@ -160,6 +183,67 @@ public class GameManager : MonoBehaviour
     {
         currentBattleMonster = null;
         currentBattleMonsterObject = null;
+    }
+
+    /// <summary>
+    /// 몬스터 데이터만으로 전투 시작 (이벤트용)
+    /// </summary>
+    /// <param name="monster">전투할 몬스터의 데이터</param>
+    public void StartBattle(MonsterDataSO monster)
+    {
+        if (monster == null)
+        {
+            Debug.LogError("전투를 시작할 몬스터 데이터가 없습니다!");
+            return;
+        }
+
+        currentBattleMonster = monster;
+        currentBattleMonsterObject = null; // 이벤트 전투이므로 필드 오브젝트는 없음
+
+        PlayerPrefs.SetString("PreviousScene", SceneManager.GetActiveScene().name);
+
+        Debug.Log($"이벤트 배틀 시작: {monster.GetDisplayName()}");
+        SceneManager.LoadScene("BattleScene");
+    }
+
+    /// <summary>
+    /// 안전한 이전 씬 반환 (저장된 씬이 유효한지 검증)
+    /// </summary>
+    public string GetPreviousScene()
+    {
+        string previousScene = PlayerPrefs.GetString("PreviousScene", "");
+
+        if (string.IsNullOrEmpty(previousScene))
+        {
+            Debug.LogError("이전 씬 정보가 저장되지 않았습니다!");
+            return null;
+        }
+
+        // 씬이 실제로 존재하는지 확인 (선택사항)
+        if (IsSceneInBuildSettings(previousScene))
+        {
+            return previousScene;
+        }
+        else
+        {
+            Debug.LogError($"씬 '{previousScene}'이 빌드 설정에 없습니다!");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 씬이 빌드 설정에 있는지 확인
+    /// </summary>
+    private bool IsSceneInBuildSettings(string sceneName)
+    {
+        for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+        {
+            string scenePath = SceneUtility.GetScenePathByBuildIndex(i);
+            string buildSceneName = System.IO.Path.GetFileNameWithoutExtension(scenePath);
+            if (buildSceneName == sceneName)
+                return true;
+        }
+        return false;
     }
 
     // 상태 확인 메서드들
