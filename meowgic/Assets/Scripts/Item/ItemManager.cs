@@ -142,13 +142,7 @@ public class ItemManager : MonoBehaviour
     {
         if (StoryProgressManager.Instance != null)
         {
-            // 현재 스토리에서 이 아이템 획득을 기다리고 있는지 즉시 체크
-            StoryProgressManager.Instance.TryAdvanceToNextStory();
-
-            if (StoryProgressManager.Instance != null)
-            {
-                StoryProgressManager.Instance.OnItemObtained(itemID);
-            }
+            StoryProgressManager.Instance.OnItemObtained(itemID);
         }
     }
 
@@ -291,13 +285,23 @@ public class ItemManager : MonoBehaviour
     {
         if (debugItemSystem)
         {
-            Debug.Log($"{GetItemDisplayName()} 획득!");
+            Debug.Log($"{GetItemDisplayName()} 획득 절차 시작...");
         }
+        StartCoroutine(CollectItemSequence());
+    }
 
-        // 아이템 획득 상태 저장 (CSV 스토리 시스템과 완전 호환)
+    private IEnumerator CollectItemSequence()
+    {
+        GetComponent<Collider2D>().enabled = false;
+
         SaveItemObtained();
 
-        // 퀘스트 아이템 vs 일반 아이템 처리
+        if (!string.IsNullOrEmpty(itemData.onCollectDialogueID))
+        {
+            DialogueManager.Instance.StartDialogue(itemData.onCollectDialogueID);
+            yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+        }
+
         if (itemData.isQuestItem)
         {
             ProcessQuestItem();
