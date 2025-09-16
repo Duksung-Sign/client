@@ -39,6 +39,9 @@ public class GameManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 
     public void RegisterPlayer(PlayerController pc)
