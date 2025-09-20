@@ -269,7 +269,7 @@ public class EmergencyCutsceneController : MonoBehaviour
         if (monster != null && GameManager.Instance != null)
         {
             PlayerPrefs.SetString("PreviousScene", "library");
-            GameManager.Instance.StartBattle(monster, "battle_tutorial");
+            GameEventManager.Instance.TriggerBattleStartRequested(monster, "battle_tutorial");
         }
     }
 }
