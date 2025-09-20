@@ -27,12 +27,5 @@ public class MainMenuButtons : MonoBehaviour
 
         // 3) 실제 게임 씬 로드
         SceneManager.LoadScene("Library");
-
-
-        // 4) setting 화면 로드
-        if (!SceneManager.GetSceneByName("SettingScene").isLoaded)
-        {
-            SceneManager.LoadScene("SettingScene", LoadSceneMode.Additive);
-        }
     }
 }
