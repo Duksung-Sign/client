@@ -1,92 +1,66 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("¿Ãµø º≥¡§")]
+    [Header("Ïù¥Îèô ÏÑ§Ï†ï")]
     public float moveSpeed = 5f;
 
     private Rigidbody2D rb;
     private Animator animator;
     private Vector2 movement;
-    private Vector2 lastDirection;
-
-    // ¿Ãµø ¡¶æÓøÎ
-    private bool canMove = true;
+    private bool canMove = true; 
 
     void Awake()
     {
-        if (GameManager.Instance != null)
+        rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
+
+        if (GameEventManager.Instance != null)
         {
-            GameManager.Instance.RegisterPlayer(this);
+            GameEventManager.Instance.OnGameStateChanged += HandleGameStateChange;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (GameEventManager.Instance != null)
+        {
+            GameEventManager.Instance.OnGameStateChanged -= HandleGameStateChange;
         }
     }
 
     void Start()
     {
-        rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
+        if (GameManager.Instance != null)
+        {
+            HandleGameStateChange(GameManager.Instance.CurrentState);
+        }
+    }
+
+    private void HandleGameStateChange(GameState newState)
+    {
+        canMove = (newState == GameState.Field || newState == GameState.Cutscene);
+
+        if (!canMove)
+        {
+            rb.velocity = Vector2.zero;
+            animator.SetBool("isWalk", false);
+        }
     }
 
     void Update()
     {
-        // ¿Ãµø ∞°¥…«“ ∂ß∏∏ ¿‘∑¬ πﬁ±‚
         if (canMove)
         {
             GetInput();
         }
         else
         {
-            // ¿Ãµø ∫“∞°¥…«“ ∂ß¥¬ ¿‘∑¬¿ª 0¿∏∑Œ
             movement = Vector2.zero;
-
-            // æ÷¥œ∏ﬁ¿Ã≈Õ∞° ¿÷¿∏∏È ¡§¡ˆ ªÛ≈¬∑Œ
-            if (animator != null)
-            {
-                animator.SetBool("isWalk", false);
-            }
         }
     }
 
     void FixedUpdate()
-    {
-        Move();
-    }
-
-    void GetInput()
-    {
-        float inputX = Input.GetAxisRaw("Horizontal");
-        float inputY = Input.GetAxisRaw("Vertical");
-
-        movement.x = inputX;
-        movement.y = inputY;
-
-        if (animator != null)
-        {
-            bool isMoving = (inputX != 0 || inputY != 0);
-            animator.SetBool("isWalk", isMoving);
-
-            if (isMoving)
-            {
-                if (Mathf.Abs(inputY) > Mathf.Abs(inputX))
-                {
-                    lastDirection = new Vector2(0, inputY);
-                }
-                else
-                {
-                    lastDirection = new Vector2(inputX, 0);
-                }
-
-                animator.SetFloat("xDir", lastDirection.x);
-                animator.SetFloat("yDir", lastDirection.y);
-            }
-        }
-
-        movement = movement.normalized;
-    }
-
-    void Move()
     {
         if (canMove)
         {
@@ -94,25 +68,20 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ø‹∫Œø°º≠ ¿Ãµø ¡¶æÓ«œ¥¬ ∏ﬁº≠µÂµÈ
-    public void SetCanMove(bool canMove)
+    void GetInput()
     {
-        this.canMove = canMove;
-        Debug.Log($"«√∑π¿ÃæÓ ¿Ãµø: {(canMove ? "«„øÎ" : "±›¡ˆ")}");
+        movement.x = Input.GetAxisRaw("Horizontal");
+        movement.y = Input.GetAxisRaw("Vertical");
 
-        // ¿Ãµø ±›¡ˆµ… ∂ß ¡ÔΩ√ ¡§¡ˆ
-        if (!canMove)
+        bool isMoving = movement != Vector2.zero;
+        animator.SetBool("isWalk", isMoving);
+
+        if (isMoving)
         {
-            movement = Vector2.zero;
-            if (rb != null)
-            {
-                rb.velocity = Vector2.zero;
-            }
+            animator.SetFloat("xDir", movement.x);
+            animator.SetFloat("yDir", movement.y);
         }
-    }
 
-    public bool CanMove()
-    {
-        return canMove;
+        movement.Normalize();
     }
 }

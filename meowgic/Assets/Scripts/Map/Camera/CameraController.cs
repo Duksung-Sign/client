@@ -3,29 +3,29 @@ using System.Collections;
 
 public class CameraController : MonoBehaviour
 {
-    [Header("Å¸°Ù ¼³Á¤")]
-    public Transform target; // ÇÃ·¹ÀÌ¾î
+    [Header("íƒ€ê²Ÿ ì„¤ì •")]
+    public Transform target; 
 
-    [Header("Ä«¸Ş¶ó ¼³Á¤")]
-    public float cameraSize = 3f; // °íÁ¤ Ä«¸Ş¶ó Å©±â (°¡±î¿î ½ÃÁ¡)
+    [Header("ì¹´ë©”ë¼ ì„¤ì •")]
+    public float cameraSize = 3f; 
 
-    [Header("Ä«¸Ş¶ó ÆÈ·Î¿ì ¼³Á¤")]
-    public float followSpeed = 2f; // Ä«¸Ş¶ó µû¶ó°¡´Â ¼Óµµ
-    public Vector3 offset = new Vector3(0, 0, -10); // Ä«¸Ş¶ó ¿ÀÇÁ¼Â
+    [Header("ì¹´ë©”ë¼ íŒ”ë¡œìš° ì„¤ì •")]
+    public float followSpeed = 2f; 
+    public Vector3 offset = new Vector3(0, 0, -10); 
 
-    [Header("¸Ê °æ°è ¼³Á¤")]
+    [Header("ë§µ ê²½ê³„ ì„¤ì •")]
     public bool useMapBounds = true;
-    public Bounds mapBounds; // ¸ÊÀÇ °æ°è
+    public Bounds mapBounds; 
 
-    [Header("ºÎµå·¯¿î ÀÌµ¿")]
+    [Header("ë¶€ë“œëŸ¬ìš´ ì´ë™")]
     public bool useSmoothFollow = true;
     public float smoothTime = 0.3f;
 
-    [Header("Ä«¸Ş¶ó Èçµé¸² (¼ÎÀÌÅ©)")]
+    [Header("ì¹´ë©”ë¼ í”ë“¤ë¦¼ (ì…°ì´í¬)")]
     public float shakeIntensity = 0.1f;
     public float shakeDuration = 0.5f;
 
-    [Header("µğ¹ö±×")]
+    [Header("ë””ë²„ê·¸")]
     public bool showMapBounds = true;
     public bool debugMode = false;
 
@@ -34,7 +34,6 @@ public class CameraController : MonoBehaviour
     private Vector3 targetPosition;
     private bool isShaking = false;
 
-    // Ä«¸Ş¶ó ÀÌµ¿ Á¦ÇÑ¿ë
     private float halfWidth;
     private float halfHeight;
 
@@ -43,11 +42,10 @@ public class CameraController : MonoBehaviour
         cam = GetComponent<Camera>();
         if (cam == null)
         {
-            Debug.LogError("Camera ÄÄÆ÷³ÍÆ®¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù!");
+            Debug.LogError("Camera ì»´í¬ë„ŒíŠ¸ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤!");
             return;
         }
 
-        // ÇÃ·¹ÀÌ¾î ÀÚµ¿ Ã£±â
         if (target == null)
         {
             GameObject player = GameObject.FindGameObjectWithTag("Player");
@@ -55,24 +53,18 @@ public class CameraController : MonoBehaviour
                 target = player.transform;
         }
 
-        // Ä«¸Ş¶ó¸¦ Áï½Ã ÇÃ·¹ÀÌ¾î À§Ä¡·Î ÀÌµ¿ (ºÎµå·¯¿î ÀÌµ¿ ¾øÀÌ)
         if (target != null)
         {
             Vector3 initialPosition = target.position + offset;
             transform.position = initialPosition;
-
-            if (debugMode)
-                Debug.Log($"Ä«¸Ş¶ó Áï½Ã ÇÃ·¹ÀÌ¾î À§Ä¡·Î ÀÌµ¿: {initialPosition}");
         }
     }
 
     void Start()
     {
-        // Ä«¸Ş¶ó Å©±â °íÁ¤ ¼³Á¤
         if (cam != null)
             cam.orthographicSize = cameraSize;
 
-        // ¸Ê °æ°è°¡ ¼³Á¤µÇÁö ¾Ê¾ÒÀ¸¸é ÀÚµ¿ ¼³Á¤
         if (useMapBounds && mapBounds.size == Vector3.zero)
         {
             AutoDetectMapBounds();
@@ -80,15 +72,11 @@ public class CameraController : MonoBehaviour
 
         UpdateCameraBounds();
 
-        // ¸Ê °æ°è°¡ ¼³Á¤µÇ¾ú´Ù¸é ÃÊ±â À§Ä¡µµ °æ°è¿¡ ¸Â°Ô Á¶Á¤
         if (useMapBounds && target != null)
         {
             Vector3 constrainedPosition = ConstrainToMapBounds(target.position + offset);
             transform.position = constrainedPosition;
         }
-
-        if (debugMode)
-            Debug.Log($"Ä«¸Ş¶ó ÄÁÆ®·Ñ·¯ ÃÊ±âÈ­ ¿Ï·á - °íÁ¤ Å©±â: {cameraSize}, ½ÃÀÛ À§Ä¡: {transform.position}");
     }
 
     void Update()
@@ -102,26 +90,22 @@ public class CameraController : MonoBehaviour
     {
         if (target == null) return;
 
-        // Ä«¸Ş¶ó °æ°è ¾÷µ¥ÀÌÆ®
         UpdateCameraBounds();
     }
 
-    #region Ä«¸Ş¶ó À§Ä¡ ¾÷µ¥ÀÌÆ®
+    #region ì¹´ë©”ë¼ ìœ„ì¹˜ ì—…ë°ì´íŠ¸
 
     void UpdateCameraPosition()
     {
-        if (isShaking) return; // Èçµé¸² Áß¿¡´Â À§Ä¡ ¾÷µ¥ÀÌÆ® ¾ÈÇÔ
+        if (isShaking) return; 
 
-        // ¸ñÇ¥ À§Ä¡ °è»ê
         targetPosition = target.position + offset;
 
-        // ¸Ê °æ°è Á¦ÇÑ Àû¿ë
         if (useMapBounds)
         {
             targetPosition = ConstrainToMapBounds(targetPosition);
         }
 
-        // ºÎµå·¯¿î ÀÌµ¿ Àû¿ë
         if (useSmoothFollow)
         {
             transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
@@ -139,7 +123,6 @@ public class CameraController : MonoBehaviour
 
     Vector3 ConstrainToMapBounds(Vector3 position)
     {
-        // Ä«¸Ş¶ó°¡ ¸Ê ¹ÛÀ¸·Î ³ª°¡Áö ¾Êµµ·Ï Á¦ÇÑ
         float clampedX = Mathf.Clamp(position.x,
             mapBounds.min.x + halfWidth,
             mapBounds.max.x - halfWidth);
@@ -162,7 +145,7 @@ public class CameraController : MonoBehaviour
 
     #endregion
 
-    #region Ä«¸Ş¶ó È¿°ú
+    #region ì¹´ë©”ë¼ íš¨ê³¼
 
     public void ShakeCamera(float intensity = 0, float duration = 0)
     {
@@ -189,7 +172,7 @@ public class CameraController : MonoBehaviour
             transform.position = originalPosition + new Vector3(x, y, 0);
 
             elapsed += Time.deltaTime;
-            intensity = Mathf.Lerp(shakeIntensity, 0, elapsed / duration); // Á¡Á¡ ¾àÇØÁü
+            intensity = Mathf.Lerp(shakeIntensity, 0, elapsed / duration); // ì ì  ì•½í•´ì§
             yield return null;
         }
 
@@ -214,16 +197,15 @@ public class CameraController : MonoBehaviour
 
     #endregion
 
-    #region ¸Ê °æ°è ¼³Á¤
+    #region ë§µ ê²½ê³„ ì„¤ì •
 
     void AutoDetectMapBounds()
     {
-        // ¾ÀÀÇ ¸ğµç Renderer¸¦ Ã£¾Æ¼­ ÀüÃ¼ °æ°è °è»ê
         Renderer[] renderers = FindObjectsOfType<Renderer>();
 
         if (renderers.Length == 0)
         {
-            Debug.LogWarning("¸Ê °æ°è¸¦ ÀÚµ¿À¸·Î Ã£À» ¼ö ¾ø½À´Ï´Ù. ¼öµ¿À¸·Î ¼³Á¤ÇØÁÖ¼¼¿ä.");
+            Debug.LogWarning("ë§µ ê²½ê³„ë¥¼ ìë™ìœ¼ë¡œ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤. ìˆ˜ë™ìœ¼ë¡œ ì„¤ì •í•´ì£¼ì„¸ìš”.");
             return;
         }
 
@@ -231,7 +213,6 @@ public class CameraController : MonoBehaviour
 
         foreach (Renderer renderer in renderers)
         {
-            // UI³ª ÇÃ·¹ÀÌ¾î´Â Á¦¿Ü
             if (renderer.gameObject.layer == LayerMask.NameToLayer("UI") ||
                 renderer.gameObject.CompareTag("Player"))
                 continue;
@@ -242,7 +223,7 @@ public class CameraController : MonoBehaviour
         mapBounds = totalBounds;
 
         if (debugMode)
-            Debug.Log($"ÀÚµ¿ °¨ÁöµÈ ¸Ê °æ°è: {mapBounds}");
+            Debug.Log($"ìë™ ê°ì§€ëœ ë§µ ê²½ê³„: {mapBounds}");
     }
 
     public void SetMapBounds(Bounds bounds)
@@ -259,123 +240,17 @@ public class CameraController : MonoBehaviour
 
     #endregion
 
-    #region Ä«¸Ş¶ó Å©±â Á¶Á¤ (·±Å¸ÀÓ¿¡¼­¸¸)
-
-    /// <summary>
-    /// ·±Å¸ÀÓ¿¡¼­ Ä«¸Ş¶ó Å©±â º¯°æ (Æ¯º°ÇÑ »óÈ²¿¡¼­¸¸ »ç¿ë)
-    /// </summary>
-    public void SetCameraSize(float newSize)
-    {
-        cameraSize = newSize;
-        if (cam != null)
-            cam.orthographicSize = cameraSize;
-
-        if (debugMode)
-            Debug.Log($"Ä«¸Ş¶ó Å©±â º¯°æ: {newSize}");
-    }
-
-    /// <summary>
-    /// ¿ø·¡ Ä«¸Ş¶ó Å©±â·Î º¹¿ø
-    /// </summary>
-    public void ResetCameraSize()
-    {
-        if (cam != null)
-            cam.orthographicSize = cameraSize;
-    }
-
-    #endregion
-
-    #region Ä«¸Ş¶ó ÇÁ¸®¼Â
-
-    [System.Serializable]
-    public class CameraPreset
-    {
-        public string name;
-        public float size;
-        public float followSpeed;
-        public float smoothTime;
-        public Vector3 offset;
-    }
-
-    [Header("Ä«¸Ş¶ó ÇÁ¸®¼Â")]
-    public CameraPreset[] presets = new CameraPreset[]
-    {
-        new CameraPreset { name = "¸Å¿ì °¡±î¿ò", size = 2.5f, followSpeed = 3f, smoothTime = 0.2f, offset = Vector3.back * 10 },
-        new CameraPreset { name = "°¡±î¿ò (±âº»)", size = 3f, followSpeed = 2.5f, smoothTime = 0.3f, offset = Vector3.back * 10 },
-        new CameraPreset { name = "Á¶±İ ¸Ö¸®", size = 4f, followSpeed = 2f, smoothTime = 0.4f, offset = Vector3.back * 10 }
-    };
-
-    public void ApplyPreset(int presetIndex)
-    {
-        if (presetIndex < 0 || presetIndex >= presets.Length) return;
-
-        CameraPreset preset = presets[presetIndex];
-        SetCameraSize(preset.size);
-        followSpeed = preset.followSpeed;
-        smoothTime = preset.smoothTime;
-        offset = preset.offset;
-
-        if (debugMode)
-            Debug.Log($"Ä«¸Ş¶ó ÇÁ¸®¼Â Àû¿ë: {preset.name}");
-    }
-
-    #endregion
-
-    #region °³¹ßÀÚ µµ±¸
-
-    [ContextMenu("Apply Close View (Size 3)")]
-    public void SetCloseView()
-    {
-        cameraSize = 3f;
-        followSpeed = 2.5f;
-        smoothTime = 0.3f;
-        useSmoothFollow = true;
-
-        if (cam != null)
-            cam.orthographicSize = cameraSize;
-
-        Debug.Log("°¡±î¿î ½ÃÁ¡ Ä«¸Ş¶ó ¼³Á¤ Àû¿ëµÊ (Size: 3)");
-    }
-
-    [ContextMenu("Apply Very Close View (Size 2.5)")]
-    public void SetVeryCloseView()
-    {
-        cameraSize = 2.5f;
-        followSpeed = 3f;
-        smoothTime = 0.2f;
-        useSmoothFollow = true;
-
-        if (cam != null)
-            cam.orthographicSize = cameraSize;
-
-        Debug.Log("¸Å¿ì °¡±î¿î ½ÃÁ¡ Ä«¸Ş¶ó ¼³Á¤ Àû¿ëµÊ (Size: 2.5)");
-    }
-
-    [ContextMenu("Auto Detect Map Bounds")]
-    public void DetectMapBounds()
-    {
-        AutoDetectMapBounds();
-    }
-
-    [ContextMenu("Test Camera Shake")]
-    public void TestShake()
-    {
-        ShakeCamera();
-    }
-
-    #endregion
-
-    #region ±âÁî¸ğ ±×¸®±â
+    #region ê¸°ì¦ˆëª¨ ê·¸ë¦¬ê¸°
 
     void OnDrawGizmosSelected()
     {
         if (showMapBounds && useMapBounds)
         {
-            // ¸Ê °æ°è Ç¥½Ã
+            // ë§µ ê²½ê³„ í‘œì‹œ
             Gizmos.color = Color.red;
             Gizmos.DrawWireCube(mapBounds.center, mapBounds.size);
 
-            // Ä«¸Ş¶ó ºä °æ°è Ç¥½Ã (Ä«¸Ş¶ó°¡ ÀÌµ¿ÇÒ ¼ö ÀÖ´Â ¹üÀ§)
+            // ì¹´ë©”ë¼ ë·° ê²½ê³„ í‘œì‹œ (ì¹´ë©”ë¼ê°€ ì´ë™í•  ìˆ˜ ìˆëŠ” ë²”ìœ„)
             if (Application.isPlaying)
             {
                 Gizmos.color = Color.yellow;
@@ -389,7 +264,7 @@ public class CameraController : MonoBehaviour
             }
         }
 
-        // Å¸°Ù Ç¥½Ã
+        // íƒ€ê²Ÿ í‘œì‹œ
         if (target != null)
         {
             Gizmos.color = Color.green;
@@ -397,7 +272,7 @@ public class CameraController : MonoBehaviour
             Gizmos.DrawLine(transform.position, target.position);
         }
 
-        // ÇöÀç Ä«¸Ş¶ó ºä ¿µ¿ª Ç¥½Ã
+        // í˜„ì¬ ì¹´ë©”ë¼ ë·° ì˜ì—­ í‘œì‹œ
         if (Application.isPlaying && cam != null)
         {
             Gizmos.color = Color.blue;

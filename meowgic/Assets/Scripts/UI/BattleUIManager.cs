@@ -225,7 +225,7 @@ public class BattleUIManager : MonoBehaviour
     {
         if (line != null)
         {
-            BattleEventManager.Instance?.ShowTutorialMessage(line.text);
+            BattleEventManager.Instance?.ShowTutorialMessage(line.Text);
         }
     }
 
