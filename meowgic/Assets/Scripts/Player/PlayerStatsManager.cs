@@ -1,25 +1,15 @@
-using System.Collections;
-using System.Collections.Generic;
 using System;
 using UnityEngine.SceneManagement;
 using UnityEngine;
 
 public class PlayerStatsManager : MonoBehaviour
 {
-    public static PlayerStatsManager Instance;
+    public static PlayerStatsManager Instance { get; private set; }
+
     public event Action<int, int> OnHPChanged;
 
-    [Header("±âº» ½ºÅÈ (¹é¾÷¿ë)")]
-    public int defaultMaxHP = 30;
-    public int defaultAttackPower = 10;
-    public int defaultDefense = 5;
-
-    private int maxHP;
-    private int attackPower;
-    private int defense;
+    private PlayerStats baseStats;
     private int currentHP;
-
-    private bool isInitialized = false;
 
     void Awake()
     {
@@ -27,205 +17,54 @@ public class PlayerStatsManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
-            // ±âº»°ªÀ¸·Î ÃÊ±âÈ­
-            InitializeWithDefaults();
-
-            Debug.Log("[StatsManager] ½Ì±ÛÅæ »ý¼º ¹× ±âº»°ª ÃÊ±âÈ­");
         }
         else
         {
-            Debug.Log("[StatsManager] Áßº¹ ÀÎ½ºÅÏ½º Á¦°Å");
             Destroy(gameObject);
         }
     }
 
-    void Start()
+    void OnEnable()
     {
-        // SceneÀÌ ·ÎµåµÉ ¶§¸¶´Ù PlayerStats¸¦ ´Ù½Ã Ã£¾Æ¼­ µî·Ï
         SceneManager.sceneLoaded += OnSceneLoaded;
-
-        // ÇöÀç ¾À¿¡¼­ PlayerStats Ã£±â
-        FindAndRegisterPlayerStats();
     }
 
-    void OnDestroy()
+    void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        Debug.Log($"[StatsManager] ¾À ·ÎµåµÊ: {scene.name}");
-
-        // »õ ¾À¿¡¼­ PlayerStats Ã£±â
-        StartCoroutine(DelayedPlayerStatsSearch());
-    }
-
-    IEnumerator DelayedPlayerStatsSearch()
-    {
-        // ¾À ·Îµå ÈÄ ¾à°£ ±â´Ù¸²
-        yield return new WaitForSeconds(0.1f);
-        FindAndRegisterPlayerStats();
-    }
-
-    void FindAndRegisterPlayerStats()
-    {
-        PlayerStats playerStats = FindObjectOfType<PlayerStats>();
+        var playerStats = FindObjectOfType<PlayerStats>();
         if (playerStats != null)
         {
-            Debug.Log("[StatsManager] PlayerStats ¹ß°ß, Àçµî·Ï ½Ãµµ");
-            RegisterBaseStats(playerStats);
-        }
-        else
-        {
-            Debug.LogWarning("[StatsManager] PlayerStats¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù. ±âº»°ª »ç¿ë");
-            if (!isInitialized)
+            if (baseStats == null)
             {
-                InitializeWithDefaults();
+                RegisterNewStats(playerStats);
             }
         }
     }
 
-    void InitializeWithDefaults()
+    private void RegisterNewStats(PlayerStats stats)
     {
-        maxHP = defaultMaxHP;
-        attackPower = defaultAttackPower;
-        defense = defaultDefense;
-        currentHP = maxHP;
-        isInitialized = true;
-
-        OnHPChanged?.Invoke(currentHP, maxHP);
-        Debug.Log($"[StatsManager] ±âº»°ªÀ¸·Î ÃÊ±âÈ­: HP {maxHP}, ATK {attackPower}, DEF {defense}");
+        baseStats = stats;
+        currentHP = baseStats.maxHP;
+        OnHPChanged?.Invoke(currentHP, baseStats.maxHP);
+        Debug.Log($"[StatsManager] PlayerStats ë“±ë¡: HP {currentHP}/{baseStats.maxHP}");
     }
 
-    public void RegisterBaseStats(PlayerStats stats)
+    public int GetCurrentHP() => currentHP;
+    public int GetMaxHP() => baseStats != null ? baseStats.maxHP : 0;
+    public int GetAttackPower() => baseStats != null ? baseStats.attackPower : 0;
+    public int GetDefense() => baseStats != null ? baseStats.defense : 0;
+
+    public void TakeDamage(int rawDamage)
     {
-        if (stats == null)
-        {
-            Debug.LogWarning("[StatsManager] null PlayerStats µî·Ï ½Ãµµ");
-            return;
-        }
+        if (baseStats == null) return;
 
-        // ÀÌ¹Ì ÃÊ±âÈ­µÇ¾î ÀÖ°í HP°¡ 0ÀÌ ¾Æ´Ï¶ó¸é ±âÁ¸ °ª À¯Áö
-        if (isInitialized && currentHP > 0)
-        {
-            Debug.Log($"[StatsManager] ÀÌ¹Ì ÃÊ±âÈ­µÊ, ±âÁ¸ HP À¯Áö: {currentHP}/{maxHP}");
-            OnHPChanged?.Invoke(currentHP, maxHP);
-            return;
-        }
-
-        // »õ·Î¿î ½ºÅÈÀ¸·Î ¼³Á¤
-        maxHP = stats.maxHP;
-        attackPower = stats.attackPower;
-        defense = stats.defense;
-        currentHP = maxHP;
-        isInitialized = true;
-
-        OnHPChanged?.Invoke(currentHP, maxHP);
-        Debug.Log($"[StatsManager] PlayerStats µî·Ï: HP {maxHP}, ATK {attackPower}, DEF {defense}");
-    }
-
-    // °­Á¦ ÃÊ±âÈ­ ¸Þ¼­µå (µð¹ö±ë¿ë)
-    public void ForceInitialize()
-    {
-        InitializeWithDefaults();
-        Debug.Log("[StatsManager] °­Á¦ ÃÊ±âÈ­ ¿Ï·á");
-    }
-
-    // ½ºÅÈ À¯È¿¼º °Ë»ç
-    bool ValidateStats()
-    {
-        if (maxHP <= 0 || attackPower <= 0 || defense < 0)
-        {
-            Debug.LogError($"[StatsManager] Àß¸øµÈ ½ºÅÈ ¹ß°ß: HP {maxHP}, ATK {attackPower}, DEF {defense}");
-            InitializeWithDefaults();
-            return false;
-        }
-        return true;
-    }
-
-    public int GetMaxHP()
-    {
-        ValidateStats();
-        return maxHP;
-    }
-
-    public int GetAttackPower()
-    {
-        ValidateStats();
-        return attackPower;
-    }
-
-    public int GetDefense()
-    {
-        ValidateStats();
-        return defense;
-    }
-
-    public int GetCurrentHP()
-    {
-        ValidateStats();
-        return currentHP;
-    }
-
-    public void TakeDamage(int dmg)
-    {
-        ValidateStats();
-
-        int oldHP = currentHP;
-        currentHP = Mathf.Max(0, currentHP - dmg);
-
-        OnHPChanged?.Invoke(currentHP, maxHP);
-        Debug.Log($"[StatsManager] ÇÇÇØ {dmg} ¹ÞÀ½. {oldHP} -> {currentHP}");
-    }
-
-    public void Heal(int amount)
-    {
-        ValidateStats();
-
-        int oldHP = currentHP;
-        currentHP = Mathf.Min(maxHP, currentHP + amount);
-
-        OnHPChanged?.Invoke(currentHP, maxHP);
-        Debug.Log($"[StatsManager] Èú¸µ {amount}. {oldHP} -> {currentHP}");
-    }
-
-    public void ResetHP()
-    {
-        ValidateStats();
-
-        currentHP = maxHP;
-        OnHPChanged?.Invoke(currentHP, maxHP);
-        Debug.Log($"[StatsManager] HP ¸®¼Â: {currentHP}/{maxHP}");
-    }
-
-    // ¹èÆ² ½ÃÀÛ Àü ½ºÅÈ È®ÀÎ
-    public bool IsReadyForBattle()
-    {
-        bool ready = isInitialized && maxHP > 0 && currentHP > 0 && attackPower > 0;
-
-        if (!ready)
-        {
-            Debug.LogWarning($"[StatsManager] ¹èÆ² ÁØºñ ¾ÈµÊ: initialized={isInitialized}, maxHP={maxHP}, currentHP={currentHP}, attack={attackPower}");
-
-            // °­Á¦ ÃÊ±âÈ­ ½Ãµµ
-            InitializeWithDefaults();
-            ready = isInitialized && maxHP > 0 && currentHP > 0 && attackPower > 0;
-        }
-
-        return ready;
-    }
-
-    // µð¹ö±ë¿ë ÇöÀç »óÅÂ Ãâ·Â
-    [ContextMenu("Debug Current Stats")]
-    public void DebugCurrentStats()
-    {
-        Debug.Log($"=== PlayerStatsManager »óÅÂ ===");
-        Debug.Log($"ÃÊ±âÈ­µÊ: {isInitialized}");
-        Debug.Log($"HP: {currentHP}/{maxHP}");
-        Debug.Log($"°ø°Ý·Â: {attackPower}");
-        Debug.Log($"¹æ¾î·Â: {defense}");
-        Debug.Log($"¹èÆ² ÁØºñ: {IsReadyForBattle()}");
+        int finalDamage = Mathf.Max(0, rawDamage - baseStats.defense);
+        currentHP = Mathf.Max(0, currentHP - finalDamage);
+        OnHPChanged?.Invoke(currentHP, baseStats.maxHP);
     }
 }

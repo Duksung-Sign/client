@@ -321,31 +321,26 @@ public class HolisticJsonSender : MonoBehaviour
                 time = DateTimeOffset.Now.ToUnixTimeMilliseconds()
             };
 
-            // 현재 프레임 데이터 추출
             var poseData = FindPoseDataSafely();
             var leftHandData = FindLeftHandDataSafely();
             var rightHandData = FindRightHandDataSafely();
             var faceData = FindFaceDataSafely();
 
-            // 데이터 유효성 검사
             bool poseValid = IsValidPoseData(poseData);
             bool leftHandValid = IsValidHandData(leftHandData);
             bool rightHandValid = IsValidHandData(rightHandData);
             bool faceValid = IsValidFaceData(faceData);
 
-            // 유효한 데이터 캐싱
             if (poseValid) lastValidPose = new List<SimpleLandmark>(poseData);
             if (leftHandValid) lastValidLeftHand = new List<SimpleLandmark>(leftHandData);
             if (rightHandValid) lastValidRightHand = new List<SimpleLandmark>(rightHandData);
             if (faceValid) lastValidFace = new List<SimpleLandmark>(faceData);
 
-            // 데이터 할당
             frame.pose = GetBestAvailablePoseData(poseData, poseValid);
             frame.leftHand = GetBestAvailableHandData(leftHandData, leftHandValid, true);
             frame.rightHand = GetBestAvailableHandData(rightHandData, rightHandValid, false);
             frame.faceKey = GetBestAvailableFaceData(faceData, faceValid);
 
-            // 통계 업데이트
             bool hasValidData = leftHandValid || rightHandValid || poseValid || faceValid;
 
             if (hasValidData)
@@ -361,7 +356,6 @@ public class HolisticJsonSender : MonoBehaviour
             }
             else
             {
-                // 너무 오래 유효한 데이터가 없으면 프레임 스킵
                 dataQualityStats["skippedFrames"]++;
                 return null;
             }
@@ -842,7 +836,7 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Vector3 originalPos = new Vector3(lm.x, lm.y, lm.z);
             Vector3 newPos = inverseRotation * (originalPos - origin);
-
+            newPos.x *= -1;
             transformed.Add(new SimpleLandmark
             {
                 x = newPos.x,
