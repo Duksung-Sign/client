@@ -5,27 +5,20 @@ using UnityEngine;
 public class PlayerStats : MonoBehaviour
 {
     [Header("Character Info")]
-    public string playerName = "¹Ì¿À";
+    public string playerName = "ë¯¸ì˜¤";
     public Sprite playerPortrait;
 
     [Header("Character Stats")]
     public int maxHP = 30;
     public int attackPower = 10;
     public int defense = 5;
-    public string[] availableSkills = { "±âº» °ø°Ý 1" };
-
-    void Awake()
-    {
-        if (PlayerStatsManager.Instance != null)
-            PlayerStatsManager.Instance.RegisterBaseStats(this);
-    }
+    public string[] availableSkills = { "ê¸°ë³¸ ê³µê²© 1" };
 
     public Sprite GetPlayerPortrait()
     {
         return playerPortrait;
     }
 
-    // ÇÃ·¹ÀÌ¾î ÀÌ¸§ °¡Á®¿À±â
     public string GetPlayerName()
     {
         return playerName;
