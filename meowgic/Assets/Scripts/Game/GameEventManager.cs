@@ -28,6 +28,7 @@ public class GameEventManager : MonoBehaviour
     public event Action<string, string> OnDialogueStarted;
     public event Action<string, string> OnDialogueFinished;
     public event Action<string, string> OnKeyEvent;
+    public event Action<string, string> OnBattleOver;
 
 
     public void TriggerGameStateChanged(GameState newState) => OnGameStateChanged?.Invoke(newState);
@@ -49,4 +50,7 @@ public class GameEventManager : MonoBehaviour
         => OnDialogueFinished?.Invoke("DIALOGUE_FINISHED", dialogueID);
 
     public void TriggerKeyEvent(string type, string id) => OnKeyEvent?.Invoke(type, id);
+
+    public void TriggerBattleOver(string battleID)
+    => OnBattleOver?.Invoke("BATTLE_OVER", battleID);
 }
