@@ -1,58 +1,12 @@
 using UnityEngine;
 using System.Collections;
-using System.Collections.Generic;
-
-public enum TutorialState
-{
-    None,
-    Intro,
-    PromptAttack,
-    PromptGesture,
-    Complete
-}
-
-public enum BattleEvent
-{
-    TutorialStart,
-    PlayerTurnStarted,
-    PlayerSkillSelected,
-    PlayerAttackSuccess,
-    PlayerAttackFail
-}
 
 public class BattleTutorialController : MonoBehaviour
 {
+    private enum TutorialState { None, Intro, PromptAttack, PromptGesture, Complete }
     private TutorialState currentState = TutorialState.None;
     private bool isTutorialActive = false;
-    private Coroutine currentTutorialCoroutine;
 
-    // 튜토리얼 대화 ID들
-    private readonly string[] tutorialDialogueIDs = {
-        "battle_tutorial_001", // "전투가 시작되면..."
-        "battle_tutorial_002", // "먼저 공격하기를..."
-        "battle_tutorial_003", // "묘어에서 가장 중요한..."
-        "battle_tutorial_004", // "좋아. 잘했어!"
-        "battle_tutorial_008", // "이런! 말하는 사이에..."
-        "battle_tutorial_009", // "공격에 실패하면..."
-        "battle_tutorial_010", // "다시 한 번 공격해보자."
-        "battle_tutorial_011"  // "정말 잘했어!"
-    };
-
-    // 튜토리얼 메시지 백업 (DialogueManager 없을 때)
-    private readonly Dictionary<string, string> tutorialMessages =
-        new Dictionary<string, string>
-    {
-        {"battle_tutorial_001", "전투가 시작되었습니다! 공격 버튼을 눌러보세요."},
-        {"battle_tutorial_002", "먼저 공격하기 버튼을 클릭하여 스킬을 선택하세요."},
-        {"battle_tutorial_003", "이제 선택한 스킬에 맞는 제스처를 취해보세요!"},
-        {"battle_tutorial_004", "좋아요! 공격에 성공했습니다!"},
-        {"battle_tutorial_008", "이런! 몬스터가 공격해왔네요."},
-        {"battle_tutorial_009", "공격에 실패하면 몬스터가 반격합니다."},
-        {"battle_tutorial_010", "다시 한 번 공격해보세요."},
-        {"battle_tutorial_011", "정말 잘했어요! 튜토리얼 완료!"}
-    };
-
-    // [REFACTORED] Awake에서 이벤트 구독
     void Awake()
     {
         if (BattleEventManager.Instance != null)
@@ -61,207 +15,92 @@ public class BattleTutorialController : MonoBehaviour
         }
     }
 
-    // [REFACTORED] OnDestroy에서 구독 해제
     void OnDestroy()
     {
         if (BattleEventManager.Instance != null)
         {
             BattleEventManager.Instance.OnBattleEvent -= OnBattleEventReceived;
         }
-
-        if (currentTutorialCoroutine != null)
-        {
-            StopCoroutine(currentTutorialCoroutine);
-        }
     }
 
     void Start()
     {
-        StartCoroutine(InitializeTutorial());
+        // GameManager에서 현재 전투가 튜토리얼인지 확인
+        // string battleType = GameManager.Instance?.GetCurrentBattleType(); 
+        // if (battleType == "tutorial")
+        // {
+        //     isTutorialActive = true;
+        //     BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.TutorialStart);
+        // }
+
+        // 위 코드는 GameManager에 GetCurrentBattleType()이 있다는 가정 하의 예시입니다.
+        // 지금은 임시로 활성화합니다.
+        isTutorialActive = true;
+        BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.TutorialStart);
     }
 
-    private IEnumerator InitializeTutorial()
-    {
-        // 컴포넌트 초기화 대기
-        yield return new WaitForEndOfFrame();
-
-        // [REFACTORED] 다른 매니저들을 직접 찾지 않음
-        // 튜토리얼 여부 확인
-        string dialogueID = GameManager.Instance?.GetCurrentBattleDialogueID();
-        if (dialogueID == "battle_tutorial")
-        {
-            isTutorialActive = true;
-            Debug.Log("튜토리얼 모드 활성화");
-            // [REFACTORED] BattleManager에 직접 이벤트를 보내는 대신 방송국에 방송
-            BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.TutorialStart);
-        }
-        else
-        {
-            currentState = TutorialState.Complete;
-            Debug.Log("일반 전투 모드");
-        }
-    }
-
-    // [REFACTORED] 이제 이 메서드는 오직 이벤트에 의해 호출됨
     public void OnBattleEventReceived(BattleEventType receivedEvent)
     {
-        if (!isTutorialActive || currentState == TutorialState.Complete)
-        {
-            return;
-        }
+        if (!isTutorialActive || currentState == TutorialState.Complete) return;
 
         Debug.Log($"튜토리얼 이벤트 수신: {receivedEvent}, 현재 상태: {currentState}");
 
         switch (currentState)
         {
-            case TutorialState.None:
-                HandleNoneState(receivedEvent);
+            case TutorialState.None when receivedEvent == BattleEventType.TutorialStart:
+                StartCoroutine(TutorialSequence());
                 break;
 
-            case TutorialState.PromptAttack:
-                HandlePromptAttackState(receivedEvent);
+            case TutorialState.PromptAttack when receivedEvent == BattleEventType.PlayerSkillSelected:
+                currentState = TutorialState.PromptGesture;
+                ShowTutorialDialogue("battle_tutorial_003"); // "제스처를 취해보세요!"
                 break;
 
-            case TutorialState.PromptGesture:
-                HandlePromptGestureState(receivedEvent);
+            case TutorialState.PromptGesture when receivedEvent == BattleEventType.PlayerAttackSuccess:
+                ShowTutorialDialogue("battle_tutorial_004"); // "좋아. 잘했어!"
+                CompleteTutorial();
+                break;
+
+            case TutorialState.PromptGesture when receivedEvent == BattleEventType.PlayerAttackFail:
+                ShowTutorialDialogue("battle_tutorial_009"); // "공격에 실패하면..."
+                currentState = TutorialState.PromptAttack;
                 break;
         }
     }
 
-    private void HandleNoneState(BattleEventType receivedEvent)
+    private IEnumerator TutorialSequence()
     {
-        if (receivedEvent == BattleEventType.TutorialStart)
-        {
-            ShowTutorialDialogue("battle_tutorial_001");
-            currentState = TutorialState.PromptAttack;
-            Debug.Log("튜토리얼 시작됨");
-        }
+        currentState = TutorialState.Intro;
+        ShowTutorialDialogue("battle_tutorial_001"); // "전투가 시작되면..."
+
+        // 대화가 끝날 때까지 대기
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+
+        currentState = TutorialState.PromptAttack;
+        ShowTutorialDialogue("battle_tutorial_002"); // "먼저 공격하기를..."
     }
 
-    private void HandlePromptAttackState(BattleEventType receivedEvent)
-    {
-        if (receivedEvent == BattleEventType.PlayerTurnStarted)
-        {
-            ShowTutorialDialogue("battle_tutorial_002");
-        }
-        else if (receivedEvent == BattleEventType.PlayerSkillSelected)
-        {
-            // [REFACTORED] UIManager를 직접 제어하지 않음 (필요 시 빈 메시지를 보내 숨길 수 있음)
-            BattleEventManager.Instance.RequestShowTutorialMessage("");
-            currentState = TutorialState.PromptGesture;
-            Debug.Log("제스처 단계로 전환");
-
-            // 이전 코루틴 정리
-            if (currentTutorialCoroutine != null)
-            {
-                StopCoroutine(currentTutorialCoroutine);
-            }
-
-            currentTutorialCoroutine = StartCoroutine(MonitorGestureProgress());
-        }
-    }
-
-    private void HandlePromptGestureState(BattleEventType receivedEvent)
-    {
-        if (receivedEvent == BattleEventType.PlayerAttackSuccess)
-        {
-            // 코루틴 정리
-            if (currentTutorialCoroutine != null)
-            {
-                StopCoroutine(currentTutorialCoroutine);
-                currentTutorialCoroutine = null;
-            }
-
-            // [REFACTORED] UIManager를 직접 호출하는 대신 방송국에 요청
-            BattleEventManager.Instance.RequestUpdateStatus("");
-            ShowTutorialDialogue("battle_tutorial_004"); // "좋아. 잘했어!"
-            currentState = TutorialState.Complete;
-            isTutorialActive = false;
-            Debug.Log("튜토리얼 완료!");
-        }
-        else if (receivedEvent == BattleEventType.PlayerAttackFail)
-        {
-            // 코루틴 정리
-            if (currentTutorialCoroutine != null)
-            {
-                StopCoroutine(currentTutorialCoroutine);
-                currentTutorialCoroutine = null;
-            }
-
-            // [REFACTORED] UIManager를 직접 호출하는 대신 방송국에 요청
-            BattleEventManager.Instance.RequestUpdateStatus("");
-            ShowTutorialDialogue("battle_tutorial_009"); // "공격에 실패하면..."
-            currentState = TutorialState.PromptAttack;
-            Debug.Log("공격 실패 - 다시 공격 단계로");
-        }
-    }
-
+    // [REFACTORED] 이 함수는 이제 DialogueManager에 직접 명령합니다.
     private void ShowTutorialDialogue(string dialogueID)
     {
-        string message = null;
-
         if (DialogueManager.Instance != null)
         {
-            message = DialogueManager.Instance.GetDialogueText(dialogueID);
+            // DialogueManager에게 직접 대화 시작을 '명령'합니다.
+            // 더 이상 내부 데이터를 가져올 필요가 없습니다.
+            DialogueManager.Instance.StartDialogue(dialogueID);
         }
-
-        if (string.IsNullOrEmpty(message) && tutorialMessages.TryGetValue(dialogueID, out string backupMessage))
+        else
         {
-            message = backupMessage;
+            Debug.LogError("[BattleTutorialController] DialogueManager.Instance가 없습니다!");
         }
-
-        if (string.IsNullOrEmpty(message))
-        {
-            message = $"튜토리얼 단계: {dialogueID}";
-            Debug.LogWarning($"튜토리얼 메시지를 찾을 수 없음: {dialogueID}");
-        }
-
-        BattleEventManager.Instance.RequestShowTutorialMessage(message);
-        Debug.Log($"튜토리얼 메시지 표시: {message}");
     }
 
-    private IEnumerator MonitorGestureProgress()
+    private void CompleteTutorial()
     {
-        ShowTutorialDialogue("battle_tutorial_003");
-        yield return new WaitForSeconds(2.5f);
-
-        // [REFACTORED] BattleManager에 직접 호출하는 대신 이벤트로 요청
-        BattleEventManager.Instance.RequestStartGestureRecognition();
-        Debug.Log("제스처 인식 시작 요청됨");
-
-        // HolisticJsonSender 모니터링은 해당 컴포넌트가 이벤트를 방송하도록 변경되어야 함
-        // 현재는 간단히 대기 시간만 설정
-        yield return new WaitForSeconds(5f);
-        Debug.Log("제스처 모니터링 완료");
-    }
-
-    // 외부에서 튜토리얼 강제 완료
-    public void CompleteTutorial()
-    {
-        if (currentTutorialCoroutine != null)
-        {
-            StopCoroutine(currentTutorialCoroutine);
-            currentTutorialCoroutine = null;
-        }
-
         currentState = TutorialState.Complete;
         isTutorialActive = false;
-        // [REFACTORED] UIManager를 직접 호출하는 대신 방송국에 요청
-        BattleEventManager.Instance.RequestShowTutorialMessage("");
-        Debug.Log("튜토리얼 강제 완료");
-    }
-
-    // 디버그용
-    public void SkipToNextStep()
-    {
-        switch (currentState)
-        {
-            case TutorialState.PromptAttack:
-                OnBattleEventReceived(BattleEventType.PlayerSkillSelected);
-                break;
-            case TutorialState.PromptGesture:
-                OnBattleEventReceived(BattleEventType.PlayerAttackSuccess);
-                break;
-        }
+        Debug.Log("튜토리얼 완료!");
+        // 튜토리얼 완료 상태를 GameDataManager에 저장할 수 있습니다.
+        // GameDataManager.Instance.SetTutorialCompleted("battle");
     }
 }
