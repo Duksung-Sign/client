@@ -55,14 +55,7 @@ public class ItemUIManager : MonoBehaviour
         descriptionText.text = description;
         descriptionUI.SetActive(true);
 
-        // 위치 설정
         UpdateUIPosition();
-
-        // 게임 상태 변경 (필요한 경우)
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(true);
-        }
     }
 
     public void ShowItemDescription(string description)
@@ -77,12 +70,6 @@ public class ItemUIManager : MonoBehaviour
             descriptionUI.SetActive(false);
 
         currentTarget = null;
-
-        // 게임 상태 복원
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(false);
-        }
     }
 
     void UpdateUIPosition()
@@ -92,11 +79,10 @@ public class ItemUIManager : MonoBehaviour
         Vector3 worldPosition = currentTarget.position + worldOffset;
         descriptionCanvas.transform.position = worldPosition;
 
-        // 카메라를 향하도록 회전 (빌보드 효과)
         if (mainCamera != null)
         {
             Vector3 directionToCamera = mainCamera.transform.position - descriptionCanvas.transform.position;
-            directionToCamera.y = 0; // Y축 회전만 허용
+            directionToCamera.y = 0; 
 
             if (directionToCamera != Vector3.zero)
             {
@@ -107,13 +93,11 @@ public class ItemUIManager : MonoBehaviour
 
     void Update()
     {
-        // UI 위치 업데이트 (타겟을 따라다니는 경우)
         if (followTarget && currentTarget != null && descriptionUI.activeInHierarchy)
         {
             UpdateUIPosition();
         }
 
-        // 입력 처리
         if (descriptionUI != null && descriptionUI.activeInHierarchy)
         {
             if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Escape))
@@ -123,22 +107,18 @@ public class ItemUIManager : MonoBehaviour
         }
     }
 
-    // 화면 좌표 기반으로 띄우는 방법 (대안)
     public void ShowItemDescriptionAtScreenPosition(string description, Vector3 worldPosition)
     {
         if (descriptionUI == null || descriptionText == null || mainCamera == null) return;
 
-        // 월드 좌표를 스크린 좌표로 변환
         Vector3 screenPosition = mainCamera.WorldToScreenPoint(worldPosition + worldOffset);
 
-        // 화면 밖으로 나가지 않도록 클램프
         screenPosition.x = Mathf.Clamp(screenPosition.x, 100, Screen.width - 100);
         screenPosition.y = Mathf.Clamp(screenPosition.y, 100, Screen.height - 100);
 
         descriptionText.text = description;
         descriptionUI.SetActive(true);
 
-        // UI를 스크린 좌표로 위치 설정 (Screen Space Overlay 캔버스용)
         RectTransform rectTransform = descriptionUI.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
