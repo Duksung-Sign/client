@@ -138,7 +138,9 @@ public class MonsterController : MonoBehaviour, IInteractable
         rb.velocity = direction * MoveSpeed;
         if (direction.x != 0)
         {
-            transform.localScale = new Vector3(Mathf.Sign(direction.x), 1, 1);
+            float newXScale = Mathf.Abs(transform.localScale.x);
+            newXScale *= Mathf.Sign(direction.x);
+            transform.localScale = new Vector3(newXScale, transform.localScale.y, transform.localScale.z);
         }
     }
 
