@@ -145,8 +145,8 @@ public class HolisticJsonSender : MonoBehaviour
 
 
     private readonly int[] poseKeyIndices = {
-        11, 12, 13, 14, 15, 16, 23, 24, 
-        24 
+        11, 12, 13, 14, 15, 16, 23, 24,
+        24
     };
 
     void Start()
@@ -766,6 +766,12 @@ public class HolisticJsonSender : MonoBehaviour
     {
         try
         {
+            if (!TryNormalizeUpperBodyData(currentFrame.pose, ref currentFrame.leftHand, ref currentFrame.rightHand, ref currentFrame.faceKey))
+            {
+                Debug.LogWarning("데이터 정규화 실패. 해당 프레임을 건너뜁니다.");
+                return null; 
+            }
+
             var flattened = new List<float>();
 
             AddAllLandmarkData(flattened, currentFrame.leftHand, 21);
@@ -798,6 +804,56 @@ public class HolisticJsonSender : MonoBehaviour
             return new List<float>(new float[244]);
         }
     }
+
+    private bool TryNormalizeUpperBodyData(
+        List<SimpleLandmark> pose,
+        ref List<SimpleLandmark> leftHand,
+        ref List<SimpleLandmark> rightHand,
+        ref List<SimpleLandmark> face)
+    {
+        if (pose == null || pose.Count < 9) return false;
+
+        var leftShoulder = new Vector3(pose[0].x, pose[0].y, pose[0].z);
+        var rightShoulder = new Vector3(pose[1].x, pose[1].y, pose[1].z);
+
+        Vector3 origin = (leftShoulder + rightShoulder) / 2f; 
+        Vector3 shoulderVec = (rightShoulder - leftShoulder).normalized; 
+
+        Vector3 forward = Vector3.Cross(shoulderVec, Vector3.up).normalized; 
+        Vector3 up = Vector3.Cross(forward, shoulderVec).normalized; 
+
+        if (forward == Vector3.zero || up == Vector3.zero) return false;
+        Quaternion torsoRotation = Quaternion.LookRotation(forward, up);
+
+        if (leftHand != null) leftHand = TransformLandmarks(leftHand, origin, torsoRotation);
+        if (rightHand != null) rightHand = TransformLandmarks(rightHand, origin, torsoRotation);
+        if (face != null) face = TransformLandmarks(face, origin, torsoRotation);
+        if (pose != null) pose = TransformLandmarks(pose, origin, torsoRotation);
+
+        return true;
+    }
+
+    private List<SimpleLandmark> TransformLandmarks(List<SimpleLandmark> original, Vector3 origin, Quaternion rotation)
+    {
+        var transformed = new List<SimpleLandmark>(original.Count);
+        Quaternion inverseRotation = Quaternion.Inverse(rotation);
+
+        foreach (var lm in original)
+        {
+            Vector3 originalPos = new Vector3(lm.x, lm.y, lm.z);
+            Vector3 newPos = inverseRotation * (originalPos - origin);
+
+            transformed.Add(new SimpleLandmark
+            {
+                x = newPos.x,
+                y = newPos.y,
+                z = newPos.z,
+                visibility = lm.visibility
+            });
+        }
+        return transformed;
+    }
+
 
     private void AddAllLandmarkData(List<float> flattened, List<SimpleLandmark> landmarks, int count)
     {
@@ -867,10 +923,10 @@ public class HolisticJsonSender : MonoBehaviour
         if (hand != null && hand.Count == 21)
         {
             int[][] fingerIndices = {
-                new int[] { 5, 6, 7, 8 },    
-                new int[] { 9, 10, 11, 12 }, 
+                new int[] { 5, 6, 7, 8 },
+                new int[] { 9, 10, 11, 12 },
                 new int[] { 13, 14, 15, 16 },
-                new int[] { 17, 18, 19, 20 } 
+                new int[] { 17, 18, 19, 20 }
             };
 
             foreach (var finger in fingerIndices)
@@ -1069,7 +1125,7 @@ public class HolisticJsonSender : MonoBehaviour
                     else
                     {
                         Debug.LogError($"프레임 {i}가 null!");
-                        sequenceArray[i] = new float[244]; 
+                        sequenceArray[i] = new float[244];
                     }
                 }
             }
