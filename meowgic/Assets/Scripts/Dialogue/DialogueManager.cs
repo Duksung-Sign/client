@@ -292,6 +292,8 @@ public class DialogueManager : MonoBehaviour
     private bool isShowingItemDescription = false;
     private bool blockInput = false;
 
+    private bool advanceLocked = false;
+
     // 조건 체크 함수들
     private Dictionary<string, Func<string, string, bool>> conditionCheckers;
 
@@ -342,6 +344,8 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        if (advanceLocked) return;
+
         if (isInDialogue && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
         {
             if (isTyping && skipTypingOnInput)
@@ -384,6 +388,12 @@ public class DialogueManager : MonoBehaviour
             Debug.Log($"[DialogueManager] 대화 라인: {dialogueLines.Count}개");
             Debug.Log($"[DialogueManager] 대화 세트: {dialogueSets.Count}개");
         }
+    }
+
+    public void setAdvanceLocked(bool locked)
+    {
+        advanceLocked = locked;
+        Debug.Log("대화창 일시정지");
     }
 
     // ===== CSV 데이터 로드 =====
