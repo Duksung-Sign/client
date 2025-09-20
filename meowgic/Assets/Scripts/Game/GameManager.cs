@@ -70,19 +70,38 @@ public class GameManager : MonoBehaviour
     {
         isPaused = paused;
         UpdatePlayerMovement();
+        updateDialogState(paused);
+        Debug.Log($"일시정지 상태: {(isPaused ? "시작" : "종료")}");
 
         // 일시정지 시 시간도 멈춤
         Time.timeScale = paused ? 0f : 1f;
+
+    }
+
+    // 대화창 정지/해제
+    public void updateDialogState(bool locked)
+    {
+        var dm = FindObjectOfType<DialogueManager>();
+        dm.setAdvanceLocked(locked);
     }
 
     // 플레이어 이동 가능 여부 업데이트
     void UpdatePlayerMovement()
     {
-        if (Player != null)
+        if (Player == null) AutoRegisterPlayer();
+
+        // 대화 중이거나 메뉴 중이거나 일시정지 중이면 이동 불가
+        bool canMove = !isInDialogue && !isInMenu && !isPaused;
+        Player.SetCanMove(canMove);
+    }
+
+    void AutoRegisterPlayer()
+    {
+        if (Player == null)
         {
-            // 대화 중이거나 메뉴 중이거나 일시정지 중이면 이동 불가
-            bool canMove = !isInDialogue && !isInMenu && !isPaused;
-            Player.SetCanMove(canMove);
+            var pc = FindObjectOfType<PlayerController>(); // 비활성은 못 찾음(보통 OK)
+            if (pc != null) RegisterPlayer(pc);
+            else Debug.Log("[GM] Player 미발견(이 씬에 없을 수 있음).");
         }
     }
 
