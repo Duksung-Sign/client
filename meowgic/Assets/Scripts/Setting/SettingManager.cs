@@ -3,52 +3,136 @@ using UnityEngine.EventSystems;
 
 public class SettingsManager : MonoBehaviour
 {
-    public GameObject settingsUI;    // Canvas 루트
-    public GameObject firstSelected;
+    [Header("Assign in Inspector")]
+    [SerializeField] private GameObject settingsPrefab;          // ✅ 프리팹(설계도)
+    [SerializeField] private GameObject firstSelectedOverride;   // 선택 사항: 강제로 첫 포커스 줄 UI
+    [SerializeField] private GameManager gameManager;            // 선택 사항: 있으면 일시정지 위임
+    [SerializeField] private bool openBlocked = false;
 
-    public SettingsController controller;
+    private GameObject settingsUIInstance;   // ✅ 런타임 인스턴스
+    private SettingsController controller;
 
-    bool isOpen = false;
+    private bool isOpen = false;
 
     void Awake()
     {
         DontDestroyOnLoad(gameObject);
-
-        // 1)첫 로딩 시 비활성화 처리
-        settingsUI.SetActive(false);  // ESC 전까지 완전 비활성(렌더X, 클릭X)
-
-        // (선택) 설정값만 로드해서 적용하고 싶으면 여기서 호출
-        // GetComponent<SettingsController>()?.LoadAndApplyAll();
+        EnsureEventSystemExists();
+        // 미리 만들어 숨겨두고 싶다면 ↓ 주석 해제
+        // CreateUIIfNeeded();
     }
 
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
-            Toggle();
+        {
+            if (isOpen) Close();
+            else if (!openBlocked) Open();   // ★ 차단 중이면 무시
+        }
     }
 
     public void Toggle()
     {
-        isOpen = !isOpen;
-        if (isOpen) ShowUI();
-        else settingsUI.SetActive(false);
-        PauseOrResume(isOpen);
+        if (isOpen) Close();
+        else if (!openBlocked) Open();       // ★ 차단 중이면 열지 않음
     }
 
-    void ShowUI()
+    public void Open()
     {
-        // ★ 열릴 때 UI를 저장된 값으로 맞춰둔다
-        if (controller != null) controller.RefreshUIFromPrefsOnly();
-        
-        settingsUI.SetActive(true);
+        if (openBlocked)                    // ★ 방어적 체크(직접 Open 호출 대비)
+        {
+            Debug.Log("[SettingsManager] Open blocked.");
+            return;
+        }
 
-        //canvasGroup.alpha = 1f;
-        //canvasGroup.interactable = true;
-        //canvasGroup.blocksRaycasts = true;
-        EventSystem.current?.SetSelectedGameObject(firstSelected);
+        CreateUIIfNeeded();
+        if (settingsUIInstance == null) return;
+
+        controller?.RefreshUIFromPrefsOnly();
+        settingsUIInstance.SetActive(true);
+        SetFirstSelected();
+        isOpen = true;
+
+        if (gameManager != null) gameManager.SetPauseState(true);
+        else PauseOrResume(true);
     }
 
-    void PauseOrResume(bool pause)
+    public void Close()
+    {
+        if (!isOpen || settingsUIInstance == null) return;
+
+        settingsUIInstance.SetActive(false);
+        isOpen = false;
+
+        if (gameManager != null) gameManager.SetPauseState(false);
+        else PauseOrResume(false);
+    }
+
+    // 외부에서 켜고 끄기 쉽게 메서드 제공
+    public void SetOpenBlocked(bool blocked)
+    {
+        openBlocked = blocked;
+        // 막는 순간 이미 열려 있으면 닫아주기(원치 않으면 이 줄 삭제)
+        if (blocked && isOpen) Close();
+    }
+
+    // 필요할 때만 프리팹을 인스턴스화
+    private void CreateUIIfNeeded()
+    {
+        if (settingsUIInstance != null) return;
+
+        if (settingsPrefab == null)
+        {
+            Debug.LogError("[SettingsManager] settingsPrefab이 비어있습니다.");
+            return;
+        }
+
+        settingsUIInstance = Instantiate(settingsPrefab);
+        DontDestroyOnLoad(settingsUIInstance);
+
+        controller = settingsUIInstance.GetComponent<SettingsController>();
+        settingsUIInstance.SetActive(false);
+
+        // 🔸 항상 맨 앞에 보이도록: 자체 Canvas + 높은 정렬
+        var canvas = settingsUIInstance.GetComponent<Canvas>();
+        if (canvas == null) canvas = settingsUIInstance.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay; // 가장 앞 레이어
+        canvas.overrideSorting = true;                     // 부모 정렬 무시
+        canvas.sortingOrder = 9999;                        // 충분히 높은 값
+
+        // UI 클릭 가능하게
+        if (settingsUIInstance.GetComponent<UnityEngine.UI.GraphicRaycaster>() == null)
+            settingsUIInstance.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+    }
+
+    // 첫 포커스 지정(override > 컨트롤러의 firstSelected 순)
+    private void SetFirstSelected()
+    {
+        GameObject target = firstSelectedOverride;
+        if (target == null && controller != null) target = controller.firstSelected;
+
+        if (EventSystem.current != null && target != null)
+        {
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(target);
+        }
+    }
+
+    private void EnsureEventSystemExists()
+    {
+        if (EventSystem.current != null) return;
+
+        var es = new GameObject("EventSystem");
+        es.AddComponent<EventSystem>();
+#if ENABLE_INPUT_SYSTEM
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+#else
+        es.AddComponent<StandaloneInputModule>();
+#endif
+        DontDestroyOnLoad(es);
+    }
+
+    private void PauseOrResume(bool pause)
     {
         Time.timeScale = pause ? 0f : 1f;
         AudioListener.pause = pause;
@@ -56,41 +140,15 @@ public class SettingsManager : MonoBehaviour
         Cursor.lockState = pause ? CursorLockMode.None : CursorLockMode.Locked;
     }
 
-//#if ENABLE_INPUT_SYSTEM
-//    using UnityEngine.InputSystem;
-//#endif
-
-//    void PauseOrResume(bool pause)
-//    {
-//        if (pause)
-//        {
-//            // === 일시정지 ===
-//            Time.timeScale = 0f;
-//            AudioListener.pause = true;
-
-//            Cursor.visible = true;
-//            Cursor.lockState = CursorLockMode.None;
-
-//            // ★ InputSystem 액션맵 전환
-//#if ENABLE_INPUT_SYSTEM
-//                var pi = FindObjectOfType<PlayerInput>();
-//                if (pi) pi.SwitchCurrentActionMap("UI");   // UI용 액션맵으로 전환
-//#endif
-//        }
-//        else
-//        {
-//            // === 재개 ===
-//            Time.timeScale = 1f;
-//            AudioListener.pause = false;
-
-//            Cursor.visible = false;
-//            Cursor.lockState = CursorLockMode.Locked;
-
-//            // ★ InputSystem 액션맵 전환 복귀
-//#if ENABLE_INPUT_SYSTEM
-//                var pi = FindObjectOfType<PlayerInput>();
-//                if (pi) pi.SwitchCurrentActionMap("Gameplay"); // 다시 게임용 액션맵으로 전환
-//#endif
-//        }
-//    }
+    // 선택: 닫을 때 UI를 아예 없애고 싶다면 이 메서드 사용
+    public void CloseAndDestroy()
+    {
+        Close();
+        if (settingsUIInstance != null)
+        {
+            Destroy(settingsUIInstance);
+            settingsUIInstance = null;
+            controller = null;
+        }
+    }
 }
