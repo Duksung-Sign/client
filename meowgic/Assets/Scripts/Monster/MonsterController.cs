@@ -24,6 +24,11 @@ public class MonsterController : MonoBehaviour, IInteractable
 
     public enum MonsterState { Idle, Patrol, Chase, Return }
 
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+    }
+
     void Start()
     {
         Initialize();
@@ -47,7 +52,6 @@ public class MonsterController : MonoBehaviour, IInteractable
         }
 
         initialPosition = transform.position;
-        rb = GetComponent<Rigidbody2D>();
         var playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null) player = playerObj.transform;
 
