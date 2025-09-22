@@ -89,6 +89,7 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnItemCollected += HandleGameEvent;
             GameEventManager.Instance.OnItemInspected += HandleGameEvent;
             GameEventManager.Instance.OnDialogueFinished += HandleGameEvent;
+            GameEventManager.Instance.OnBattleOver += HandleGameEvent;
         }
     }
 
@@ -99,6 +100,7 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnItemCollected -= HandleGameEvent;
             GameEventManager.Instance.OnItemInspected -= HandleGameEvent;
             GameEventManager.Instance.OnDialogueFinished -= HandleGameEvent;
+            GameEventManager.Instance.OnBattleOver -= HandleGameEvent;
         }
     }
 

@@ -24,6 +24,7 @@ public class BattleEventManager : MonoBehaviour
     public event Action<string> OnRequestShowTutorialMessage;
     public event Action<string> OnRequestShowCharacterDialogue;
     public event Action<string> OnRequestUpdateStatus;
+    public event Action<BattleState> OnBattleStateChanged;
 
     public event Action<bool> OnRequestShowMainUI;
     public event Action<bool> OnRequestShowSkillPanel;
@@ -45,32 +46,11 @@ public class BattleEventManager : MonoBehaviour
     public void RequestShowTutorialMessage(string message) => OnRequestShowTutorialMessage?.Invoke(message);
     public void RequestStartGestureRecognition() => OnRequestStartGestureRecognition?.Invoke();
 
+    public void TriggerBattleStateChanged(BattleState newState) => OnBattleStateChanged?.Invoke(newState);
+
     public void TriggerBattleEvent(BattleEventType eventType)
     {
         Debug.Log($"전투 이벤트 발생: {eventType}");
         OnBattleEvent?.Invoke(eventType);
     }
-}
-
-public enum BattleEventType
-{
-    BattleStarted,
-    BattleVictory,
-    BattleDefeat,
-    BattleEscaped,
-
-    PlayerTurnStarted,
-    MonsterTurnStarted,
-
-    PlayerAttackRequested,
-    PlayerSkillSelected,
-    PlayerAttemptEscape,
-
-    GestureRecognitionStarted,
-
-    PlayerAttackSuccess,
-    PlayerAttackFail,
-    MonsterAttack,
-
-    TutorialStart
 }
