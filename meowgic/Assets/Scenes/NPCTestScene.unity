@@ -507,6 +507,35 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 12, y: 11.38}
   m_EdgeRadius: 0
+--- !u!1 &593938289 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 223136225978605355, guid: afff9046478b8a44dadc6aec73b275f1, type: 3}
+  m_PrefabInstance: {fileID: 1109670411806394721}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &593938292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 593938289}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d8243971307b95489fc2b5d7891fc80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &593938293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 593938289}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24bfcef36697cca46bf07133cf5cfcab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &602147274 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7162506081562818631, guid: 2b17750b0c420864e82d1dc0bd56a90e, type: 3}
@@ -683,6 +712,10 @@ PrefabInstance:
     - target: {fileID: 3426493489570977074, guid: 231a6213eca1e8445bfb21b2ac49fc11, type: 3}
       propertyPath: m_Name
       value: monster_test
+      objectReference: {fileID: 0}
+    - target: {fileID: 6037258150430995867, guid: 231a6213eca1e8445bfb21b2ac49fc11, type: 3}
+      propertyPath: m_IsTrigger
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -946,7 +979,13 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 223136225978605355, guid: afff9046478b8a44dadc6aec73b275f1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 593938293}
+    - targetCorrespondingSourceObject: {fileID: 223136225978605355, guid: afff9046478b8a44dadc6aec73b275f1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 593938292}
   m_SourcePrefab: {fileID: 100100000, guid: afff9046478b8a44dadc6aec73b275f1, type: 3}
 --- !u!1001 &3704597660102927074
 PrefabInstance:
