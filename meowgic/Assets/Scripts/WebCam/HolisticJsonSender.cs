@@ -145,8 +145,8 @@ public class HolisticJsonSender : MonoBehaviour
 
 
     private readonly int[] poseKeyIndices = {
-        11, 12, 13, 14, 15, 16, 23, 24, 
-        24 
+        11, 12, 13, 14, 15, 16, 23, 24,
+        24
     };
 
     void Start()
@@ -321,31 +321,26 @@ public class HolisticJsonSender : MonoBehaviour
                 time = DateTimeOffset.Now.ToUnixTimeMilliseconds()
             };
 
-            // 현재 프레임 데이터 추출
             var poseData = FindPoseDataSafely();
             var leftHandData = FindLeftHandDataSafely();
             var rightHandData = FindRightHandDataSafely();
             var faceData = FindFaceDataSafely();
 
-            // 데이터 유효성 검사
             bool poseValid = IsValidPoseData(poseData);
             bool leftHandValid = IsValidHandData(leftHandData);
             bool rightHandValid = IsValidHandData(rightHandData);
             bool faceValid = IsValidFaceData(faceData);
 
-            // 유효한 데이터 캐싱
             if (poseValid) lastValidPose = new List<SimpleLandmark>(poseData);
             if (leftHandValid) lastValidLeftHand = new List<SimpleLandmark>(leftHandData);
             if (rightHandValid) lastValidRightHand = new List<SimpleLandmark>(rightHandData);
             if (faceValid) lastValidFace = new List<SimpleLandmark>(faceData);
 
-            // 데이터 할당
             frame.pose = GetBestAvailablePoseData(poseData, poseValid);
             frame.leftHand = GetBestAvailableHandData(leftHandData, leftHandValid, true);
             frame.rightHand = GetBestAvailableHandData(rightHandData, rightHandValid, false);
             frame.faceKey = GetBestAvailableFaceData(faceData, faceValid);
 
-            // 통계 업데이트
             bool hasValidData = leftHandValid || rightHandValid || poseValid || faceValid;
 
             if (hasValidData)
@@ -361,7 +356,6 @@ public class HolisticJsonSender : MonoBehaviour
             }
             else
             {
-                // 너무 오래 유효한 데이터가 없으면 프레임 스킵
                 dataQualityStats["skippedFrames"]++;
                 return null;
             }
@@ -767,7 +761,6 @@ public class HolisticJsonSender : MonoBehaviour
         try
         {
             var flattened = new List<float>();
-
             AddAllLandmarkData(flattened, currentFrame.leftHand, 21);
             AddAllLandmarkData(flattened, currentFrame.rightHand, 21);
             AddAllLandmarkData(flattened, currentFrame.pose, 9);
@@ -798,6 +791,28 @@ public class HolisticJsonSender : MonoBehaviour
             return new List<float>(new float[244]);
         }
     }
+
+    private List<SimpleLandmark> TransformLandmarks(List<SimpleLandmark> original, Vector3 origin, Quaternion rotation)
+    {
+        var transformed = new List<SimpleLandmark>(original.Count);
+        Quaternion inverseRotation = Quaternion.Inverse(rotation);
+
+        foreach (var lm in original)
+        {
+            Vector3 originalPos = new Vector3(lm.x, lm.y, lm.z);
+            Vector3 newPos = inverseRotation * (originalPos - origin);
+            newPos.x *= -1;
+            transformed.Add(new SimpleLandmark
+            {
+                x = newPos.x,
+                y = newPos.y,
+                z = newPos.z,
+                visibility = lm.visibility
+            });
+        }
+        return transformed;
+    }
+
 
     private void AddAllLandmarkData(List<float> flattened, List<SimpleLandmark> landmarks, int count)
     {
@@ -867,10 +882,10 @@ public class HolisticJsonSender : MonoBehaviour
         if (hand != null && hand.Count == 21)
         {
             int[][] fingerIndices = {
-                new int[] { 5, 6, 7, 8 },    
-                new int[] { 9, 10, 11, 12 }, 
+                new int[] { 5, 6, 7, 8 },
+                new int[] { 9, 10, 11, 12 },
                 new int[] { 13, 14, 15, 16 },
-                new int[] { 17, 18, 19, 20 } 
+                new int[] { 17, 18, 19, 20 }
             };
 
             foreach (var finger in fingerIndices)
@@ -1069,7 +1084,7 @@ public class HolisticJsonSender : MonoBehaviour
                     else
                     {
                         Debug.LogError($"프레임 {i}가 null!");
-                        sequenceArray[i] = new float[244]; 
+                        sequenceArray[i] = new float[244];
                     }
                 }
             }

@@ -24,6 +24,11 @@ public class MonsterController : MonoBehaviour, IInteractable
 
     public enum MonsterState { Idle, Patrol, Chase, Return }
 
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+    }
+
     void Start()
     {
         Initialize();
@@ -47,7 +52,6 @@ public class MonsterController : MonoBehaviour, IInteractable
         }
 
         initialPosition = transform.position;
-        rb = GetComponent<Rigidbody2D>();
         var playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null) player = playerObj.transform;
 
@@ -134,7 +138,9 @@ public class MonsterController : MonoBehaviour, IInteractable
         rb.velocity = direction * MoveSpeed;
         if (direction.x != 0)
         {
-            transform.localScale = new Vector3(Mathf.Sign(direction.x), 1, 1);
+            float newXScale = Mathf.Abs(transform.localScale.x);
+            newXScale *= Mathf.Sign(direction.x);
+            transform.localScale = new Vector3(newXScale, transform.localScale.y, transform.localScale.z);
         }
     }
 
