@@ -1,8 +1,12 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+
 
 public class SettingsManager : MonoBehaviour
 {
+    public static SettingsManager Instance { get; private set; }
+
     [Header("Assign in Inspector")]
     [SerializeField] private GameObject settingsPrefab;          // ✅ 프리팹(설계도)
     [SerializeField] private GameObject firstSelectedOverride;   // 선택 사항: 강제로 첫 포커스 줄 UI
@@ -10,16 +14,25 @@ public class SettingsManager : MonoBehaviour
     [SerializeField] private bool openBlocked = false;
 
     private GameObject settingsUIInstance;   // ✅ 런타임 인스턴스
-    private SettingsController controller;
+    private SettingsController settingController;
+    private MenuController mainMenuController;
 
     private bool isOpen = false;
 
+    [Header("Scene rules")]
+    [SerializeField] private string titleSceneName = "MainMenu";  // 타이틀 씬 이름
+    [SerializeField] private bool destroyUIOnTitle = true;      // 타이틀에서 프리팹 인스턴스 완전 파기할지
+
     void Awake()
     {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureEventSystemExists();
         // 미리 만들어 숨겨두고 싶다면 ↓ 주석 해제
         // CreateUIIfNeeded();
+
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void Update()
@@ -48,7 +61,9 @@ public class SettingsManager : MonoBehaviour
         CreateUIIfNeeded();
         if (settingsUIInstance == null) return;
 
-        controller?.RefreshUIFromPrefsOnly();
+        mainMenuController?.ShowMainMenu();
+
+        settingController?.RefreshUIFromPrefsOnly();
         settingsUIInstance.SetActive(true);
         SetFirstSelected();
         isOpen = true;
@@ -90,7 +105,10 @@ public class SettingsManager : MonoBehaviour
         settingsUIInstance = Instantiate(settingsPrefab);
         DontDestroyOnLoad(settingsUIInstance);
 
-        controller = settingsUIInstance.GetComponent<SettingsController>();
+        //settingController = settingsUIInstance.GetComponent<SettingsController>();
+        settingController = settingsUIInstance.GetComponentInChildren<SettingsController>(true);
+        mainMenuController = settingsUIInstance.GetComponentInChildren<MenuController>(true);
+
         settingsUIInstance.SetActive(false);
 
         // 🔸 항상 맨 앞에 보이도록: 자체 Canvas + 높은 정렬
@@ -109,7 +127,7 @@ public class SettingsManager : MonoBehaviour
     private void SetFirstSelected()
     {
         GameObject target = firstSelectedOverride;
-        if (target == null && controller != null) target = controller.firstSelected;
+        if (target == null && settingController != null) target = settingController.firstSelected;
 
         if (EventSystem.current != null && target != null)
         {
@@ -148,7 +166,32 @@ public class SettingsManager : MonoBehaviour
         {
             Destroy(settingsUIInstance);
             settingsUIInstance = null;
-            controller = null;
+            settingController = null;
         }
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this)
+            SceneManager.sceneLoaded -= OnSceneLoaded; // 해제
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // 타이틀 씬이면: 열기 차단 + 닫기(+원하면 파기)
+        if (!string.IsNullOrEmpty(titleSceneName) && scene.name == titleSceneName)
+        {
+            // 앞으로 열기 금지
+            SetOpenBlocked(true);
+
+            // 이미 떠 있으면 닫기/파기
+            if (destroyUIOnTitle) CloseAndDestroy();
+            else Close();
+
+            return;
+        }
+
+        // 타이틀이 아니면 다시 열 수 있게 풀어주기(필요 시)
+        SetOpenBlocked(false);
     }
 }

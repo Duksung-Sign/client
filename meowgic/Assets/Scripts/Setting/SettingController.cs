@@ -35,6 +35,14 @@ public class SettingsController : MonoBehaviour
     [SerializeField] private float okY = 0f;       // okSlot을 못 쓰면 Y값 직접 입력
     // OK 상태 여부
     [SerializeField] private bool onOk = false;
+
+    // 확인버튼
+    [Header("Back(취소) 위치 설정")]
+    [SerializeField] private bool hasBackSlot = true;
+    [SerializeField] private RectTransform backSlot; // back 버튼 RectTransform (권장)
+    [SerializeField] private float backY = 0f;       // backSlot을 못 쓰면 Y값 직접 입력
+    // OK 상태 여부
+    [SerializeField] private bool onBack = false;
     // 경계 비교 오차
     const float EPS = 0.001f;
 
@@ -96,10 +104,14 @@ public class SettingsController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)) Move(+1); // 위로
         if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)) Move(-1); // 아래로
 
-        if (!onOk)
+        if (!onOk && !onBack)
         {
-            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.A)) HandleLeftRight(+1);
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.D)) HandleLeftRight(-1);
+            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)) HandleLeftRight(+1);
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)) HandleLeftRight(-1);
+        }
+        else if(!onOk)
+        {
+            if (Input.GetKeyDown(KeyCode.Space)) OnClickBack();
         }
         else
         {
@@ -128,12 +140,21 @@ public class SettingsController : MonoBehaviour
     {
         if (leftArrow == null || rightArrow == null) return;
 
-        // 1) OK 상태일 때: 위=최상, 아래=최하로 점프
+        // 1) OK 상태일 때
         if (onOk)
         {
             onOk = false;
-            if (dir > 0) SetY(minY);
+            if (dir > 0) GoBack();
             else SetY(maxY);
+            return;
+        }
+
+        // 2) Back 상태일 떄
+        if (onBack)
+        {
+            onBack = false;
+            if (dir > 0) SetY(minY);
+            else GoOk();
             return;
         }
 
@@ -144,7 +165,7 @@ public class SettingsController : MonoBehaviour
         if (hasOkSlot)
         {
             if (dir > 0 && atTop) { GoOk(); return; }
-            if (dir < 0 && atBottom) { GoOk(); return; }
+            if (dir < 0 && atBottom) { GoBack(); return; }
         }
 
         // 3) 일반 이동 (경계 밖으로는 가지 않음)
@@ -158,6 +179,7 @@ public class SettingsController : MonoBehaviour
     private void GoOk()
     {
         onOk = true;
+        onBack = false;
 
         // OK의 목표 Y (RectTransform 있으면 그걸 우선)
         float targetY = okSlot != null ? okSlot.anchoredPosition.y : okY;
@@ -178,9 +200,36 @@ public class SettingsController : MonoBehaviour
         rightArrow.anchoredPosition = rp;
     }
 
+    private void GoBack()
+    {
+        onBack = true;
+        onOk = false;
+
+        // OK의 목표 Y (RectTransform 있으면 그걸 우선)
+        float targetY = backSlot != null ? backSlot.anchoredPosition.y : backY;
+
+        // 화살표 위치 세팅
+        var lp = leftArrow.anchoredPosition;
+        var rp = rightArrow.anchoredPosition;
+
+        //if (useCustomOkX)
+        //{
+        //    lp.x = okLeftX;
+        //    rp.x = okRightX;
+        //}
+        lp.y = targetY;
+        rp.y = targetY;
+
+        leftArrow.anchoredPosition = lp;
+        rightArrow.anchoredPosition = rp;
+    }
+
     /// <summary>절대 Y로 이동</summary>
     public void SetY(float y)
     {
+        onOk = false;
+        onBack = false;
+
         currentY = clampToBounds ? Mathf.Clamp(y, minY, maxY) : y;
         currentIndex = Mathf.RoundToInt((maxY - currentY) / stepY);
 
@@ -227,8 +276,8 @@ public class SettingsController : MonoBehaviour
         }
     }
 
-    public void ClickLeftArrow() { HandleLeftRight(-1); }
-    public void ClickRightArrow() { HandleLeftRight(+1); }
+    public void OnClickLeftArrow() { HandleLeftRight(-1); }
+    public void OnClickRightArrow() { HandleLeftRight(+1); }
 
     // === 버튼 ===
     public void OnClickConfirm()
@@ -256,6 +305,12 @@ public class SettingsController : MonoBehaviour
 
         UpdateUIFromPending();
         CloseSettings();
+    }
+
+    public void OnClickBack()
+    {
+        var menu = FindObjectOfType<MenuController>();
+        menu.ShowMainMenu();
     }
 
     // === 패널 열릴 때(UI만 저장값으로 동기화) ===
@@ -334,7 +389,6 @@ void ApplyPendingToRuntime()
         var mgr = FindObjectOfType<SettingsManager>();
         if (mgr != null) mgr.Close();
     }
-
 
     // === 표시 유틸 ===
     void UpdateResolutionLabel()
