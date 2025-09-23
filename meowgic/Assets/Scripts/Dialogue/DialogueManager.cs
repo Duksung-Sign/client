@@ -10,6 +10,7 @@ using System.Linq;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Random = UnityEngine.Random;
+using DG.Tweening;
 
 [System.Serializable]
 public class DialogueLine
@@ -56,16 +57,15 @@ public class DialogueManager : MonoBehaviour
     public TextMeshProUGUI speakerNameText;
     public ContinueIndicator continueIndicator;
     public Image leftPortrait;
-    public Image rightPortrait;
+    private CanvasGroup dialogueCanvasGroup; 
+
+    [Header("외부 데이터베이스 참조")] 
+    [SerializeField] private CharacterDatabase characterDatabase;
 
     [Header("CSV 파일 경로")]
     [SerializeField] private string dialogueLinesPath = "DialogueData/DialogueLines";
     [SerializeField] private string dialogueSetsPath = "DialogueData/DialogueSets";
     [SerializeField] private string dialogueConditionsPath = "DialogueData/DialogueConditions";
-
-    [Header("기본 초상화")]
-    public Sprite defaultPlayerPortrait;
-    public Sprite defaultNPCPortrait;
 
     [Header("타이핑 효과")]
     public float typingSpeed = 0.05f;
@@ -83,6 +83,7 @@ public class DialogueManager : MonoBehaviour
     private bool isTyping = false;
     private string fullText = "";
     private Coroutine typingCoroutine;
+    private string lastSpeakerName = "";
 
     void Update()
     {
@@ -166,6 +167,14 @@ public class DialogueManager : MonoBehaviour
 
     private void InitializeDialogueSystem()
     {
+        if (dialoguePanel != null)
+        {
+            dialogueCanvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
+            if (dialogueCanvasGroup == null)
+            {
+                dialogueCanvasGroup = dialoguePanel.AddComponent<CanvasGroup>();
+            }
+        }
         LoadDialogueData();
         InitializeConditionCheckers();
         if (dialoguePanel != null) dialoguePanel.SetActive(false);
@@ -231,13 +240,18 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        lastSpeakerName = "";
         isInDialogue = true;
         currentDialogueSetID = dialogueSetID;
         currentLineID = dialogueSets[dialogueSetID].StartLineID;
 
         GameEventManager.Instance.TriggerDialogueStarted(dialogueSetID);
-
+        
         dialoguePanel.SetActive(true);
+        dialogueCanvasGroup.DOKill(); 
+        dialogueCanvasGroup.alpha = 0f; 
+        dialogueCanvasGroup.DOFade(1f, 0.3f); 
+
         DisplayCurrentLine();
     }
 
@@ -345,6 +359,39 @@ public class DialogueManager : MonoBehaviour
 
         string speakerName = string.IsNullOrEmpty(line.CustomSpeaker) ? line.SpeakerName : line.CustomSpeaker;
         speakerNameText.text = speakerName;
+
+        if (!string.Equals(speakerName, lastSpeakerName))
+        {
+            if (characterDatabase != null)
+            {
+                Sprite portrait = characterDatabase.GetPortrait(speakerName);
+                
+                leftPortrait.DOKill();
+
+                if (portrait != null) 
+                {
+                    leftPortrait.sprite = portrait;
+
+                    if (!leftPortrait.gameObject.activeSelf)
+                    {
+                        leftPortrait.gameObject.SetActive(true);
+                        Color c = leftPortrait.color; c.a = 0; leftPortrait.color = c;
+                        leftPortrait.DOFade(1f, 0.3f);
+                    }
+                }
+                else 
+                {
+                    if (leftPortrait.gameObject.activeSelf)
+                    {
+                        leftPortrait.DOFade(0f, 0.3f).OnComplete(() => {
+                            leftPortrait.gameObject.SetActive(false);
+                        });
+                    }
+                }
+            }
+        }
+
+        lastSpeakerName = speakerName;
     }
 
     private void NextLine()
@@ -356,11 +403,15 @@ public class DialogueManager : MonoBehaviour
     private void EndDialogue()
     {
         isInDialogue = false;
-        dialoguePanel.SetActive(false);
+        lastSpeakerName = "";
+        
+        dialogueCanvasGroup.DOKill();
+        dialogueCanvasGroup.DOFade(0f, 0.3f).OnComplete(() => {
+            dialoguePanel.SetActive(false);
+        });
 
         GameDataManager.Instance.MarkDialogueAsFinished(currentDialogueSetID);
         GameDataManager.Instance.SaveState(); 
-
         GameEventManager.Instance.TriggerDialogueFinished(currentDialogueSetID);
 
         Debug.Log($"[DialogueManager] 대화 종료: {currentDialogueSetID}");
