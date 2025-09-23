@@ -41,9 +41,44 @@ TagManager:
   - 
   - 
   m_SortingLayers:
+  - name: collision
+    uniqueID: 2193100633
+    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0
   - name: Effects
     uniqueID: 3867507687
+  - name: water
+    uniqueID: 3074252775
+    locked: 0
+  - name: ground back
+    uniqueID: 4293370403
+    locked: 0
+  - name: ground front
+    uniqueID: 2535120289
+    locked: 0
+  - name: deco_back
+    uniqueID: 3476021259
+    locked: 0
+  - name: middle deco
+    uniqueID: 1253558259
+    locked: 0
+  - name: house back 2
+    uniqueID: 4178699119
+    locked: 0
+  - name: house back
+    uniqueID: 3203352239
+    locked: 0
+  - name: house front
+    uniqueID: 1272599797
+    locked: 0
+  - name: deco front
+    uniqueID: 453411775
+    locked: 0
+  - name: character
+    uniqueID: 1985133547
+    locked: 0
+  - name: character_front
+    uniqueID: 2744608685
     locked: 0
