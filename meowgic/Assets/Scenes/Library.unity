@@ -954,6 +954,18 @@ PrefabInstance:
       value: player
       objectReference: {fileID: 0}
     - target: {fileID: 4258327794322952828, guid: c52cca1783aac3c468123a66cca22bcf, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 4258327794322952828, guid: c52cca1783aac3c468123a66cca22bcf, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 4258327794322952828, guid: c52cca1783aac3c468123a66cca22bcf, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4258327794322952828, guid: c52cca1783aac3c468123a66cca22bcf, type: 3}
       propertyPath: m_LocalPosition.x
       value: 1.131
       objectReference: {fileID: 0}
@@ -6775,6 +6787,30 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1077873504850172551, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_Type
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1077873504850172551, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 1077873504850172551, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_Color.b
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1077873504850172551, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_Color.g
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1077873504850172551, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_Color.r
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1618205158973866767, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_AspectRatio
+      value: NaN
+      objectReference: {fileID: 0}
     - target: {fileID: 1911661128350232336, guid: 1d474f098aac74c479f708460c558520, type: 3}
       propertyPath: m_fontAsset
       value: 
@@ -6867,17 +6903,61 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4581626570788316951, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_AspectRatio
+      value: 0.001
+      objectReference: {fileID: 0}
     - target: {fileID: 6511276197354494360, guid: 1d474f098aac74c479f708460c558520, type: 3}
       propertyPath: m_Name
       value: UITalkPanel
       objectReference: {fileID: 0}
     - target: {fileID: 6511276197354494360, guid: 1d474f098aac74c479f708460c558520, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6977073552682508043, guid: 1d474f098aac74c479f708460c558520, type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7884637601174332894, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.95
+      objectReference: {fileID: 0}
+    - target: {fileID: 7884637601174332894, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.95
+      objectReference: {fileID: 0}
+    - target: {fileID: 7884637601174332894, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.9793814
+      objectReference: {fileID: 0}
+    - target: {fileID: 7884637601174332894, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -593
+      objectReference: {fileID: 0}
+    - target: {fileID: 7884637601174332894, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -90
+      objectReference: {fileID: 0}
+    - target: {fileID: 7884637601174332894, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8607685331858819003, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8607685331858819003, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8607685331858819003, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8607685331858819003, guid: 1d474f098aac74c479f708460c558520, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -6912,7 +6992,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
 --- !u!114 &1221184080 stripped
 MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1077873504850172551, guid: 1d474f098aac74c479f708460c558520, type: 3}
+  m_CorrespondingSourceObject: {fileID: 7343446158434988521, guid: 1d474f098aac74c479f708460c558520, type: 3}
   m_PrefabInstance: {fileID: 1221184077}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
@@ -6921,20 +7001,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &1221184081 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4992681663395049885, guid: 1d474f098aac74c479f708460c558520, type: 3}
-  m_PrefabInstance: {fileID: 1221184077}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!1 &1221184082 stripped
+--- !u!1 &1221184081 stripped
 GameObject:
-  m_CorrespondingSourceObject: {fileID: 8171638486068590750, guid: 1d474f098aac74c479f708460c558520, type: 3}
+  m_CorrespondingSourceObject: {fileID: 6511276197354494360, guid: 1d474f098aac74c479f708460c558520, type: 3}
   m_PrefabInstance: {fileID: 1221184077}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &1243923776
@@ -17713,17 +17782,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4946ad3cc196afc4c9ced46524be4f26, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dialoguePanel: {fileID: 1221184082}
+  dialoguePanel: {fileID: 1221184081}
   dialogueText: {fileID: 1221184079}
   speakerNameText: {fileID: 1221184078}
   continueIndicator: {fileID: 1698421450}
   leftPortrait: {fileID: 1221184080}
-  rightPortrait: {fileID: 1221184081}
+  characterDatabase: {fileID: 11400000, guid: a5fd976f6d7bf46a1bfb022a704fe584, type: 2}
   dialogueLinesPath: DialogueData/DialogueLines
   dialogueSetsPath: DialogueData/DialogueSets
   dialogueConditionsPath: DialogueData/DialogueConditions
-  defaultPlayerPortrait: {fileID: 0}
-  defaultNPCPortrait: {fileID: 0}
   typingSpeed: 0.05
   skipTypingOnInput: 1
 --- !u!4 &1747161683
