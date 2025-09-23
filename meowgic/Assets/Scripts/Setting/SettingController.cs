@@ -433,14 +433,13 @@ void ApplyPendingToRuntime()
     public void HoverToSameParent(RectTransform target)
     {
         if (!target || !leftArrow || !rightArrow) return;
-        onOk = false;
-        var lp = leftArrow.anchoredPosition;
-        var rp = rightArrow.anchoredPosition;
-        lp.y = target.anchoredPosition.y;
-        rp.y = target.anchoredPosition.y;
-        leftArrow.anchoredPosition = lp;
-        rightArrow.anchoredPosition = rp;
-        SetY(lp.y);
+
+        if (hasOkSlot && okSlot != null && target == okSlot)
+            GoOk();
+        else if (hasBackSlot && backSlot != null && target == backSlot)
+            GoBack();
+        else
+            SetIndex(target.GetSiblingIndex());
     }
 }
 
