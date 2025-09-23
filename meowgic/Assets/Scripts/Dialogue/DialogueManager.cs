@@ -11,6 +11,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using Random = UnityEngine.Random;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
 
 [System.Serializable]
 public class DialogueLine
@@ -51,13 +52,13 @@ public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
 
-    [Header("Dialogue UI")]
-    public GameObject dialoguePanel;
-    public TextMeshProUGUI dialogueText;
-    public TextMeshProUGUI speakerNameText;
-    public ContinueIndicator continueIndicator;
-    public Image leftPortrait;
-    private CanvasGroup dialogueCanvasGroup; 
+    private GameObject dialoguePanel;
+    private TextMeshProUGUI dialogueText;
+    private TextMeshProUGUI speakerNameText;
+    private ContinueIndicator continueIndicator;
+    private RectTransform continueIndicatorRect;
+    private Image leftPortrait;
+    private CanvasGroup dialogueCanvasGroup;
 
     [Header("외부 데이터베이스 참조")] 
     [SerializeField] private CharacterDatabase characterDatabase;
@@ -114,7 +115,6 @@ public class DialogueManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            InitializeDialogueSystem();
         }
         else
         {
@@ -128,6 +128,7 @@ public class DialogueManager : MonoBehaviour
         {
             GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
         }
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
@@ -135,6 +136,59 @@ public class DialogueManager : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
+        }
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        Debug.Log($"[DialogueManager] {scene.name} 씬 로드됨. UI 참조를 다시 설정합니다.");
+        
+        if (dialogueLines.Count == 0)
+        {
+            InitializeDialogueSystem();
+        }
+
+        FindAndAssignUIReferences();
+    }
+
+    private void FindAndAssignUIReferences()
+    {
+        GameObject panelObject = GameObject.FindGameObjectWithTag("DialogueUI");
+
+        if (panelObject != null)
+        {
+            dialoguePanel = panelObject;
+            dialogueCanvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
+            if (dialogueCanvasGroup == null)
+            {
+                dialogueCanvasGroup = dialoguePanel.AddComponent<CanvasGroup>();
+            }
+
+            Transform talkPanelTransform = dialoguePanel.transform.Find("talkPanel");
+            if (talkPanelTransform != null)
+            {
+                dialogueText = talkPanelTransform.Find("Image/DialogueText").GetComponent<TextMeshProUGUI>();
+                speakerNameText = talkPanelTransform.Find("SpeakerNameText").GetComponent<TextMeshProUGUI>();
+            }
+
+            leftPortrait = dialoguePanel.transform.Find("LeftPortrait").GetComponent<Image>();
+            
+            continueIndicator = dialoguePanel.GetComponentInChildren<ContinueIndicator>(true);
+            if (continueIndicator != null)
+            {
+                continueIndicatorRect = continueIndicator.GetComponent<RectTransform>();
+            }
+            
+            if (speakerNameText == null) Debug.LogError("[DialogueManager] 'talkPanel/SpeakerNameText'를 찾을 수 없습니다! 하이어라키와 이름을 확인하세요.");
+            if (leftPortrait == null) Debug.LogError("[DialogueManager] 'LeftPortrait'를 찾을 수 없습니다! 하이어라키와 이름을 확인하세요.");
+
+            dialoguePanel.SetActive(false);
+            Debug.Log("[DialogueManager] UI 참조 설정 완료.");
+        }
+        else
+        {
+            Debug.LogWarning("[DialogueManager] 현재 씬에서 'DialogueUI' 태그를 가진 패널을 찾을 수 없습니다.");
         }
     }
 
@@ -173,6 +227,10 @@ public class DialogueManager : MonoBehaviour
             if (dialogueCanvasGroup == null)
             {
                 dialogueCanvasGroup = dialoguePanel.AddComponent<CanvasGroup>();
+            }
+            if (continueIndicator != null)
+            {
+                continueIndicatorRect = continueIndicator.GetComponent<RectTransform>();
             }
         }
         LoadDialogueData();
@@ -246,13 +304,8 @@ public class DialogueManager : MonoBehaviour
         currentLineID = dialogueSets[dialogueSetID].StartLineID;
 
         GameEventManager.Instance.TriggerDialogueStarted(dialogueSetID);
-        
-        dialoguePanel.SetActive(true);
-        dialogueCanvasGroup.DOKill(); 
-        dialogueCanvasGroup.alpha = 0f; 
-        dialogueCanvasGroup.DOFade(1f, 0.3f); 
-
-        DisplayCurrentLine();
+    
+        BeginDialogueSequence();
     }
 
     public void StartRandomDialogueFromSet(string dialogueSetID)
@@ -322,18 +375,14 @@ public class DialogueManager : MonoBehaviour
 
         dialogueSetUsageCount[dialogueSetID]++;
 
+        lastSpeakerName = "";
         isInDialogue = true;
         currentDialogueSetID = dialogueSetID;
         currentLineID = startingLine.LineID;
 
         GameEventManager.Instance.TriggerDialogueStarted(dialogueSetID);
 
-        if (dialoguePanel != null)
-        {
-            dialoguePanel.SetActive(true);
-        }
-
-        DisplayCurrentLine();
+        BeginDialogueSequence();
     }
 
     private bool CanStartDialogue(string dialogueSetID)
@@ -405,9 +454,19 @@ public class DialogueManager : MonoBehaviour
         isInDialogue = false;
         lastSpeakerName = "";
         
+        if (continueIndicator != null)
+        {
+            continueIndicator.Hide();
+        }
+
         dialogueCanvasGroup.DOKill();
-        dialogueCanvasGroup.DOFade(0f, 0.3f).OnComplete(() => {
+        dialogueCanvasGroup.DOFade(0f, 0.3f).OnComplete(() =>
+        {
             dialoguePanel.SetActive(false);
+            if (leftPortrait != null)
+            {
+                leftPortrait.sprite = null; 
+            }
         });
 
         GameDataManager.Instance.MarkDialogueAsFinished(currentDialogueSetID);
@@ -415,6 +474,27 @@ public class DialogueManager : MonoBehaviour
         GameEventManager.Instance.TriggerDialogueFinished(currentDialogueSetID);
 
         Debug.Log($"[DialogueManager] 대화 종료: {currentDialogueSetID}");
+    }
+
+    private void BeginDialogueSequence()
+    {
+        if (dialogueText != null)
+        {
+            dialogueText.text = "";
+        }
+
+        if (leftPortrait != null)
+        {
+            leftPortrait.gameObject.SetActive(false);
+        }
+        
+        dialogueCanvasGroup.alpha = 0f;
+        dialoguePanel.SetActive(true);
+
+        DisplayCurrentLine();
+
+        dialogueCanvasGroup.DOKill(); 
+        dialogueCanvasGroup.DOFade(1f, 0.3f);
     }
 
     public bool IsInDialogue()
@@ -435,7 +515,48 @@ public class DialogueManager : MonoBehaviour
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
         isTyping = false;
         dialogueText.text = fullText;
-        if (continueIndicator != null) continueIndicator.Show();
+
+        if (continueIndicator != null)
+        {
+            continueIndicator.Hide(); 
+            StartCoroutine(PositionIndicatorAtEndOfText());
+        }
+    }
+
+    private IEnumerator PositionIndicatorAtEndOfText()
+    {
+        yield return new WaitForEndOfFrame();
+
+        if (continueIndicator != null && dialogueText.text.Length > 0)
+        {
+            TMP_TextInfo textInfo = dialogueText.textInfo;
+            int lastCharacterIndex = textInfo.characterCount - 1;
+            
+            while (lastCharacterIndex >= 0 && !textInfo.characterInfo[lastCharacterIndex].isVisible)
+            {
+                lastCharacterIndex--;
+            }
+
+            if (lastCharacterIndex >= 0)
+            {
+                TMP_CharacterInfo lastCharInfo = textInfo.characterInfo[lastCharacterIndex];
+                Vector3 lastCharPosition = lastCharInfo.topRight;
+                float yOffset = lastCharInfo.ascender - (lastCharInfo.ascender - lastCharInfo.descender) / 2f;
+                
+                continueIndicatorRect.anchoredPosition = new Vector2(lastCharPosition.x + 36f, yOffset);
+            }
+            else
+            {
+                continueIndicatorRect.anchoredPosition = Vector2.zero;
+            }
+
+            continueIndicator.Show();
+        }
+        else if (continueIndicator != null)
+        {
+            continueIndicatorRect.anchoredPosition = Vector2.zero;
+            continueIndicator.Show();
+        }
     }
 
     IEnumerator TypeText(string text)

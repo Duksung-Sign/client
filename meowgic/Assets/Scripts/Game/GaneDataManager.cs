@@ -15,6 +15,7 @@ public class GameDataManager : MonoBehaviour
     public string CurrentBattleDialogueID { get; private set; }
     public string CurrentBattleMonsterID { get; private set; }
     public string PreviousSceneName { get; private set; }
+    public string PlayerSpawnPointID { get; private set; }
 
 
     void Awake()
@@ -58,7 +59,7 @@ public class GameDataManager : MonoBehaviour
 
     public void LoadState()
     {
-        ResetData(); 
+        ResetData();
 
         CompletedQuestIDs = new HashSet<string>(PlayerPrefs.GetString("CompletedQuestIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         CurrentStoryID = PlayerPrefs.GetString("CurrentStoryID", "library_intro");
@@ -70,16 +71,16 @@ public class GameDataManager : MonoBehaviour
     }
 
     public void ResetData()
-{
-    CompletedQuestIDs = new HashSet<string>();
-    CurrentStoryID = "library_intro"; 
-    ObtainedItemIDs = new HashSet<string>();
-    FinishedDialogueIDs = new HashSet<string>();
-    InspectedItemIDs = new HashSet<string>();
-    DefeatedMonsterIDs = new HashSet<string>();
+    {
+        CompletedQuestIDs = new HashSet<string>();
+        CurrentStoryID = "library_intro";
+        ObtainedItemIDs = new HashSet<string>();
+        FinishedDialogueIDs = new HashSet<string>();
+        InspectedItemIDs = new HashSet<string>();
+        DefeatedMonsterIDs = new HashSet<string>();
 
-    Debug.Log("[GameDataManager] 메모리의 게임 데이터가 초기화되었습니다.");
-}
+        Debug.Log("[GameDataManager] 메모리의 게임 데이터가 초기화되었습니다.");
+    }
 
     public void SetCurrentBattleMonster(MonsterDataSO data, string id, string dialogueId = null)
     {
@@ -95,4 +96,15 @@ public class GameDataManager : MonoBehaviour
 
     public bool IsQuestCompleted(string questID) => CompletedQuestIDs.Contains(questID);
     public void SetQuestCompleted(string questID) => CompletedQuestIDs.Add(questID);
+    
+    /* 스폰 포인트 관련 함수 */
+    public void SetNextPlayerSpawnPoint(string spawnPointID)
+    {
+        PlayerSpawnPointID = spawnPointID;
+    }
+
+    public void ClearPlayerSpawnPoint()
+    {
+        PlayerSpawnPointID = null;
+    }
 }

@@ -23,6 +23,7 @@ public class DoorController : MonoBehaviour, IInteractable
 
     [Header("디버그")]
     [SerializeField] private bool debugMode = false;
+    [SerializeField] private string targetSpawnPointID = "spawn_from_basement";
 
     private bool isOpening = false;
 
@@ -76,9 +77,9 @@ public class DoorController : MonoBehaviour, IInteractable
 
     private void LoadTargetScene()
     {
-        PlayerPrefs.SetString("PreviousScene", SceneManager.GetActiveScene().name);
-        PlayerPrefs.Save();
-        SceneManager.LoadScene(targetSceneName);
+        GameDataManager.Instance.SetNextPlayerSpawnPoint(targetSpawnPointID);
+        GameDataManager.Instance.SetPreviousScene(SceneManager.GetActiveScene().name);
+        GameManager.Instance.ChangeScene(targetSceneName);
     }
 
     private void PlayOpenSound()

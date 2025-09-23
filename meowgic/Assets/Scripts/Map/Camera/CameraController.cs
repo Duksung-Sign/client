@@ -82,14 +82,14 @@ public class CameraController : MonoBehaviour
     void Update()
     {
         if (target == null) return;
-
-        UpdateCameraPosition();
     }
 
     void LateUpdate()
     {
         if (target == null) return;
 
+
+        UpdateCameraPosition();
         UpdateCameraBounds();
     }
 
