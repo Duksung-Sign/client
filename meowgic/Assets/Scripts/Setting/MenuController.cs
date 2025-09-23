@@ -180,7 +180,10 @@ public class MenuController : MonoBehaviour
         SettingsManager.Instance?.Close();
         if (!string.IsNullOrEmpty("MainMenu"))
         {
-            // 필요 시 즉시 로드
+            StoryProgressManager.Instance?.ResetStoryProgress();
+
+            var manager = FindObjectOfType<GameManager>();
+            if (manager != null) manager.SetPauseState(false);
             SceneManager.LoadScene("MainMenu");
         }
     }

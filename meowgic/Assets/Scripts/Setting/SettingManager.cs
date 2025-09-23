@@ -28,7 +28,7 @@ public class SettingsManager : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        EnsureEventSystemExists();
+
         // 미리 만들어 숨겨두고 싶다면 ↓ 주석 해제
         // CreateUIIfNeeded();
 
@@ -59,6 +59,8 @@ public class SettingsManager : MonoBehaviour
         }
 
         CreateUIIfNeeded();
+        GuardEventSystem();
+
         if (settingsUIInstance == null) return;
 
         mainMenuController?.ShowMainMenu();
@@ -136,18 +138,15 @@ public class SettingsManager : MonoBehaviour
         }
     }
 
-    private void EnsureEventSystemExists()
+    private void GuardEventSystem()
     {
         if (EventSystem.current != null) return;
 
-        var es = new GameObject("EventSystem");
-        es.AddComponent<EventSystem>();
-#if ENABLE_INPUT_SYSTEM
-            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-#else
-        es.AddComponent<StandaloneInputModule>();
-#endif
-        DontDestroyOnLoad(es);
+        Debug.LogWarning("[Settings] EventSystem이 씬에 없습니다. UI 입력이 동작하지 않습니다.");
+        // 필요하면 응급 생성:
+        var go = new GameObject("EventSystem (Auto)");
+        go.AddComponent<EventSystem>();
+        go.AddComponent<StandaloneInputModule>(); // 새 입력 시스템이면 InputSystemUIInputModule
     }
 
     private void PauseOrResume(bool pause)
