@@ -10,7 +10,6 @@ public class SettingsManager : MonoBehaviour
     [Header("Assign in Inspector")]
     [SerializeField] private GameObject settingsPrefab;          // ✅ 프리팹(설계도)
     [SerializeField] private GameObject firstSelectedOverride;   // 선택 사항: 강제로 첫 포커스 줄 UI
-    [SerializeField] private GameManager gameManager;            // 선택 사항: 있으면 일시정지 위임
     [SerializeField] private bool openBlocked = false;
 
     private GameObject settingsUIInstance;   // ✅ 런타임 인스턴스
@@ -22,6 +21,8 @@ public class SettingsManager : MonoBehaviour
     [Header("Scene rules")]
     [SerializeField] private string titleSceneName = "MainMenu";  // 타이틀 씬 이름
     [SerializeField] private bool destroyUIOnTitle = true;      // 타이틀에서 프리팹 인스턴스 완전 파기할지
+
+    private GameState previousState;
 
     void Awake()
     {
@@ -58,6 +59,10 @@ public class SettingsManager : MonoBehaviour
             return;
         }
 
+        previousState = GameManager.Instance.CurrentState;
+        GameEventManager.Instance.TriggerGameStateChanged(GameState.Menu);
+        Time.timeScale = 0f;
+
         CreateUIIfNeeded();
         GuardEventSystem();
 
@@ -69,20 +74,17 @@ public class SettingsManager : MonoBehaviour
         settingsUIInstance.SetActive(true);
         SetFirstSelected();
         isOpen = true;
-
-        if (gameManager != null) gameManager.SetPauseState(true);
-        else PauseOrResume(true);
     }
 
     public void Close()
     {
         if (!isOpen || settingsUIInstance == null) return;
 
+        GameEventManager.Instance.TriggerGameStateChanged(previousState);
+        Time.timeScale = 1f;
+
         settingsUIInstance.SetActive(false);
         isOpen = false;
-
-        if (gameManager != null) gameManager.SetPauseState(false);
-        else PauseOrResume(false);
     }
 
     // 외부에서 켜고 끄기 쉽게 메서드 제공
