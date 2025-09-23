@@ -1,11 +1,14 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.Collections; 
 
 public class MainMenuButtons : MonoBehaviour
 {
     [Header("메뉴 버튼")]
     public Button startGameButton;
+    
+    private bool isLoading = false; 
 
     private void Start()
     {
@@ -15,24 +18,31 @@ public class MainMenuButtons : MonoBehaviour
 
     public void StartGame()
     {
-        // 1) 플레이 데이터 초기화
-        // * 전체를 지워도 되고, 필요한 키만 선택 삭제해도 됨
+        if (isLoading) return;
+
+        isLoading = true;
+        
+        StartCoroutine(LoadGameScenes());
+    }
+    private IEnumerator LoadGameScenes()
+    {
         PlayerPrefs.DeleteAll();
         PlayerPrefs.Save();
-        Debug.Log("[MainMenu] 플레이 데이터 초기화");
+        Debug.Log("[MainMenu] PlayerPrefs 데이터가 초기화되었습니다.");
 
-        // 2) 첫 실행 플래그가 필요하면 다시 세팅
-        // PlayerPrefs.SetInt("HasLaunchedBefore", 1);
-        // PlayerPrefs.Save();
+        if (GameDataManager.Instance != null)
+        {
+            GameDataManager.Instance.ResetData();
+        }
 
-        // 3) 실제 게임 씬 로드
-        SceneManager.LoadScene("Library");
+        yield return SceneManager.LoadSceneAsync("Library");
 
-
-        // 4) setting 화면 로드
         if (!SceneManager.GetSceneByName("SettingScene").isLoaded)
         {
-            SceneManager.LoadScene("SettingScene", LoadSceneMode.Additive);
+            yield return SceneManager.LoadSceneAsync("SettingScene", LoadSceneMode.Additive);
         }
+
+        Debug.Log("[MainMenu] 모든 씬 로딩 완료");
+        isLoading = false;
     }
 }
