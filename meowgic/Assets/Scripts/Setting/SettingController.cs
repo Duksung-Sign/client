@@ -261,7 +261,6 @@ public class SettingsController : MonoBehaviour
         // 해상도 줄
         if (currentIndex == resolutionRowIndex && resolutionOptions != null && resolutionOptions.Length > 0)
         {
-            Debug.Log("해상도 변경");
             selectedIndex = WrapIndex(selectedIndex + (dir > 0 ? 1 : -1), resolutionOptions.Length);
             UpdateResolutionLabel();         // 텍스트만 바뀜
             return;
@@ -269,7 +268,6 @@ public class SettingsController : MonoBehaviour
         // 화면모드 줄
         if (currentIndex == screenModeRowIndex && screenModeOptions != null && screenModeOptions.Length >= 2)
         {
-            Debug.Log("화면 모드 변경");
             selectedModeIndex = WrapIndex(selectedModeIndex + (dir > 0 ? 1 : -1), screenModeOptions.Length);
             UpdateScreenModeLabel();         // 텍스트만 바뀜
             return;
@@ -431,5 +429,18 @@ void ApplyPendingToRuntime()
         }
         return Mathf.Min(1, Mathf.Max(0, screenModeOptions.Length - 1));
     }
- }
+
+    public void HoverToSameParent(RectTransform target)
+    {
+        if (!target || !leftArrow || !rightArrow) return;
+        onOk = false;
+        var lp = leftArrow.anchoredPosition;
+        var rp = rightArrow.anchoredPosition;
+        lp.y = target.anchoredPosition.y;
+        rp.y = target.anchoredPosition.y;
+        leftArrow.anchoredPosition = lp;
+        rightArrow.anchoredPosition = rp;
+        SetY(lp.y);
+    }
+}
 
