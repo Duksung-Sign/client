@@ -206,5 +206,13 @@ public class MenuController : MonoBehaviour
         var mgr = FindObjectOfType<SettingsManager>();
         if (mgr != null) mgr.Close();
     }
- }
+
+    public void HoverToSameParent(RectTransform target)
+    {
+        if (!target || !leftArrow || !rightArrow) return;
+
+        Debug.Log(target.GetSiblingIndex());
+        SetIndex(target.GetSiblingIndex());
+    }
+}
 

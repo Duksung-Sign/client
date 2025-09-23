@@ -45,12 +45,6 @@ public class SettingsManager : MonoBehaviour
         }
     }
 
-    public void Toggle()
-    {
-        if (isOpen) Close();
-        else if (!openBlocked) Open();       // ★ 차단 중이면 열지 않음
-    }
-
     public void Open()
     {
         if (openBlocked)                    // ★ 방어적 체크(직접 Open 호출 대비)
@@ -149,14 +143,7 @@ public class SettingsManager : MonoBehaviour
         var go = new GameObject("EventSystem (Auto)");
         go.AddComponent<EventSystem>();
         go.AddComponent<StandaloneInputModule>(); // 새 입력 시스템이면 InputSystemUIInputModule
-    }
-
-    private void PauseOrResume(bool pause)
-    {
-        Time.timeScale = pause ? 0f : 1f;
-        AudioListener.pause = pause;
-        Cursor.visible = pause;
-        Cursor.lockState = pause ? CursorLockMode.None : CursorLockMode.Locked;
+        Debug.Log("이벤트시스템 생성됨");
     }
 
     // 선택: 닫을 때 UI를 아예 없애고 싶다면 이 메서드 사용
