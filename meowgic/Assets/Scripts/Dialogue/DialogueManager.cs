@@ -1,249 +1,51 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System;
-using System.Linq;
 using TMPro;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Globalization;
+using System.Linq;
+using CsvHelper;
+using CsvHelper.Configuration;
+using Random = UnityEngine.Random;
 
 [System.Serializable]
 public class DialogueLine
 {
-    public string lineID;
-    public string dialogueSetID;
-    public string speakerName;
-    public string text;
-    public bool isPlayer;
-    public string nextLineID;
-    public int order;
-    public string customSpeaker;
-
-    public DialogueLine() { }
-
-    public DialogueLine(string lineID, string dialogueSetID, string speakerName, string text,
-                       bool isPlayer, string nextLineID, int order, string customSpeaker)
-    {
-        this.lineID = lineID;
-        this.dialogueSetID = dialogueSetID;
-        this.speakerName = speakerName;
-        this.text = text;
-        this.isPlayer = isPlayer;
-        this.nextLineID = nextLineID;
-        this.order = order;
-        this.customSpeaker = customSpeaker;
-    }
+    public string LineID { get; set; }
+    public string DialogueSetID { get; set; }
+    public string SpeakerName { get; set; }
+    public string Text { get; set; }
+    public bool IsPlayer { get; set; }
+    public string NextLineID { get; set; }
+    public int Order { get; set; }
+    public string CustomSpeaker { get; set; }
+    public string GroupID { get; set; }
 }
 
 [System.Serializable]
 public class DialogueSet
 {
-    public string dialogueSetID;
-    public string npcName;
-    public string startLineID;
-    public bool isRepeatable;
-    public string description;
-    public string portraitPath;
-
-    public DialogueSet() { }
-
-    public DialogueSet(string dialogueSetID, string npcName, string startLineID,
-                      bool isRepeatable, string description, string portraitPath)
-    {
-        this.dialogueSetID = dialogueSetID;
-        this.npcName = npcName;
-        this.startLineID = startLineID;
-        this.isRepeatable = isRepeatable;
-        this.description = description;
-        this.portraitPath = portraitPath;
-    }
+    public string DialogueSetID { get; set; }
+    public string NPCName { get; set; }
+    public string StartLineID { get; set; }
+    public bool IsRepeatable { get; set; }
+    public string Description { get; set; }
+    public string PortraitPath { get; set; }
 }
 
 [System.Serializable]
 public class DialogueCondition
 {
-    public string dialogueSetID;
-    public string conditionType;
-    public string target;
-    public string value;
-    public string description;
-
-    public DialogueCondition() { }
-
-    public DialogueCondition(string dialogueSetID, string conditionType, string target,
-                           string value, string description)
-    {
-        this.dialogueSetID = dialogueSetID;
-        this.conditionType = conditionType;
-        this.target = target;
-        this.value = value;
-        this.description = description;
-    }
+    public string DialogueSetID { get; set; }
+    public string ConditionType { get; set; }
+    public string Target { get; set; }
+    public string Value { get; set; }
+    public string Description { get; set; }
 }
 
-// ===== CSV 파싱 유틸리티 =====
-public static class DialogueCSVParser
-{
-    public static List<DialogueLine> ParseDialogueLines(string csvText)
-    {
-        var lines = new List<DialogueLine>();
-
-        try
-        {
-            string[] rows = csvText.Split('\n');
-
-            for (int i = 1; i < rows.Length; i++)
-            {
-                string row = rows[i].Trim();
-                if (string.IsNullOrEmpty(row)) continue;
-
-                string[] values = ParseCSVLine(row);
-                if (values.Length >= 8)
-                {
-                    string lineID = values[0].Trim();
-
-                    // 빈 LineID 건너뛰기
-                    if (string.IsNullOrEmpty(lineID))
-                    {
-                        Debug.LogWarning($"빈 LineID 발견, 건너뜀: 줄 {i}");
-                        continue;
-                    }
-
-                    var line = new DialogueLine(
-                        lineID, // LineID
-                        values[1].Trim(), // DialogueSetID
-                        values[2].Trim(), // SpeakerName
-                        values[3].Trim(), // Text
-                        ParseBool(values[4]), // IsPlayer
-                        values[5].Trim(), // NextLineID
-                        ParseInt(values[6]), // Order
-                        values[7].Trim()  // CustomSpeaker
-                    );
-                    lines.Add(line);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"DialogueLines CSV 파싱 실패: {e.Message}");
-        }
-
-        return lines;
-    }
-
-    public static List<DialogueSet> ParseDialogueSets(string csvText)
-    {
-        var sets = new List<DialogueSet>();
-
-        try
-        {
-            string[] rows = csvText.Split('\n');
-
-            for (int i = 1; i < rows.Length; i++)
-            {
-                string row = rows[i].Trim();
-                if (string.IsNullOrEmpty(row)) continue;
-
-                string[] values = ParseCSVLine(row);
-                if (values.Length >= 6)
-                {
-                    var set = new DialogueSet(
-                        values[0].Trim(), // DialogueSetID
-                        values[1].Trim(), // NPCName
-                        values[2].Trim(), // StartLineID
-                        ParseBool(values[3]), // IsRepeatable
-                        values[4].Trim(), // Description
-                        values[5].Trim()  // PortraitPath
-                    );
-                    sets.Add(set);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"DialogueSets CSV 파싱 실패: {e.Message}");
-        }
-
-        return sets;
-    }
-
-    public static List<DialogueCondition> ParseDialogueConditions(string csvText)
-    {
-        var conditions = new List<DialogueCondition>();
-
-        try
-        {
-            string[] rows = csvText.Split('\n');
-
-            for (int i = 1; i < rows.Length; i++)
-            {
-                string row = rows[i].Trim();
-                if (string.IsNullOrEmpty(row)) continue;
-
-                string[] values = ParseCSVLine(row);
-                if (values.Length >= 5)
-                {
-                    var condition = new DialogueCondition(
-                        values[0].Trim(), // DialogueSetID
-                        values[1].Trim(), // ConditionType
-                        values[2].Trim(), // Target
-                        values[3].Trim(), // Value
-                        values[4].Trim()  // Description
-                    );
-                    conditions.Add(condition);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"DialogueConditions CSV 파싱 실패: {e.Message}");
-        }
-
-        return conditions;
-    }
-
-    private static string[] ParseCSVLine(string line)
-    {
-        var result = new List<string>();
-        bool inQuotes = false;
-        string currentField = "";
-
-        for (int i = 0; i < line.Length; i++)
-        {
-            char c = line[i];
-
-            if (c == '"')
-            {
-                inQuotes = !inQuotes;
-            }
-            else if (c == ',' && !inQuotes)
-            {
-                result.Add(currentField);
-                currentField = "";
-            }
-            else
-            {
-                currentField += c;
-            }
-        }
-
-        result.Add(currentField);
-        return result.ToArray();
-    }
-
-    private static bool ParseBool(string value)
-    {
-        return value.Trim().ToUpper() == "TRUE";
-    }
-
-    private static int ParseInt(string value)
-    {
-        if (int.TryParse(value.Trim(), out int result))
-            return result;
-        return 0;
-    }
-}
-
-// ===== 새로운 CSV 기반 DialogueManager =====
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
@@ -252,10 +54,9 @@ public class DialogueManager : MonoBehaviour
     public GameObject dialoguePanel;
     public TextMeshProUGUI dialogueText;
     public TextMeshProUGUI speakerNameText;
-
-    [Header("Character Portraits")]
-    public Image leftPortrait;  // 플레이어
-    public Image rightPortrait; // NPC
+    public ContinueIndicator continueIndicator;
+    public Image leftPortrait;
+    public Image rightPortrait;
 
     [Header("CSV 파일 경로")]
     [SerializeField] private string dialogueLinesPath = "DialogueData/DialogueLines";
@@ -266,26 +67,46 @@ public class DialogueManager : MonoBehaviour
     public Sprite defaultPlayerPortrait;
     public Sprite defaultNPCPortrait;
 
-    [Header("디버그")]
-    public bool debugMode = true;
-    public bool logDialogueEvents = true;
+    [Header("타이핑 효과")]
+    public float typingSpeed = 0.05f;
+    public bool skipTypingOnInput = true;
 
-    // 대화 데이터
     private Dictionary<string, DialogueLine> dialogueLines = new Dictionary<string, DialogueLine>();
     private Dictionary<string, DialogueSet> dialogueSets = new Dictionary<string, DialogueSet>();
     private Dictionary<string, List<DialogueCondition>> dialogueConditions = new Dictionary<string, List<DialogueCondition>>();
+    private Dictionary<string, Func<string, string, bool>> conditionCheckers;
+    private Dictionary<string, int> dialogueSetUsageCount = new Dictionary<string, int>();
 
-    // 현재 대화 상태
     private string currentDialogueSetID;
     private string currentLineID;
     private bool isInDialogue = false;
-    private bool isShowingItemDescription = false;
+    private bool isTyping = false;
+    private string fullText = "";
+    private Coroutine typingCoroutine;
 
-    // 조건 체크 함수들
-    private Dictionary<string, Func<string, string, bool>> conditionCheckers;
+    void Update()
+    {
+        if (!isInDialogue) return;
 
-    // 초상화 캐시
-    private Dictionary<string, Sprite> portraitCache = new Dictionary<string, Sprite>();
+        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
+        {
+            if (isTyping && skipTypingOnInput)
+            {
+                CompleteTyping();
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(dialogueLines[currentLineID].NextLineID))
+                {
+                    EndDialogue();
+                }
+                else
+                {
+                    NextLine();
+                }
+            }
+        }
+    }
 
     void Awake()
     {
@@ -298,215 +119,109 @@ public class DialogueManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
-
-        if (dialoguePanel == null)
-            dialoguePanel = GameObject.Find("talkPanel");
-
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(false);
     }
 
-    void Start()
+    void OnEnable()
     {
-        if (dialoguePanel == null)
+        if (GameEventManager.Instance != null)
         {
-            GameObject foundTalkPanel = GameObject.Find("talkPanel");
-            if (foundTalkPanel != null)
+            GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
+        }
+    }
+
+    void OnDisable()
+    {
+        if (GameEventManager.Instance != null)
+        {
+            GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
+        }
+    }
+
+    private List<T> LoadData<T>(string path)
+    {
+        TextAsset csvFile = Resources.Load<TextAsset>(path);
+        if (csvFile == null)
+        {
+            Debug.LogError($"[DialogueManager] CSV 파일을 찾을 수 없습니다: {path}");
+            return new List<T>();
+        }
+        try
+        {
+            using (var reader = new StringReader(csvFile.text))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
-                dialoguePanel = foundTalkPanel;
-                Debug.Log("talkPanel을 자동으로 찾아서 연결했습니다!");
+                csv.Context.Configuration.BadDataFound = context =>
+                {
+                    Debug.LogWarning($"[CsvHelper] 잘못된 데이터 발견 (행 {csv.Context.Parser.Row}): '{context.RawRecord}'");
+                };
+                return csv.GetRecords<T>().ToList();
             }
-            else
-            {
-                Debug.LogError("talkPanel을 찾을 수 없습니다!");
-            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[DialogueManager] CSV 파일 파싱 실패 ({path}): {ex.Message}");
+            return new List<T>();
         }
     }
 
-    void Update()
+    private void InitializeDialogueSystem()
     {
-        if (isInDialogue && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
-        {
-            NextLine();
-        }
-
-        if (isShowingItemDescription &&
-            (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
-        {
-            HideItemDescription();
-        }
-    }
-
-    void InitializeDialogueSystem()
-    {
+        LoadDialogueData();
         InitializeConditionCheckers();
-        LoadDialogueDataFromCSV();
-
-        if (debugMode)
-        {
-            Debug.Log($"[DialogueManager] 시스템 초기화 완료");
-            Debug.Log($"[DialogueManager] 대화 라인: {dialogueLines.Count}개");
-            Debug.Log($"[DialogueManager] 대화 세트: {dialogueSets.Count}개");
-        }
+        if (dialoguePanel != null) dialoguePanel.SetActive(false);
     }
 
-    // ===== CSV 데이터 로드 =====
-    void LoadDialogueDataFromCSV()
+    private void HandleLockedDoorInteraction(string doorID)
     {
-        LoadDialogueLines();
-        LoadDialogueSets();
-        LoadDialogueConditions();
+        string dialogueID = $"{doorID}_locked";
+        StartDialogue(dialogueID);
     }
 
-    void LoadDialogueLines()
+    private void LoadDialogueData()
     {
         try
         {
-            TextAsset csvFile = Resources.Load<TextAsset>(dialogueLinesPath);
-            if (csvFile == null)
-            {
-                Debug.LogError($"[DialogueManager] CSV 파일을 찾을 수 없습니다: {dialogueLinesPath}");
-                return;
-            }
+            dialogueLines = LoadData<DialogueLine>(dialogueLinesPath).ToDictionary(line => line.LineID);
+            dialogueSets = LoadData<DialogueSet>(dialogueSetsPath).ToDictionary(set => set.DialogueSetID);
 
-            var lines = DialogueCSVParser.ParseDialogueLines(csvFile.text);
-            dialogueLines.Clear();
-
-            foreach (var line in lines)
-            {
-                if (dialogueLines.ContainsKey(line.lineID))
-                {
-                    Debug.LogError($"[DialogueManager] 중복된 LineID 발견: {line.lineID}");
-                }
-                else
-                {
-                    Debug.Log($"[DialogueManager] 라인 추가: {line.lineID}");
-                }
-                dialogueLines[line.lineID] = line;
-            }
-
-            if (debugMode)
-                Debug.Log($"[DialogueManager] DialogueLines 로드 완료: {lines.Count}개");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[DialogueManager] DialogueLines 로드 실패: {e.Message}");
-        }
-    }
-
-    void LoadDialogueSets()
-    {
-        try
-        {
-            TextAsset csvFile = Resources.Load<TextAsset>(dialogueSetsPath);
-            if (csvFile == null)
-            {
-                Debug.LogError($"[DialogueManager] CSV 파일을 찾을 수 없습니다: {dialogueSetsPath}");
-                return;
-            }
-
-            var sets = DialogueCSVParser.ParseDialogueSets(csvFile.text);
-            dialogueSets.Clear();
-
-            foreach (var set in sets)
-            {
-                dialogueSets[set.dialogueSetID] = set;
-            }
-
-            if (debugMode)
-                Debug.Log($"[DialogueManager] DialogueSets 로드 완료: {sets.Count}개");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[DialogueManager] DialogueSets 로드 실패: {e.Message}");
-        }
-    }
-
-    void LoadDialogueConditions()
-    {
-        try
-        {
-            TextAsset csvFile = Resources.Load<TextAsset>(dialogueConditionsPath);
-            if (csvFile == null)
-            {
-                Debug.LogWarning($"[DialogueManager] CSV 파일을 찾을 수 없습니다: {dialogueConditionsPath} (선택사항)");
-                return;
-            }
-
-            var conditions = DialogueCSVParser.ParseDialogueConditions(csvFile.text);
             dialogueConditions.Clear();
-
-            foreach (var condition in conditions)
+            var conditionsList = LoadData<DialogueCondition>(dialogueConditionsPath);
+            foreach (var condition in conditionsList)
             {
-                if (!dialogueConditions.ContainsKey(condition.dialogueSetID))
-                    dialogueConditions[condition.dialogueSetID] = new List<DialogueCondition>();
-
-                dialogueConditions[condition.dialogueSetID].Add(condition);
+                if (!dialogueConditions.ContainsKey(condition.DialogueSetID))
+                    dialogueConditions[condition.DialogueSetID] = new List<DialogueCondition>();
+                dialogueConditions[condition.DialogueSetID].Add(condition);
             }
 
-            if (debugMode)
-                Debug.Log($"[DialogueManager] DialogueConditions 로드 완료: {conditions.Count}개");
+            Debug.Log($"[DialogueManager] 데이터 로드 완료. Lines: {dialogueLines.Count}, Sets: {dialogueSets.Count}");
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DialogueManager] DialogueConditions 로드 실패: {e.Message}");
+            Debug.LogError($"[DialogueManager] 데이터 로드 실패: {e.Message}");
         }
     }
 
-    // ===== 조건 체크 시스템 =====
-    void InitializeConditionCheckers()
+    private void InitializeConditionCheckers()
     {
-        conditionCheckers = new Dictionary<string, Func<string, string, bool>>()
+        conditionCheckers = new Dictionary<string, Func<string, string, bool>>
         {
-            ["none"] = (target, value) => true,
-            ["story_reached"] = CheckStoryReached,
-            ["quest_completed"] = CheckQuestCompleted,
-            ["item_obtained"] = CheckItemObtained,
-            ["item_inspected"] = CheckItemInspected,
-            ["dialogue_finished"] = CheckDialogueFinished
+            ["item_obtained"] = (target, value) => GameDataManager.Instance.HasItem(target) == (value != "0"),
+            ["item_inspected"] = (target, value) => GameDataManager.Instance.HasInspectedItem(target) == (value != "0"),
+            ["dialogue_finished"] = (target, value) => GameDataManager.Instance.HasFinishedDialogue(target) == (value != "0")
         };
     }
 
-    bool CheckStoryReached(string target, string value)
-    {
-        if (StoryProgressManager.Instance != null)
-        {
-            string currentStory = StoryProgressManager.Instance.GetCurrentStoryID();
-            return currentStory == target;
-        }
-        return false;
-    }
-
-    bool CheckQuestCompleted(string target, string value)
-    {
-        return PlayerPrefs.GetInt($"Quest_{target}_Completed", 0) == 1;
-    }
-
-    bool CheckItemObtained(string target, string value)
-    {
-        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
-        int currentAmount = PlayerPrefs.GetInt($"Item_{target}_Count", 0);
-        return currentAmount >= requiredAmount;
-    }
-
-    bool CheckItemInspected(string target, string value)
-    {
-        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
-        int inspectedCount = PlayerPrefs.GetInt($"Item_{target}_Inspected", 0);
-        return inspectedCount >= requiredAmount;
-    }
-
-    bool CheckDialogueFinished(string target, string value)
-    {
-        return PlayerPrefs.GetInt($"Dialogue_{target}_Finished", 0) == 1;
-    }
-
-    // ===== 공개 메서드들 (기존 호환성 유지) =====
     public void StartDialogue(string dialogueSetID)
     {
         if (!dialogueSets.ContainsKey(dialogueSetID))
         {
             Debug.LogError($"[DialogueManager] 존재하지 않는 대화 세트: {dialogueSetID}");
+            return;
+        }
+
+        if (!dialogueSets[dialogueSetID].IsRepeatable && GameDataManager.Instance.HasFinishedDialogue(dialogueSetID))
+        {
+            Debug.Log($"[DialogueManager] 이미 완료된 대화입니다: {dialogueSetID}");
             return;
         }
 
@@ -516,378 +231,170 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        var dialogueSet = dialogueSets[dialogueSetID];
-        currentDialogueSetID = dialogueSetID;
-        currentLineID = dialogueSet.startLineID;
         isInDialogue = true;
-        isShowingItemDescription = false;
+        currentDialogueSetID = dialogueSetID;
+        currentLineID = dialogueSets[dialogueSetID].StartLineID;
 
-        if (logDialogueEvents)
-            Debug.Log($"[DialogueManager] 대화 시작: {dialogueSetID} - {dialogueSet.description}");
+        GameEventManager.Instance.TriggerDialogueStarted(dialogueSetID);
 
-        // 플레이어 조작 금지
-        var playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.SetCanMove(false);
-        }
-
-        if (dialoguePanel != null)
-        {
-            StartCoroutine(DelayedActivatePanel());
-        }
-
-        // 게임 상태 변경
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(true);
-        }
-
+        dialoguePanel.SetActive(true);
         DisplayCurrentLine();
     }
 
-    IEnumerator DelayedActivatePanel()
+    public void StartRandomDialogueFromSet(string dialogueSetID)
     {
-        yield return null;
+        var linesInSet = dialogueLines.Values.Where(line => line.DialogueSetID == dialogueSetID).ToList();
+        if (linesInSet.Count == 0)
+        {
+            Debug.LogError($"[DialogueManager] '{dialogueSetID}'에 해당하는 대사를 찾을 수 없습니다.");
+            return;
+        }
+
+        if (!dialogueSets.ContainsKey(dialogueSetID))
+        {
+            Debug.LogError($"[DialogueManager] 존재하지 않는 대화 세트: {dialogueSetID}");
+            return;
+        }
+
+        if (isInDialogue)
+        {
+            Debug.LogWarning($"[DialogueManager] 이미 대화가 진행 중입니다.");
+            return;
+        }
+
+        var availableGroupIDs = linesInSet
+            .Select(line => line.GroupID)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .OrderBy(id => id) 
+            .ToList();
+
+        if (availableGroupIDs.Count == 0)
+        {
+            Debug.LogError($"[DialogueManager] '{dialogueSetID}'에 유효한 GroupID가 없습니다.");
+            StartDialogue(dialogueSetID);
+            return;
+        }
+
+        if (!dialogueSetUsageCount.ContainsKey(dialogueSetID))
+        {
+            dialogueSetUsageCount[dialogueSetID] = 0;
+        }
+
+        int usageCount = dialogueSetUsageCount[dialogueSetID];
+        string selectedGroupID;
+
+        if (usageCount < availableGroupIDs.Count)
+        {
+            selectedGroupID = availableGroupIDs[usageCount];
+            Debug.Log($"[DialogueManager] 순차 모드: {selectedGroupID} ({usageCount + 1}번째)");
+        }
+        else
+        {
+            selectedGroupID = availableGroupIDs[UnityEngine.Random.Range(0, availableGroupIDs.Count)];
+            Debug.Log($"[DialogueManager] 랜덤 모드: {selectedGroupID}");
+        }
+
+        var startingLine = linesInSet
+            .Where(line => line.GroupID == selectedGroupID)
+            .OrderBy(line => line.Order)
+            .FirstOrDefault();
+
+        if (startingLine == null)
+        {
+            Debug.LogError($"[DialogueManager] 그룹 '{selectedGroupID}'에서 시작 대사를 찾을 수 없습니다.");
+            return;
+        }
+
+        dialogueSetUsageCount[dialogueSetID]++;
+
+        isInDialogue = true;
+        currentDialogueSetID = dialogueSetID;
+        currentLineID = startingLine.LineID;
+
+        GameEventManager.Instance.TriggerDialogueStarted(dialogueSetID);
 
         if (dialoguePanel != null)
         {
             dialoguePanel.SetActive(true);
         }
+
+        DisplayCurrentLine();
     }
 
-    public void StartDialogue(NPCDataSO npcData, int dialogueID)
+    private bool CanStartDialogue(string dialogueSetID)
     {
-        // 기존 호환성을 위한 래퍼 메서드
-        Debug.LogWarning("[DialogueManager] 구 방식 호출됨. CSV 기반 StartDialogue(string) 사용을 권장합니다.");
+        if (!dialogueConditions.ContainsKey(dialogueSetID)) return true;
 
-        // 임시로 dialogueID를 string으로 변환
-        string dialogueSetID = $"legacy_dialogue_{dialogueID}";
-        StartDialogue(dialogueSetID);
-    }
-
-    bool CanStartDialogue(string dialogueSetID)
-    {
-        if (!dialogueConditions.ContainsKey(dialogueSetID))
-            return true;
-
-        var conditions = dialogueConditions[dialogueSetID];
-        foreach (var condition in conditions)
+        foreach (var condition in dialogueConditions[dialogueSetID])
         {
-            if (!CheckDialogueCondition(condition))
+            if (!conditionCheckers.ContainsKey(condition.ConditionType) ||
+                !conditionCheckers[condition.ConditionType](condition.Target, condition.Value))
+            {
                 return false;
+            }
         }
-
         return true;
     }
 
-    bool CheckDialogueCondition(DialogueCondition condition)
+    private void DisplayCurrentLine()
     {
-        if (!conditionCheckers.ContainsKey(condition.conditionType))
-        {
-            Debug.LogWarning($"[DialogueManager] 알 수 없는 조건 타입: {condition.conditionType}");
-            return true;
-        }
+        var line = dialogueLines[currentLineID];
+        fullText = line.Text;
+        StartTyping(fullText);
 
-        return conditionCheckers[condition.conditionType](condition.target, condition.value);
+        string speakerName = string.IsNullOrEmpty(line.CustomSpeaker) ? line.SpeakerName : line.CustomSpeaker;
+        speakerNameText.text = speakerName;
     }
 
-    void DisplayCurrentLine()
+    private void NextLine()
     {
-        var currentLine = dialogueLines[currentLineID];
-        Debug.Log($"[DialogueManager] DisplayCurrentLine 호출: currentLineID = {currentLineID}");
-
-        if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
-        {
-            Debug.LogError($"[DialogueManager] 라인을 찾을 수 없음: {currentLineID}, Dictionary 크기: {dialogueLines.Count}");
-            EndDialogue();
-            return;
-        }
-
-        if (logDialogueEvents)
-            Debug.Log($"[DialogueManager] 대화 라인 표시: {currentLineID} - {currentLine.speakerName}");
-
-        // UI 업데이트
-        if (dialogueText != null)
-            dialogueText.text = currentLine.text;
-
-        SetCurrentSpeaker(currentLine);
+        currentLineID = dialogueLines[currentLineID].NextLineID;
+        DisplayCurrentLine();
     }
 
-    void SetCurrentSpeaker(DialogueLine line)
+    private void EndDialogue()
     {
-        string speakerName = string.IsNullOrEmpty(line.customSpeaker) ? line.speakerName : line.customSpeaker;
-
-        if (speakerNameText != null)
-            speakerNameText.text = speakerName;
-
-        // 초상화 설정
-        UpdatePortraits(line);
-    }
-
-    void UpdatePortraits(DialogueLine line)
-    {
-        if (leftPortrait != null && rightPortrait != null)
-        {
-            Sprite playerPortrait = GetPlayerPortrait();
-            Sprite npcPortrait = GetNPCPortrait(line.speakerName);
-
-            // 플레이어 초상화 (왼쪽)
-            leftPortrait.sprite = playerPortrait;
-            SetPortraitAlpha(leftPortrait, line.isPlayer ? 1f : 0.5f);
-
-            // NPC 초상화 (오른쪽)  
-            rightPortrait.sprite = npcPortrait;
-            SetPortraitAlpha(rightPortrait, !line.isPlayer ? 1f : 0.5f);
-        }
-    }
-
-    void SetPortraitAlpha(Image portrait, float alpha)
-    {
-        if (portrait != null)
-        {
-            Color color = portrait.color;
-            color.a = alpha;
-            portrait.color = color;
-        }
-    }
-
-    Sprite GetPlayerPortrait()
-    {
-        var playerStats = FindObjectOfType<PlayerStats>();
-        if (playerStats != null && playerStats.playerPortrait != null)
-            return playerStats.playerPortrait;
-
-        return defaultPlayerPortrait;
-    }
-
-    Sprite GetNPCPortrait(string speakerName)
-    {
-        // 캐시에서 찾기
-        if (portraitCache.ContainsKey(speakerName))
-            return portraitCache[speakerName];
-
-        // Resources에서 로드 시도
-        Sprite portrait = Resources.Load<Sprite>($"Portraits/{speakerName}");
-        if (portrait != null)
-        {
-            portraitCache[speakerName] = portrait;
-            return portrait;
-        }
-
-        return defaultNPCPortrait;
-    }
-
-    public void NextLine()
-    {
-        if (string.IsNullOrEmpty(currentLineID) || !dialogueLines.ContainsKey(currentLineID))
-        {
-            EndDialogue();
-            return;
-        }
-
-        var currentLine = dialogueLines[currentLineID];
-
-        if (string.IsNullOrEmpty(currentLine.nextLineID))
-        {
-            EndDialogue();
-        }
-        else
-        {
-            currentLineID = currentLine.nextLineID;
-            DisplayCurrentLine();
-        }
-    }
-
-    // 현재 탐색 중인 아이템 추적
-    private ItemManager currentInspectingItem = null;
-    private bool isInspectionFirstTime = false;
-
-    // 현재 탐색 중인 아이템 설정 (ItemManager에서 호출)
-    public void SetCurrentInspectingItem(ItemManager item, bool isFirstTime)
-    {
-        currentInspectingItem = item;
-        isInspectionFirstTime = isFirstTime;
-    }
-
-    public void EndDialogue()
-    {
-        if (!string.IsNullOrEmpty(currentDialogueSetID))
-        {
-            // 대화 완료 상태 저장
-            PlayerPrefs.SetInt($"Dialogue_{currentDialogueSetID}_Finished", 1);
-            PlayerPrefs.Save();
-
-            if (logDialogueEvents)
-                Debug.Log($"[DialogueManager] 대화 완료: {currentDialogueSetID}");
-
-            // 탐색용 대화 완료 시 ItemManager에 알림 (단순화됨)
-            if (currentInspectingItem != null)
-            {
-                currentInspectingItem.OnInspectionDialogueCompleted();
-                currentInspectingItem = null;
-                isInspectionFirstTime = false;
-            }
-
-            // StoryProgressManager에 진행 알림
-            if (StoryProgressManager.Instance != null)
-            {
-                StoryProgressManager.Instance.OnDialogueCompleted();
-            }
-        }
-
         isInDialogue = false;
-        isShowingItemDescription = false;
-        currentDialogueSetID = "";
-        currentLineID = "";
+        dialoguePanel.SetActive(false);
 
-        // 플레이어 조작 복구
-        var playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.SetCanMove(true);
-        }
+        GameDataManager.Instance.MarkDialogueAsFinished(currentDialogueSetID);
+        GameDataManager.Instance.SaveState(); 
 
-        StartCoroutine(DelayedDeactivatePanel());
+        GameEventManager.Instance.TriggerDialogueFinished(currentDialogueSetID);
 
-        // 게임 상태 복구
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(false);
-        }
+        Debug.Log($"[DialogueManager] 대화 종료: {currentDialogueSetID}");
     }
 
-    IEnumerator DelayedDeactivatePanel()
-    {
-        yield return new WaitForSeconds(2f); 
-
-        if (dialoguePanel != null)
-        {
-            dialoguePanel.SetActive(false);
-        }
-    }
-
-    // ===== 아이템 설명 기능 =====
-    public void ShowItemDescription(string description)
-    {
-        Debug.Log($"ShowItemDescription 호출됨: {description}");
-
-        if (dialoguePanel == null)
-        {
-            GameObject foundTalkPanel = GameObject.Find("talkPanel");
-            if (foundTalkPanel != null)
-            {
-                dialoguePanel = foundTalkPanel;
-                Debug.Log("talkPanel을 다시 찾아서 연결했습니다!");
-            }
-            else
-            {
-                Debug.LogError("talkPanel을 찾을 수 없습니다!");
-                return;
-            }
-        }
-
-        isShowingItemDescription = true;
-        isInDialogue = false;
-
-        var playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.SetCanMove(false);
-        }
-
-        dialoguePanel.SetActive(true);
-
-        if (dialogueText != null)
-        {
-            dialogueText.text = description;
-        }
-
-        var stats = FindObjectOfType<PlayerStats>();
-        string name = stats != null && !string.IsNullOrEmpty(stats.playerName)
-                      ? stats.playerName
-                      : "플레이어";
-
-        if (speakerNameText != null)
-            speakerNameText.text = name;
-
-        if (leftPortrait != null)
-        {
-            leftPortrait.sprite = GetPlayerPortrait();
-            SetPortraitAlpha(leftPortrait, 1f);
-        }
-
-        if (rightPortrait != null)
-        {
-            SetPortraitAlpha(rightPortrait, 0f);
-        }
-
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(true);
-        }
-    }
-
-    public void HideItemDescription()
-    {
-        Debug.Log("HideItemDescription 호출됨");
-
-        if (dialoguePanel != null)
-        {
-            dialoguePanel.SetActive(false);
-        }
-
-        isShowingItemDescription = false;
-
-        var playerController = FindObjectOfType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.SetCanMove(true);
-        }
-
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(false);
-        }
-    }
-
-    public void SetCharacterPortraits(Sprite playerPortrait, Sprite npcPortrait)
-    {
-        if (leftPortrait != null)
-        {
-            leftPortrait.sprite = playerPortrait;
-        }
-
-        if (rightPortrait != null)
-        {
-            rightPortrait.sprite = npcPortrait;
-        }
-
-        if (debugMode)
-            Debug.Log($"[DialogueManager] 초상화 설정 완료 - Player: {(playerPortrait != null ? playerPortrait.name : "NULL")}, NPC: {(npcPortrait != null ? npcPortrait.name : "NULL")}");
-    }
-
-    // ===== 공개 상태 확인 메서드들 =====
     public bool IsInDialogue()
     {
-        return isInDialogue || isShowingItemDescription;
+        return isInDialogue;
     }
 
-    // ===== 디버그 메서드들 =====
-    [ContextMenu("Reload Dialogue Data")]
-    public void ReloadDialogueData()
+    void StartTyping(string text)
     {
-        LoadDialogueDataFromCSV();
-        Debug.Log("[DialogueManager] 대화 데이터 재로드 완료");
+        if (continueIndicator != null) continueIndicator.Hide();
+        if (typingCoroutine != null) StopCoroutine(typingCoroutine);
+        isTyping = true;
+        typingCoroutine = StartCoroutine(TypeText(text));
     }
 
-    [ContextMenu("List All Dialogue Sets")]
-    public void ListAllDialogueSets()
+    void CompleteTyping()
     {
-        Debug.Log("=== 전체 대화 세트 목록 ===");
-        foreach (var kvp in dialogueSets)
+        if (typingCoroutine != null) StopCoroutine(typingCoroutine);
+        isTyping = false;
+        dialogueText.text = fullText;
+        if (continueIndicator != null) continueIndicator.Show();
+    }
+
+    IEnumerator TypeText(string text)
+    {
+        dialogueText.text = "";
+        foreach (char letter in text.ToCharArray())
         {
-            Debug.Log($"{kvp.Key}: {kvp.Value.description}");
+            dialogueText.text += letter;
+            yield return new WaitForSeconds(typingSpeed);
         }
+        CompleteTyping();
     }
 }

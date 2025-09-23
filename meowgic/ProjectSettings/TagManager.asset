@@ -11,7 +11,7 @@ TagManager:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Light
   - Water
   - UI
   - Walkable
@@ -47,6 +47,8 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: Effects
+    uniqueID: 3867507687
   - name: water
     uniqueID: 3074252775
     locked: 0

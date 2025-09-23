@@ -13,10 +13,10 @@ public class ItemUIManager : MonoBehaviour
     public Canvas descriptionCanvas;
 
     [Header("Position Settings")]
-    public Vector3 worldOffset = new Vector3(0, 1.5f, 0);  // ¾ÆÀÌÅÛ À§ÂÊÀ¸·Î ¾ó¸¶³ª ¶ç¿ïÁö
-    public bool followTarget = true;  // Å¸°ÙÀ» µû¶ó´Ù´ÒÁö
+    public Vector3 worldOffset = new Vector3(0, 1.5f, 0);  // ì•„ì´í…œ ìœ„ìª½ìœ¼ë¡œ ì–¼ë§ˆë‚˜ ë„ìš¸ì§€
+    public bool followTarget = true;  // íƒ€ê²Ÿì„ ë”°ë¼ë‹¤ë‹ì§€
 
-    private Transform currentTarget;  // ÇöÀç ¼³¸íÀ» º¸¿©ÁÖ´Â ¾ÆÀÌÅÛ
+    private Transform currentTarget;  // í˜„ì¬ ì„¤ëª…ì„ ë³´ì—¬ì£¼ëŠ” ì•„ì´í…œ
     private Camera mainCamera;
 
     void Awake()
@@ -37,7 +37,7 @@ public class ItemUIManager : MonoBehaviour
         if (mainCamera == null)
             mainCamera = FindObjectOfType<Camera>();
 
-        // Äµ¹ö½º¸¦ ¿ùµå ½ºÆäÀÌ½º·Î ¼³Á¤
+        // ìº”ë²„ìŠ¤ë¥¼ ì›”ë“œ ìŠ¤í˜ì´ìŠ¤ë¡œ ì„¤ì •
         if (descriptionCanvas != null)
         {
             descriptionCanvas.renderMode = RenderMode.WorldSpace;
@@ -55,19 +55,12 @@ public class ItemUIManager : MonoBehaviour
         descriptionText.text = description;
         descriptionUI.SetActive(true);
 
-        // À§Ä¡ ¼³Á¤
         UpdateUIPosition();
-
-        // °ÔÀÓ »óÅÂ º¯°æ (ÇÊ¿äÇÑ °æ¿ì)
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(true);
-        }
     }
 
     public void ShowItemDescription(string description)
     {
-        // ±âÁ¸ ¸Ş¼­µå È£È¯¼º À¯Áö (À§Ä¡ °íÁ¤)
+        // ê¸°ì¡´ ë©”ì„œë“œ í˜¸í™˜ì„± ìœ ì§€ (ìœ„ì¹˜ ê³ ì •)
         ShowItemDescription(description, null);
     }
 
@@ -77,12 +70,6 @@ public class ItemUIManager : MonoBehaviour
             descriptionUI.SetActive(false);
 
         currentTarget = null;
-
-        // °ÔÀÓ »óÅÂ º¹¿ø
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.SetDialogueState(false);
-        }
     }
 
     void UpdateUIPosition()
@@ -92,11 +79,10 @@ public class ItemUIManager : MonoBehaviour
         Vector3 worldPosition = currentTarget.position + worldOffset;
         descriptionCanvas.transform.position = worldPosition;
 
-        // Ä«¸Ş¶ó¸¦ ÇâÇÏµµ·Ï È¸Àü (ºôº¸µå È¿°ú)
         if (mainCamera != null)
         {
             Vector3 directionToCamera = mainCamera.transform.position - descriptionCanvas.transform.position;
-            directionToCamera.y = 0; // YÃà È¸Àü¸¸ Çã¿ë
+            directionToCamera.y = 0; 
 
             if (directionToCamera != Vector3.zero)
             {
@@ -107,13 +93,11 @@ public class ItemUIManager : MonoBehaviour
 
     void Update()
     {
-        // UI À§Ä¡ ¾÷µ¥ÀÌÆ® (Å¸°ÙÀ» µû¶ó´Ù´Ï´Â °æ¿ì)
         if (followTarget && currentTarget != null && descriptionUI.activeInHierarchy)
         {
             UpdateUIPosition();
         }
 
-        // ÀÔ·Â Ã³¸®
         if (descriptionUI != null && descriptionUI.activeInHierarchy)
         {
             if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Escape))
@@ -123,22 +107,18 @@ public class ItemUIManager : MonoBehaviour
         }
     }
 
-    // È­¸é ÁÂÇ¥ ±â¹İÀ¸·Î ¶ç¿ì´Â ¹æ¹ı (´ë¾È)
     public void ShowItemDescriptionAtScreenPosition(string description, Vector3 worldPosition)
     {
         if (descriptionUI == null || descriptionText == null || mainCamera == null) return;
 
-        // ¿ùµå ÁÂÇ¥¸¦ ½ºÅ©¸° ÁÂÇ¥·Î º¯È¯
         Vector3 screenPosition = mainCamera.WorldToScreenPoint(worldPosition + worldOffset);
 
-        // È­¸é ¹ÛÀ¸·Î ³ª°¡Áö ¾Êµµ·Ï Å¬·¥ÇÁ
         screenPosition.x = Mathf.Clamp(screenPosition.x, 100, Screen.width - 100);
         screenPosition.y = Mathf.Clamp(screenPosition.y, 100, Screen.height - 100);
 
         descriptionText.text = description;
         descriptionUI.SetActive(true);
 
-        // UI¸¦ ½ºÅ©¸° ÁÂÇ¥·Î À§Ä¡ ¼³Á¤ (Screen Space Overlay Äµ¹ö½º¿ë)
         RectTransform rectTransform = descriptionUI.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
