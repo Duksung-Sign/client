@@ -6,6 +6,9 @@ public class ItemManager : MonoBehaviour, IInteractable
     [Header("아이템 데이터")]
     public ItemDataSO itemData;
 
+    [Header("효과 설정")]
+    public GameObject idleEffect;
+
     private bool isInspectionDialogueRunning = false;
 
     void OnEnable()
@@ -33,10 +36,22 @@ public class ItemManager : MonoBehaviour, IInteractable
             return;
         }
 
-        if (GameDataManager.Instance.HasItem(itemData.itemID))
+        if (itemData.itemType == ItemDataSO.ItemType.Collectible)
         {
-            Debug.Log($"아이템 {itemData.itemID}는 이미 획득되어 제거됩니다.");
-            Destroy(gameObject);
+            if (GameDataManager.Instance.HasItem(itemData.itemID))
+            {
+                Destroy(gameObject);
+            }
+        }
+        else if (itemData.itemType == ItemDataSO.ItemType.Inspectable)
+        {
+            if (GameDataManager.Instance.HasInspectedItem(itemData.itemID))
+            {
+                if (idleEffect != null)
+                {
+                    idleEffect.SetActive(false);
+                }
+            }
         }
     }
 
@@ -102,6 +117,11 @@ public class ItemManager : MonoBehaviour, IInteractable
         GameDataManager.Instance.SaveState();
 
         GameEventManager.Instance.TriggerItemInspected(itemData.itemID);
+
+        if (idleEffect != null)
+        {
+            idleEffect.SetActive(false);
+        }
 
         Debug.Log($"[ItemManager] '{itemData.displayName}' 조사를 완료했습니다.");
     }
