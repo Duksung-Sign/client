@@ -213,7 +213,7 @@ public class StoryProgressManager : MonoBehaviour
                     break;
                 case "change_scene":
                     GameManager.Instance.ChangeState(GameState.Loading);
-                    SceneManager.LoadScene(action.Target);
+                    GameManager.Instance.ChangeScene(action.Target);
                     yield break; 
                 case "enable_player":
                     GameManager.Instance.ChangeState(GameState.Field);

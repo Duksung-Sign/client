@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Collections;
+using DG.Tweening;
 
 public enum GameState
 {
@@ -14,6 +16,11 @@ public enum GameState
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+
+    [Header("씬 전환 효과")]
+    [SerializeField] private CanvasGroup fadeCanvasGroup;
+    [SerializeField] private float fadeDuration = 0.5f;
+    private bool isChangingScene = false;
 
     public GameState CurrentState { get; private set; }
 
@@ -60,7 +67,7 @@ public class GameManager : MonoBehaviour
         GameDataManager.Instance.SetPreviousScene(SceneManager.GetActiveScene().name);
 
         ChangeState(GameState.Battle);
-        SceneManager.LoadScene("BattleScene");
+        ChangeScene("BattleScene");
     }
 
     private void HandleDialogueStarted(string eventType, string dialogueId)
@@ -81,5 +88,31 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] 게임 상태 변경 -> {newState}");
 
         GameEventManager.Instance.TriggerGameStateChanged(newState);
+    }
+
+    public void ChangeScene(string sceneName)
+    {
+        if (isChangingScene) return;
+
+        StartCoroutine(FadeAndLoadScene(sceneName));
+    }
+
+    private IEnumerator FadeAndLoadScene(string sceneName)
+    {
+        isChangingScene = true;
+
+        ChangeState(GameState.Loading); 
+        
+        fadeCanvasGroup.blocksRaycasts = true; 
+        yield return fadeCanvasGroup.DOFade(1f, fadeDuration).WaitForCompletion();
+
+        yield return SceneManager.LoadSceneAsync(sceneName);
+
+        yield return fadeCanvasGroup.DOFade(0f, fadeDuration).WaitForCompletion();
+        fadeCanvasGroup.blocksRaycasts = false; 
+
+        ChangeState(GameState.Field); 
+        
+        isChangingScene = false;
     }
 }
