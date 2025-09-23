@@ -35,6 +35,30 @@ public class PlayerController : MonoBehaviour
         {
             HandleGameStateChange(GameManager.Instance.CurrentState);
         }
+        PositionPlayerOnLoad();
+    }
+
+    private void PositionPlayerOnLoad()
+    {
+        if (GameDataManager.Instance == null) return;
+
+        string spawnPointName = GameDataManager.Instance.PlayerSpawnPointID;
+
+        if (!string.IsNullOrEmpty(spawnPointName))
+        {
+            GameObject spawnPointObject = GameObject.Find(spawnPointName);
+
+            if (spawnPointObject != null)
+            {
+                transform.position = spawnPointObject.transform.position;
+                Debug.Log($"플레이어를 스폰 위치 '{spawnPointName}'로 이동시켰습니다.");
+            }
+            else
+            {
+                Debug.LogWarning($"스폰 위치 오브젝트 '{spawnPointName}'를 씬에서 찾을 수 없습니다!");
+            }
+            GameDataManager.Instance.ClearPlayerSpawnPoint();
+        }
     }
 
     private void HandleGameStateChange(GameState newState)

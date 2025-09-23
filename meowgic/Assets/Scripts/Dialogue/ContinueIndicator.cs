@@ -1,99 +1,47 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 using System.Collections;
+using DG.Tweening; // DOTween을 사용한 부드러운 깜빡임 예시
 
+[RequireComponent(typeof(Image))]
 public class ContinueIndicator : MonoBehaviour
 {
-    public Image continueIcon;
-    public TextMeshProUGUI dialogueText;
-    public float blinkSpeed = 1f;
-    public Vector2 offsetFromText = new Vector2(10f, 0f);
-
-    private RectTransform iconRect;
-    private bool isBlinking = false;
+    private Image indicatorImage;
+    private Coroutine runningCoroutine; 
 
     void Awake()
     {
-        if (continueIcon != null)
-            iconRect = continueIcon.GetComponent<RectTransform>();
-        Hide();
+        indicatorImage = GetComponent<Image>();
+        gameObject.SetActive(false); 
     }
 
     public void Show()
     {
-        if (continueIcon == null) return;
-
-        UpdateIconPosition();
-        continueIcon.gameObject.SetActive(true);
-        StartCoroutine(DelayedPositionUpdate());
-
-        if (!isBlinking)
-            StartCoroutine(BlinkCoroutine());
-    }
-
-    IEnumerator DelayedPositionUpdate()
-    {
-        yield return null; 
-        UpdateIconPosition();
+        gameObject.SetActive(true);
+        
+        if (runningCoroutine != null)
+        {
+            StopCoroutine(runningCoroutine);
+        }
+        runningCoroutine = StartCoroutine(BlinkCoroutine());
     }
 
     public void Hide()
     {
-        if (continueIcon != null)
-            continueIcon.gameObject.SetActive(false);
-        StopAllCoroutines();
-        isBlinking = false;
+        if (runningCoroutine != null)
+        {
+            StopCoroutine(runningCoroutine);
+            runningCoroutine = null; 
+        }
+        gameObject.SetActive(false);
     }
 
-    void UpdateIconPosition()
+    private IEnumerator BlinkCoroutine()
     {
-        if (dialogueText == null || iconRect == null) return;
-
-        dialogueText.ForceMeshUpdate();
-        var textInfo = dialogueText.textInfo;
-
-        if (textInfo.characterCount == 0)
+        while (true)
         {
-            continueIcon.gameObject.SetActive(false);
-            return;
-        }
-
-        int lastVisibleCharacterIndex = -1;
-
-        for (int i = textInfo.characterCount - 1; i >= 0; i--)
-        {
-            if (textInfo.characterInfo[i].isVisible)
-            {
-                lastVisibleCharacterIndex = i;
-                break; 
-            }
-        }
-
-        if (lastVisibleCharacterIndex == -1)
-        {
-            continueIcon.gameObject.SetActive(false);
-            return;
-        }
-
-        TMP_CharacterInfo lastCharInfo = textInfo.characterInfo[lastVisibleCharacterIndex];
-
-        Vector2 iconPosition = lastCharInfo.topRight;
-
-        iconPosition += offsetFromText;
-        iconRect.anchoredPosition = iconPosition;
-    }
-
-    IEnumerator BlinkCoroutine()
-    {
-        isBlinking = true;
-
-        while (isBlinking)
-        {
-            continueIcon.color = new Color(1f, 1f, 1f, 0.3f);
-            yield return new WaitForSeconds(1f / blinkSpeed);
-            continueIcon.color = new Color(1f, 1f, 1f, 1f);
-            yield return new WaitForSeconds(1f / blinkSpeed);
+            yield return indicatorImage.DOFade(0.2f, 0.5f).WaitForCompletion();
+            yield return indicatorImage.DOFade(1f, 0.5f).WaitForCompletion();
         }
     }
 }
