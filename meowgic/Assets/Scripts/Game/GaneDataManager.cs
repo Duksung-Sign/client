@@ -58,6 +58,8 @@ public class GameDataManager : MonoBehaviour
 
     public void LoadState()
     {
+        ResetData(); 
+
         CompletedQuestIDs = new HashSet<string>(PlayerPrefs.GetString("CompletedQuestIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         CurrentStoryID = PlayerPrefs.GetString("CurrentStoryID", "library_intro");
         ObtainedItemIDs = new HashSet<string>(PlayerPrefs.GetString("ObtainedItemIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
@@ -66,6 +68,18 @@ public class GameDataManager : MonoBehaviour
         DefeatedMonsterIDs = new HashSet<string>(PlayerPrefs.GetString("DefeatedMonsterIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         Debug.Log("[GameDataManager] Game state loaded.");
     }
+
+    public void ResetData()
+{
+    CompletedQuestIDs = new HashSet<string>();
+    CurrentStoryID = "library_intro"; 
+    ObtainedItemIDs = new HashSet<string>();
+    FinishedDialogueIDs = new HashSet<string>();
+    InspectedItemIDs = new HashSet<string>();
+    DefeatedMonsterIDs = new HashSet<string>();
+
+    Debug.Log("[GameDataManager] 메모리의 게임 데이터가 초기화되었습니다.");
+}
 
     public void SetCurrentBattleMonster(MonsterDataSO data, string id, string dialogueId = null)
     {
