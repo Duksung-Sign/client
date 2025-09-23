@@ -1,415 +1,151 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using System.Collections;
 
-public class MonsterController : MonoBehaviour
+public class MonsterController : MonoBehaviour, IInteractable
 {
-    [Header("컴포넌트 참조")]
+    [Header("몬스터 데이터")]
     public MonsterDataSO monsterData;
-    private Transform player;
-    private Rigidbody2D rb;
-    private Collider2D triggerCollider;
+    private string monsterUniqueID;
 
-    public enum MonsterState
-    {
-        Idle,
-        Patrol,
-        Chase,
-        Return,
-        BattleStarted
-    }
-
-    [Header("AI 상태")]
+    [Header("AI")]
     public MonsterState currentState = MonsterState.Idle;
-
-    [Header("범위 설정")]
-    public bool overrideRanges = false;
-    [SerializeField, Range(1f, 10f)]
-    private float customPatrolRange = 3f;
-    [SerializeField, Range(1f, 8f)]
-    private float customChaseRange = 2f;
-    [SerializeField, Range(0.5f, 5f)]
-    private float customMoveSpeed = 2f;
-
-    [Header("이동 관련")]
+    private Transform player;
     private Vector3 initialPosition;
     private Vector3 patrolTarget;
     private float stateTimer;
-    private float idleTime = 2f;
-    private float patrolTime = 3f;
+    private const float IDLE_TIME = 2f;
+    private const float PATROL_TIME = 3f;
 
-    [Header("고유 식별자")]
-    public string uniqueIdentifier = "";
-
-    // 몬스터 고유 ID
-    private string monsterUniqueID;
-
-    // 안전 상태 관리
-    private bool battleStarted = false;
-    private bool isDestroyed = false;
+    private Rigidbody2D rb;
     private bool isInitialized = false;
 
-    // 프로퍼티
-    public float PatrolRange => overrideRanges ? customPatrolRange : (monsterData != null ? monsterData.patrolRange : 3f);
-    public float ChaseRange => overrideRanges ? customChaseRange : (monsterData != null ? monsterData.chaseRange : 2f);
-    public float MoveSpeed => overrideRanges ? customMoveSpeed : (monsterData != null ? monsterData.moveSpeed : 2f);
+    public float PatrolRange => monsterData.patrolRange;
+    public float ChaseRange => monsterData.chaseRange;
+    public float MoveSpeed => monsterData.moveSpeed;
+
+    public enum MonsterState { Idle, Patrol, Chase, Return }
+
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+    }
 
     void Start()
     {
-        try
-        {
-            SafeInitialize();
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"MonsterController 초기화 실패: {e.Message}");
-            SafeDestroy();
-        }
+        Initialize();
     }
 
-    void SafeInitialize()
+    private void Initialize()
     {
-        // 몬스터 고유 ID 생성
-        monsterUniqueID = GenerateMonsterID();
-
-        // 이미 처친 몬스터인지 확인
-        if (GameManager.Instance != null && GameManager.Instance.IsMonsterDefeated(monsterUniqueID))
-        {
-            Debug.Log($"이미 처친 몬스터 제거: {monsterUniqueID}");
-            SafeDestroy();
-            return;
-        }
-
-        // 기본 데이터 유효성 검사
         if (monsterData == null)
         {
             Debug.LogError($"MonsterData가 설정되지 않았습니다: {gameObject.name}");
-            SafeDestroy();
+            Destroy(gameObject);
             return;
         }
 
-        // 컴포넌트 초기화
+        monsterUniqueID = GenerateMonsterID();
+
+        if (GameDataManager.Instance.IsMonsterDefeated(monsterUniqueID))
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         initialPosition = transform.position;
-        rb = GetComponent<Rigidbody2D>();
-        triggerCollider = GetComponent<Collider2D>();
+        var playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null) player = playerObj.transform;
 
-        // 필수 컴포넌트 확인
-        if (rb == null)
-        {
-            Debug.LogError($"Rigidbody2D가 없습니다: {gameObject.name}");
-            rb = gameObject.AddComponent<Rigidbody2D>();
-        }
-
-        if (triggerCollider == null)
-        {
-            Debug.LogError($"Collider2D가 없습니다: {gameObject.name}");
-            triggerCollider = gameObject.AddComponent<BoxCollider2D>();
-        }
-
-        // Trigger 설정 확인
-        if (!triggerCollider.isTrigger)
-        {
-            Debug.LogWarning($"{gameObject.name}: Collider를 Trigger로 설정합니다.");
-            triggerCollider.isTrigger = true;
-        }
-
-        // 플레이어 찾기
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-        {
-            player = playerObj.transform;
-        }
-        else
-        {
-            Debug.LogWarning("Player 태그를 가진 오브젝트를 찾을 수 없습니다!");
-        }
-
-        // 초기 상태 설정
-        SetRandomPatrolTarget();
-        currentState = MonsterState.Idle;
-        stateTimer = idleTime;
+        ChangeState(MonsterState.Idle);
         isInitialized = true;
-
-        // 수정: monsterName -> GetDisplayName()
-        Debug.Log($"몬스터 초기화 완료: {monsterData.GetDisplayName()} (ID: {monsterUniqueID})");
     }
 
-    string GenerateMonsterID()
+    private string GenerateMonsterID()
     {
-        if (!string.IsNullOrEmpty(uniqueIdentifier))
-        {
-            return uniqueIdentifier;
-        }
-
-        Vector3 pos = transform.position;
-        // 수정: monsterName -> GetDisplayName()
-        return $"{(monsterData != null ? monsterData.GetDisplayName() : "Unknown")}_{pos.x:F2}_{pos.y:F2}";
+        return $"{monsterData.monsterID}_{transform.position.x:F1}_{transform.position.y:F1}";
     }
 
     void Update()
     {
-        // 안전 상태 체크
-        if (!isInitialized || battleStarted || isDestroyed || currentState == MonsterState.BattleStarted)
-            return;
+        if (!isInitialized || player == null) return;
 
-        if (player == null) return;
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
-        try
+        switch (currentState)
         {
-            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-            float distanceToInitial = Vector3.Distance(transform.position, initialPosition);
-
-            // 상태 전환 로직
-            switch (currentState)
-            {
-                case MonsterState.Idle:
-                    HandleIdleState(distanceToPlayer);
-                    break;
-                case MonsterState.Patrol:
-                    HandlePatrolState(distanceToPlayer);
-                    break;
-                case MonsterState.Chase:
-                    HandleChaseState(distanceToPlayer, distanceToInitial);
-                    break;
-                case MonsterState.Return:
-                    HandleReturnState(distanceToPlayer);
-                    break;
-            }
-
-            stateTimer -= Time.deltaTime;
+            case MonsterState.Idle:
+                if (distanceToPlayer <= ChaseRange) ChangeState(MonsterState.Chase);
+                else if (stateTimer <= 0) ChangeState(MonsterState.Patrol);
+                break;
+            case MonsterState.Patrol:
+                if (distanceToPlayer <= ChaseRange) ChangeState(MonsterState.Chase);
+                else if (Vector3.Distance(transform.position, patrolTarget) < 0.5f || stateTimer <= 0) ChangeState(MonsterState.Idle);
+                MoveTowards(patrolTarget);
+                break;
+            case MonsterState.Chase:
+                if (distanceToPlayer > ChaseRange * 1.5f) ChangeState(MonsterState.Return);
+                MoveTowards(player.position);
+                break;
+            case MonsterState.Return:
+                if (Vector3.Distance(transform.position, initialPosition) < 0.5f) ChangeState(MonsterState.Idle);
+                MoveTowards(initialPosition);
+                break;
         }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"MonsterController Update 오류: {e.Message}");
-        }
+        stateTimer -= Time.deltaTime;
     }
 
-    void HandleIdleState(float distanceToPlayer)
+    public void Interact()
     {
-        if (distanceToPlayer <= ChaseRange)
-        {
-            ChangeState(MonsterState.Chase);
-            return;
-        }
+        if (!isInitialized) return;
 
-        if (stateTimer <= 0)
-        {
-            ChangeState(MonsterState.Patrol);
-        }
+        Debug.Log($"[MonsterController] 전투 시작 요청: {monsterData.displayName}");
+        isInitialized = false; // 중복 상호작용 방지
+
+        GameEventManager.Instance.TriggerBattleStartRequested(monsterData, monsterUniqueID);
     }
 
-    void HandlePatrolState(float distanceToPlayer)
+    public string GetInteractionPromptText()
     {
-        if (distanceToPlayer <= ChaseRange)
-        {
-            ChangeState(MonsterState.Chase);
-            return;
-        }
-
-        MoveTowards(patrolTarget);
-
-        if (Vector3.Distance(transform.position, patrolTarget) < 0.5f || stateTimer <= 0)
-        {
-            ChangeState(MonsterState.Idle);
-        }
+        return "";
     }
 
-    void HandleChaseState(float distanceToPlayer, float distanceToInitial)
+    void OnTriggerEnter2D(Collider2D other)
     {
-        MoveTowards(player.position);
-
-        if (distanceToPlayer > ChaseRange * 1.5f || distanceToInitial > PatrolRange * 2f)
+        if (other.CompareTag("Player"))
         {
-            ChangeState(MonsterState.Return);
+            Interact();
         }
     }
 
-    void HandleReturnState(float distanceToPlayer)
-    {
-        MoveTowards(initialPosition);
-
-        if (Vector3.Distance(transform.position, initialPosition) < 0.5f)
-        {
-            ChangeState(MonsterState.Idle);
-        }
-
-        if (distanceToPlayer <= ChaseRange * 0.7f)
-        {
-            ChangeState(MonsterState.Chase);
-        }
-    }
-
-    void ChangeState(MonsterState newState)
+    private void ChangeState(MonsterState newState)
     {
         currentState = newState;
-
         switch (newState)
         {
             case MonsterState.Idle:
-                stateTimer = idleTime;
-                if (rb != null) rb.velocity = Vector2.zero;
+                stateTimer = IDLE_TIME;
+                rb.velocity = Vector2.zero;
                 break;
             case MonsterState.Patrol:
-                SetRandomPatrolTarget();
-                stateTimer = patrolTime;
-                break;
-            case MonsterState.Chase:
-                stateTimer = float.MaxValue;
-                break;
-            case MonsterState.Return:
-                stateTimer = float.MaxValue;
-                break;
-            case MonsterState.BattleStarted:
-                if (rb != null) rb.velocity = Vector2.zero;
+                stateTimer = PATROL_TIME;
+                patrolTarget = initialPosition + (Vector3)(Random.insideUnitCircle * PatrolRange);
                 break;
         }
     }
 
-    void SetRandomPatrolTarget()
+    private void MoveTowards(Vector3 target)
     {
-        Vector2 randomDirection = Random.insideUnitCircle.normalized;
-        float randomDistance = Random.Range(1f, PatrolRange);
-        patrolTarget = initialPosition + (Vector3)(randomDirection * randomDistance);
-    }
-
-    void MoveTowards(Vector3 target)
-    {
-        if (rb == null) return;
-
         Vector3 direction = (target - transform.position).normalized;
         rb.velocity = direction * MoveSpeed;
-
         if (direction.x != 0)
         {
-            Vector3 scale = transform.localScale;
-            scale.x = Mathf.Abs(scale.x) * (direction.x > 0 ? 1 : -1);
-            transform.localScale = scale;
+            float newXScale = Mathf.Abs(transform.localScale.x);
+            newXScale *= Mathf.Sign(direction.x);
+            transform.localScale = new Vector3(newXScale, transform.localScale.y, transform.localScale.z);
         }
     }
 
-    // 안전한 충돌 감지
-    void OnTriggerEnter2D(Collider2D other)
+    public bool IsCurrentlyInteractable()
     {
-        try
-        {
-            if (!isInitialized || battleStarted || isDestroyed || currentState == MonsterState.BattleStarted)
-                return;
-            if (other == null || !other.CompareTag("Player"))
-                return;
-
-            Debug.Log($"몬스터 {monsterUniqueID}: 플레이어와 충돌 감지");
-            // 즉시 호출하지 않고 코루틴으로 지연
-            StartCoroutine(DelayedBattleStart());
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"몬스터 충돌 처리 오류: {e.Message}");
-        }
-    }
-
-    // 새로 추가할 코루틴
-    private IEnumerator DelayedBattleStart()
-    {
-        // 물리 업데이트가 완료된 다음 프레임까지 기다림
-        yield return new WaitForEndOfFrame();
-        StartBattleSafe();
-    }
-
-    void StartBattleSafe()
-    {
-        try
-        {
-            // 중복 배틀 시작 방지
-            if (battleStarted || isDestroyed)
-            {
-                Debug.Log($"몬스터 {monsterUniqueID}: 이미 배틀 시작됨 - 무시");
-                return;
-            }
-
-            // GameManager 유효성 확인
-            if (GameManager.Instance == null)
-            {
-                Debug.LogError("GameManager.Instance가 null입니다!");
-                return;
-            }
-
-            if (monsterData == null)
-            {
-                Debug.LogError("monsterData가 null입니다!");
-                return;
-            }
-
-            // 배틀 시작 플래그 설정
-            battleStarted = true;
-            currentState = MonsterState.BattleStarted;
-
-            // 충돌 감지 비활성화
-            if (triggerCollider != null)
-            {
-                triggerCollider.enabled = false;
-                Debug.Log($"몬스터 {monsterUniqueID}: 충돌 감지 비활성화");
-            }
-
-            // 이동 정지
-            if (rb != null)
-            {
-                rb.velocity = Vector2.zero;
-            }
-
-            // 몬스터 ID 저장
-            PlayerPrefs.SetString("CurrentMonsterID", monsterUniqueID);
-
-            // 수정: monsterName -> GetDisplayName()
-            Debug.Log($"안전한 배틀 시작: {monsterData.GetDisplayName()} (ID: {monsterUniqueID})");
-
-            // GameManager에 배틀 시작 요청
-            GameManager.Instance.StartBattle(monsterData, gameObject);
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"배틀 시작 오류: {e.Message}");
-
-            // 오류 복구
-            battleStarted = false;
-            currentState = MonsterState.Idle;
-            if (triggerCollider != null)
-            {
-                triggerCollider.enabled = true;
-            }
-        }
-    }
-
-    void SafeDestroy()
-    {
-        if (isDestroyed) return;
-
-        isDestroyed = true;
-        Debug.Log($"몬스터 {monsterUniqueID} 안전 파괴");
-
-        StartCoroutine(DelayedDestroy());
-    }
-
-    IEnumerator DelayedDestroy()
-    {
-        // 충돌 감지 비활성화
-        if (triggerCollider != null)
-        {
-            triggerCollider.enabled = false;
-        }
-
-        // 이동 정지
-        if (rb != null)
-        {
-            rb.velocity = Vector2.zero;
-        }
-
-        yield return new WaitForSeconds(0.1f);
-
-        Destroy(gameObject);
-    }
-
-    public string GetMonsterID()
-    {
-        return monsterUniqueID;
+        return true;
     }
 }

@@ -17,6 +17,10 @@ public class ItemDataSO : ScriptableObject
     [TextArea(3, 5)]
     public string itemDescription = "";
 
+    [Header("Dialogue")]
+    [Tooltip("이 아이템을 획득했을 때 출력할 DialogueSet ID")]
+    public string onCollectDialogueID;
+
     [Header("탐색 관련 (Inspectable 타입용)")]
     [Tooltip("탐색 시 표시할 대화 ID (Inspectable 타입 전용)")]
     public string inspectionDialogueID = "";

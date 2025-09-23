@@ -1,878 +1,306 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Globalization;
 using System.Linq;
+using CsvHelper;
+using CsvHelper.Configuration.Attributes;
+using UnityEngine.SceneManagement;
+using CsvHelper.Configuration;
 
-// ===== 데이터 클래스들 =====
+#region Data Classes
 [System.Serializable]
-public class StoryNodeData
+public class StoryNodes
 {
-    public string id;
-    public string displayName;
-    public string description;
-    public string chapter;
-    public string nextStoryID;
-    public bool autoAdvance;
-
-    public StoryNodeData() { }
-
-    public StoryNodeData(string id, string displayName, string description, string chapter, string nextStoryID, bool autoAdvance)
-    {
-        this.id = id;
-        this.displayName = displayName;
-        this.description = description;
-        this.chapter = chapter;
-        this.nextStoryID = nextStoryID;
-        this.autoAdvance = autoAdvance;
-    }
+    public string StoryID { get; set; }
+    public string DisplayName { get; set; }
+    public string Description { get; set; }
+    public string Chapter { get; set; }
+    public string NextStoryID { get; set; }
+    public bool AutoAdvance { get; set; }
 }
 
 [System.Serializable]
 public class StoryCondition
 {
-    public string storyID;
-    public string conditionType;
-    public string target;
-    public string value;
-    public string description;
-
-    public StoryCondition() { }
-
-    public StoryCondition(string storyID, string conditionType, string target, string value, string description)
-    {
-        this.storyID = storyID;
-        this.conditionType = conditionType;
-        this.target = target;
-        this.value = value;
-        this.description = description;
-    }
+    public string StoryID { get; set; }
+    public string ConditionType { get; set; }
+    public string Target { get; set; }
+    public string Value { get; set; }
+    public string Description { get; set; }
 }
 
 [System.Serializable]
 public class StoryAction
 {
-    public string storyID;
-    public string actionType;
-    public string target;
-    public string parameter;
-    public int order;
-    public string description;
-
-    public StoryAction() { }
-
-    public StoryAction(string storyID, string actionType, string target, string parameter, int order, string description)
-    {
-        this.storyID = storyID;
-        this.actionType = actionType;
-        this.target = target;
-        this.parameter = parameter;
-        this.order = order;
-        this.description = description;
-    }
+    public string StoryID { get; set; }
+    public string ActionType { get; set; }
+    public string Target { get; set; }
+    public string Parameter { get; set; }
+    public int Order { get; set; }
+    public string Description { get; set; }
 }
 
-// ===== CSV 파싱 유틸리티 =====
-public static class StoryCSVParser
+[System.Serializable]
+public class StoryTriggers
 {
-    public static List<StoryNodeData> ParseStoryNodes(string csvText)
-    {
-        var nodes = new List<StoryNodeData>();
-
-        try
-        {
-            string[] lines = csvText.Split('\n');
-
-            // 헤더 라인 건너뛰기
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line)) continue;
-
-                string[] values = ParseCSVLine(line);
-                if (values.Length >= 6)
-                {
-                    var node = new StoryNodeData(
-                        values[0].Trim(), // StoryID
-                        values[1].Trim(), // DisplayName
-                        values[2].Trim(), // Description
-                        values[3].Trim(), // Chapter
-                        values[4].Trim(), // NextStoryID
-                        ParseBool(values[5]) // AutoAdvance
-                    );
-                    nodes.Add(node);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"StoryNodes CSV 파싱 실패: {e.Message}");
-        }
-
-        return nodes;
-    }
-
-    public static List<StoryCondition> ParseStoryConditions(string csvText)
-    {
-        var conditions = new List<StoryCondition>();
-
-        try
-        {
-            string[] lines = csvText.Split('\n');
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line)) continue;
-
-                string[] values = ParseCSVLine(line);
-                if (values.Length >= 5)
-                {
-                    var condition = new StoryCondition(
-                        values[0].Trim(), // StoryID
-                        values[1].Trim(), // ConditionType
-                        values[2].Trim(), // Target
-                        values[3].Trim(), // Value
-                        values[4].Trim()  // Description
-                    );
-                    conditions.Add(condition);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"StoryConditions CSV 파싱 실패: {e.Message}");
-        }
-
-        return conditions;
-    }
-
-    public static List<StoryAction> ParseStoryActions(string csvText)
-    {
-        var actions = new List<StoryAction>();
-
-        try
-        {
-            string[] lines = csvText.Split('\n');
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line)) continue;
-
-                string[] values = ParseCSVLine(line);
-                if (values.Length >= 6)
-                {
-                    var action = new StoryAction(
-                        values[0].Trim(), // StoryID
-                        values[1].Trim(), // ActionType
-                        values[2].Trim(), // Target
-                        values[3].Trim(), // Parameter
-                        ParseInt(values[4]), // Order
-                        values[5].Trim()  // Description
-                    );
-                    actions.Add(action);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"StoryActions CSV 파싱 실패: {e.Message}");
-        }
-
-        return actions;
-    }
-
-    // 간단한 CSV 라인 파싱 (쉼표 분리, 따옴표 처리)
-    private static string[] ParseCSVLine(string line)
-    {
-        var result = new List<string>();
-        bool inQuotes = false;
-        string currentField = "";
-
-        for (int i = 0; i < line.Length; i++)
-        {
-            char c = line[i];
-
-            if (c == '"')
-            {
-                inQuotes = !inQuotes;
-            }
-            else if (c == ',' && !inQuotes)
-            {
-                result.Add(currentField);
-                currentField = "";
-            }
-            else
-            {
-                currentField += c;
-            }
-        }
-
-        result.Add(currentField);
-        return result.ToArray();
-    }
-
-    private static bool ParseBool(string value)
-    {
-        return value.Trim().ToUpper() == "TRUE";
-    }
-
-    private static int ParseInt(string value)
-    {
-        if (int.TryParse(value.Trim(), out int result))
-            return result;
-        return 0;
-    }
+    public string CurrentStoryID { get; set; }
+    public string TriggerType { get; set; }
+    public string TriggerTargetID { get; set; }
+    public string NextStoryID { get; set; }
 }
 
-// ===== 메인 StoryProgressManager =====
+#endregion
+
 public class StoryProgressManager : MonoBehaviour
 {
     public static StoryProgressManager Instance;
 
-    [Header("현재 스토리 상태")]
-    [SerializeField] private string currentStoryID = "library_intro";
+    private Dictionary<string, StoryNodes> storyNodes = new Dictionary<string, StoryNodes>();
+    private Dictionary<string, List<StoryCondition>> storyConditions = new Dictionary<string, List<StoryCondition>>();
+    private Dictionary<string, List<StoryAction>> storyActions = new Dictionary<string, List<StoryAction>>();
+    private List<StoryTriggers> storyTriggersList = new List<StoryTriggers>();
+    private Dictionary<string, Func<string, string, bool>> conditionCheckers;
 
     [Header("CSV 파일 경로")]
     [SerializeField] private string storyNodesPath = "StoryData/StoryNodes";
     [SerializeField] private string storyConditionsPath = "StoryData/StoryConditions";
     [SerializeField] private string storyActionsPath = "StoryData/StoryActions";
+    [SerializeField] private string storyTriggersPath = "StoryData/StoryTriggers";
 
-    [Header("디버그")]
-    public bool debugMode = true;
-    public bool logStoryChanges = true;
-    public bool logConditionChecks = true;
-    public bool logActionExecutions = true;
-
-    // 스토리 데이터
-    private Dictionary<string, StoryNodeData> storyNodes = new Dictionary<string, StoryNodeData>();
-    private Dictionary<string, List<StoryCondition>> storyConditions = new Dictionary<string, List<StoryCondition>>();
-    private Dictionary<string, List<StoryAction>> storyActions = new Dictionary<string, List<StoryAction>>();
-
-    // 조건 체크 함수들
-    private Dictionary<string, Func<string, string, bool>> conditionCheckers;
-
-    // 액션 실행 함수들
-    private Dictionary<string, Action<string, string>> actionExecutors;
-
-    // 이벤트들
-    public event Action<string> OnStoryChanged;
-    public event Action<string, StoryNodeData> OnStoryNodeEntered;
-    public event Action<string, string, bool> OnConditionChecked;
-    public event Action<string, string, string> OnActionExecuted;
-
+    #region Unity Lifecycle & Event Management
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
             InitializeStorySystem();
         }
-        else
+        else Destroy(gameObject);
+    }
+
+    void OnEnable()
+    {
+        if (GameEventManager.Instance != null)
         {
-            Destroy(gameObject);
+            GameEventManager.Instance.OnItemCollected += HandleGameEvent;
+            GameEventManager.Instance.OnItemInspected += HandleGameEvent;
+            GameEventManager.Instance.OnDialogueFinished += HandleGameEvent;
+            GameEventManager.Instance.OnBattleOver += HandleGameEvent;
+        }
+    }
+
+    void OnDisable()
+    {
+        if (GameEventManager.Instance != null)
+        {
+            GameEventManager.Instance.OnItemCollected -= HandleGameEvent;
+            GameEventManager.Instance.OnItemInspected -= HandleGameEvent;
+            GameEventManager.Instance.OnDialogueFinished -= HandleGameEvent;
+            GameEventManager.Instance.OnBattleOver -= HandleGameEvent;
         }
     }
 
     void Start()
     {
-        // 저장된 스토리 진행도 로드
-        LoadCurrentStoryProgress();
-
-        // 현재 스토리 노드 실행
-        ExecuteCurrentStoryNode();
+        ExecuteStoryNode(GameDataManager.Instance.CurrentStoryID);
     }
+    #endregion
 
-    void InitializeStorySystem()
+    private void InitializeStorySystem()
     {
+        LoadStoryData();
         InitializeConditionCheckers();
-        InitializeActionExecutors();
-        LoadStoryDataFromCSV();
+    }
 
-        if (debugMode)
+    private void LoadStoryData()
+    {
+        storyNodes = LoadData<StoryNodes>(storyNodesPath).ToDictionary(node => node.StoryID);
+
+        storyConditions.Clear();
+        var conditionsList = LoadData<StoryCondition>(storyConditionsPath);
+        foreach (var c in conditionsList)
         {
-            Debug.Log($"[StoryProgress] 시스템 초기화 완료");
-            Debug.Log($"[StoryProgress] 스토리 노드: {storyNodes.Count}개");
-            Debug.Log($"[StoryProgress] 조건: {storyConditions.Values.Sum(list => list.Count)}개");
-            Debug.Log($"[StoryProgress] 액션: {storyActions.Values.Sum(list => list.Count)}개");
+            if (!storyConditions.ContainsKey(c.StoryID)) storyConditions[c.StoryID] = new List<StoryCondition>();
+            storyConditions[c.StoryID].Add(c);
         }
+
+        storyActions.Clear();
+        var actionsList = LoadData<StoryAction>(storyActionsPath);
+        foreach (var a in actionsList)
+        {
+            if (!storyActions.ContainsKey(a.StoryID)) storyActions[a.StoryID] = new List<StoryAction>();
+            storyActions[a.StoryID].Add(a);
+        }
+
+        storyTriggersList = LoadData<StoryTriggers>(storyTriggersPath);
+        Debug.Log($"[StoryProgressManager] {storyTriggersList.Count}개의 스토리 트리거를 로드했습니다.");
     }
 
-    // ===== CSV 데이터 로드 =====
-    void LoadStoryDataFromCSV()
+    private List<T> LoadData<T>(string path)
     {
-        LoadStoryNodes();
-        LoadStoryConditions();
-        LoadStoryActions();
-    }
+        TextAsset csvFile = Resources.Load<TextAsset>(path);
+        if (csvFile == null)
+        {
+            Debug.LogError($"[StoryProgressManager] CSV 파일을 찾을 수 없습니다: {path}");
+            return new List<T>();
+        }
 
-    void LoadStoryNodes()
-    {
         try
         {
-            TextAsset csvFile = Resources.Load<TextAsset>(storyNodesPath);
-            if (csvFile == null)
+            using (var reader = new StringReader(csvFile.text))
             {
-                Debug.LogError($"[StoryProgress] CSV 파일을 찾을 수 없습니다: {storyNodesPath}");
-                return;
+                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    PrepareHeaderForMatch = args => args.Header.ToLower().Replace(" ", "").Replace("_", "")
+                };
+
+                using (var csv = new CsvReader(reader, config))
+                {
+                    return csv.GetRecords<T>().ToList();
+                }
             }
-
-            var nodes = StoryCSVParser.ParseStoryNodes(csvFile.text);
-            storyNodes.Clear();
-
-            foreach (var node in nodes)
-            {
-                storyNodes[node.id] = node;
-            }
-
-            if (debugMode)
-                Debug.Log($"[StoryProgress] StoryNodes 로드 완료: {nodes.Count}개");
         }
         catch (Exception e)
         {
-            Debug.LogError($"[StoryProgress] StoryNodes 로드 실패: {e.Message}");
+            Debug.LogError($"[StoryProgressManager] {typeof(T).Name} 파싱 실패: {e.Message}");
+            return new List<T>();
         }
     }
 
-    void LoadStoryConditions()
+    private void InitializeConditionCheckers()
     {
-        try
+        conditionCheckers = new Dictionary<string, Func<string, string, bool>>
         {
-            TextAsset csvFile = Resources.Load<TextAsset>(storyConditionsPath);
-            if (csvFile == null)
-            {
-                Debug.LogWarning($"[StoryProgress] CSV 파일을 찾을 수 없습니다: {storyConditionsPath} (선택사항)");
-                return;
-            }
-
-            var conditions = StoryCSVParser.ParseStoryConditions(csvFile.text);
-            storyConditions.Clear();
-
-            foreach (var condition in conditions)
-            {
-                if (!storyConditions.ContainsKey(condition.storyID))
-                    storyConditions[condition.storyID] = new List<StoryCondition>();
-
-                storyConditions[condition.storyID].Add(condition);
-            }
-
-            if (debugMode)
-                Debug.Log($"[StoryProgress] StoryConditions 로드 완료: {conditions.Count}개");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[StoryProgress] StoryConditions 로드 실패: {e.Message}");
-        }
-    }
-
-    void LoadStoryActions()
-    {
-        try
-        {
-            TextAsset csvFile = Resources.Load<TextAsset>(storyActionsPath);
-            if (csvFile == null)
-            {
-                Debug.LogWarning($"[StoryProgress] CSV 파일을 찾을 수 없습니다: {storyActionsPath} (선택사항)");
-                return;
-            }
-
-            var actions = StoryCSVParser.ParseStoryActions(csvFile.text);
-            storyActions.Clear();
-
-            foreach (var action in actions)
-            {
-                if (!storyActions.ContainsKey(action.storyID))
-                    storyActions[action.storyID] = new List<StoryAction>();
-
-                storyActions[action.storyID].Add(action);
-            }
-
-            // 액션들을 order 순으로 정렬
-            foreach (var actionList in storyActions.Values)
-            {
-                actionList.Sort((a, b) => a.order.CompareTo(b.order));
-            }
-
-            if (debugMode)
-                Debug.Log($"[StoryProgress] StoryActions 로드 완료: {actions.Count}개");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[StoryProgress] StoryActions 로드 실패: {e.Message}");
-        }
-    }
-
-    // ===== 조건 체크 시스템 =====
-    void InitializeConditionCheckers()
-    {
-        conditionCheckers = new Dictionary<string, Func<string, string, bool>>()
-        {
-            ["none"] = (target, value) => true,
-            ["prologue_finished"] = CheckPrologueFinished,
-            ["dialogue_finished"] = CheckDialogueFinished,
-            ["item_obtained"] = CheckItemObtained,
-            ["item_inspected"] = CheckItemInspected,
-            ["quest_completed"] = CheckQuestCompleted,
-            ["map_entered"] = CheckMapEntered,
-            ["battle_won"] = CheckBattleWon,
-            ["story_reached"] = CheckStoryReached
+            ["item_obtained"] = (target, value) => GameDataManager.Instance.HasItem(target) == (value != "0"),
+            ["item_inspected"] = (target, value) => GameDataManager.Instance.HasInspectedItem(target) == (value != "0"),
+            ["dialogue_finished"] = (target, value) => GameDataManager.Instance.HasFinishedDialogue(target) == (value != "0"),
+            ["quest_completed"] = (target, value) => GameDataManager.Instance.IsQuestCompleted(target) == (value != "0")
         };
     }
 
-    bool CheckPrologueFinished(string target, string value)
+    private void ExecuteStoryNode(string storyID)
     {
-        // 프롤로그 완료 체크 로직
-        return PlayerPrefs.GetInt($"Prologue_{target}_Finished", 0) == 1;
-    }
+        if (!storyNodes.ContainsKey(storyID)) return;
 
-    bool CheckDialogueFinished(string target, string value)
-    {
-        // 대화 완료 체크 로직  
-        return PlayerPrefs.GetInt($"Dialogue_{target}_Finished", 0) == 1;
-    }
+        var currentNode = storyNodes[storyID];
 
-    bool CheckItemObtained(string target, string value)
-    {
-        // 아이템 획득 체크 로직
-        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
-        int currentAmount = PlayerPrefs.GetInt($"Item_{target}_Count", 0);
-        return currentAmount >= requiredAmount;
-    }
+        GameDataManager.Instance.SetCurrentStoryID(storyID);
+        GameEventManager.Instance.TriggerStoryAdvanced(storyID);
 
-    // 아이템 탐색 완료 체크 함수
-    bool CheckItemInspected(string target, string value)
-    {
-        int requiredAmount = string.IsNullOrEmpty(value) ? 1 : int.Parse(value);
-        int inspectedCount = PlayerPrefs.GetInt($"Item_{target}_Inspected", 0);
-        return inspectedCount >= requiredAmount;
-    }
-
-    // 아이템 탐색 완료 이벤트 처리 메서드
-    public void OnItemInspected(string itemID)
-    {
-        Debug.Log($"[StoryProgress] 아이템 탐색 이벤트: {itemID}");
-
-        var currentNode = GetCurrentStoryNode();
-        if (currentNode != null && !string.IsNullOrEmpty(currentNode.nextStoryID))
+        if (storyActions.ContainsKey(storyID))
         {
-            if (CanAdvanceStory(currentNode.nextStoryID))
+            StartCoroutine(ExecuteActionsCoroutine(storyActions[storyID]));
+        }
+        else
+        {
+            OnAllActionsCompleted();
+        }
+    }
+
+    private IEnumerator ExecuteActionsCoroutine(List<StoryAction> actions)
+    {
+        foreach (var action in actions.OrderBy(a => a.Order))
+        {
+            switch (action.ActionType)
             {
-                Debug.Log($"[StoryProgress] 아이템 {itemID} 탐색으로 조건 충족! 스토리 진행");
-                TryAdvanceStory(currentNode.nextStoryID);
+                case "show_dialogue":
+                    DialogueManager.Instance.StartDialogue(action.Target);
+                    yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+                    break;
+                case "change_scene":
+                    GameManager.Instance.ChangeState(GameState.Loading);
+                    SceneManager.LoadScene(action.Target);
+                    yield break; 
+                case "enable_player":
+                    GameManager.Instance.ChangeState(GameState.Field);
+                    break;
+                case "disable_player":
+                    GameManager.Instance.ChangeState(GameState.Dialogue);
+                    break;
+                case "start_battle":
+                    GameEventManager.Instance.TriggerBattleStartRequested(Resources.Load<MonsterDataSO>(action.Target), null, action.Parameter);
+                    yield break; 
+                case "complete_quest":
+                    GameDataManager.Instance.SetQuestCompleted(action.Target);
+                    break;
+                case "LISTEN_FOR_KEY_INPUT":
+                    yield return new WaitForSeconds(0.2f);
+                    KeyInputListener.Instance.StartListeningFor(action.Target, action.Parameter);
+                    break;
+                /*
+                case "START_UI_TUTORIAL":
+                    UITutorialManager.Instance.StartTutorial(action.Target);
+                    yield return new WaitUntil(() => !UITutorialManager.Instance.IsTutorialRunning);
+                    break; */
             }
         }
+        OnAllActionsCompleted();
     }
 
-    bool CheckQuestCompleted(string target, string value)
+    private void OnAllActionsCompleted()
     {
-        // 퀘스트 완료 체크 로직
-        return PlayerPrefs.GetInt($"Quest_{target}_Completed", 0) == 1;
-    }
-
-    bool CheckMapEntered(string target, string value)
-    {
-        // 맵 진입 체크 로직
-        return PlayerPrefs.GetInt($"Map_{target}_Entered", 0) == 1;
-    }
-
-    bool CheckBattleWon(string target, string value)
-    {
-        // 전투 승리 체크 로직
-        return PlayerPrefs.GetInt($"Battle_{target}_Won", 0) == 1;
-    }
-
-    bool CheckStoryReached(string target, string value)
-    {
-        // 특정 스토리 도달 체크 로직
-        return PlayerPrefs.GetInt($"Story_{target}_Reached", 0) == 1;
-    }
-
-    // ===== 액션 실행 시스템 =====
-    void InitializeActionExecutors()
-    {
-        actionExecutors = new Dictionary<string, Action<string, string>>()
+        var currentNode = storyNodes[GameDataManager.Instance.CurrentStoryID];
+        if (currentNode.AutoAdvance)
         {
-            ["show_cutscene"] = ExecuteShowCutscene,
-            ["show_dialogue"] = ExecuteShowDialogue,
-            ["enable_player"] = ExecuteEnablePlayer,
-            ["disable_player"] = ExecuteDisablePlayer,
-            ["set_spawn_point"] = ExecuteSetSpawnPoint,
-            ["start_quest"] = ExecuteStartQuest,
-            ["complete_quest"] = ExecuteCompleteQuest,
-            ["spawn_item"] = ExecuteSpawnItem,
-            ["enable_transition"] = ExecuteEnableTransition,
-            ["enable_interaction"] = ExecuteEnableInteraction,
-            ["play_bgm"] = ExecutePlayBGM,
-            ["spawn_npc"] = ExecuteSpawnNPC,
-            ["start_battle"] = ExecuteStartBattle,
-            ["change_scene"] = ExecuteChangeScene,
-        };
-    }
-
-    void ExecuteShowCutscene(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 컷신 재생: {target}");
-        // 컷신 재생 로직 (CutsceneManager 등과 연동)
-    }
-
-    void ExecuteShowDialogue(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 대화 표시: {target}");
-        // 새로운 CSV 기반 DialogueManager와 연동
-        if (DialogueManager.Instance != null)
-        {
-            DialogueManager.Instance.StartDialogue(target);
-        }
-    }
-
-    void ExecuteEnablePlayer(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 플레이어 조작 허용");
-        var player = FindObjectOfType<PlayerController>();
-        if (player != null)
-        {
-            player.SetCanMove(true);
-        }
-    }
-
-    void ExecuteDisablePlayer(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 플레이어 조작 금지");
-        var player = FindObjectOfType<PlayerController>();
-        if (player != null)
-        {
-            player.SetCanMove(false);
-        }
-    }
-
-    void ExecuteSetSpawnPoint(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 스폰 포인트 설정: {target}");
-        PlayerPrefs.SetString("CurrentSpawnPoint", target);
-        PlayerPrefs.Save();
-    }
-
-    void ExecuteStartQuest(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 퀘스트 시작: {target}");
-        // QuestManager와 연동
-        PlayerPrefs.SetInt($"Quest_{target}_Started", 1);
-        PlayerPrefs.Save();
-    }
-
-    void ExecuteCompleteQuest(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 퀘스트 완료: {target}");
-        PlayerPrefs.SetInt($"Quest_{target}_Completed", 1);
-        PlayerPrefs.Save();
-    }
-
-    void ExecuteSpawnItem(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 아이템 생성: {target}, 파라미터: {parameter}");
-        // ItemManager와 연동하여 아이템 생성
-    }
-
-    void ExecuteEnableTransition(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 맵 이동 활성화: {target}");
-        PlayerPrefs.SetInt($"MapTransition_{target}_Enabled", 1);
-        PlayerPrefs.Save();
-    }
-
-    void ExecuteEnableInteraction(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 상호작용 활성화: {target}");
-        PlayerPrefs.SetInt($"Interaction_{target}_Enabled", 1);
-        PlayerPrefs.Save();
-    }
-
-    void ExecutePlayBGM(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 배경음악 재생: {target}");
-        // AudioManager와 연동
-    }
-
-    void ExecuteSpawnNPC(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] NPC 생성: {target}");
-        // NPCManager와 연동
-    }
-
-    void ExecuteStartBattle(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 전투 시작: {target}");
-        // BattleManager와 연동
-        if (GameManager.Instance != null)
-        {
-            // GameManager.Instance.StartBattle(target);
-        }
-    }
-
-    void ExecuteChangeScene(string target, string parameter)
-    {
-        Debug.Log($"[StoryAction] 맵 이동: {target}");
-        
-        UnityEngine.SceneManagement.SceneManager.LoadScene(target);
-    }
-
-    // ===== 메인 스토리 진행 로직 =====
-    public void ExecuteCurrentStoryNode()
-    {
-        if (!storyNodes.ContainsKey(currentStoryID))
-        {
-            Debug.LogError($"[StoryProgress] 스토리 노드를 찾을 수 없습니다: {currentStoryID}");
-            return;
-        }
-
-        var currentNode = storyNodes[currentStoryID];
-
-        if (logStoryChanges)
-            Debug.Log($"[StoryProgress] 스토리 노드 실행: {currentStoryID} - {currentNode.displayName}");
-
-        OnStoryNodeEntered?.Invoke(currentStoryID, currentNode);
-        ExecuteStoryActions(currentStoryID);
-
-        if (currentNode.autoAdvance)
-        {
-            // 대화 액션이 있는지 체크
-            bool hasDialogue = HasDialogueAction(currentStoryID);
-
-            if (hasDialogue)
-            {
-                Debug.Log($"[StoryProgress] 대화 완료 대기 중: {currentStoryID}");
-                // 대화 완료는 DialogueManager에서 알려줄 예정
-            }
-            else
-            {
-                Debug.Log($"[StoryProgress] 즉시 진행: {currentStoryID}");
-                TryAdvanceToNextStory();
-            }
-        }
-    }
-
-    public void OnItemObtained(string itemID)
-    {
-        Debug.Log($"[StoryProgress] 아이템 획득 이벤트: {itemID}");
-
-        var currentNode = GetCurrentStoryNode();
-        if (currentNode != null && !string.IsNullOrEmpty(currentNode.nextStoryID))
-        {
-            if (CanAdvanceStory(currentNode.nextStoryID))
-            {
-                Debug.Log($"[StoryProgress] 아이템 {itemID} 획득으로 조건 충족! 스토리 진행");
-                TryAdvanceStory(currentNode.nextStoryID);
-            }
-        }
-    }
-
-    bool HasDialogueAction(string storyID)
-    {
-        if (!storyActions.ContainsKey(storyID))
-            return false;
-
-        return storyActions[storyID].Any(action => action.actionType == "show_dialogue");
-    }
-
-    public void OnDialogueCompleted()
-    {
-        var currentNode = GetCurrentStoryNode();
-        if (currentNode != null && currentNode.autoAdvance)
-        {
-            Debug.Log($"[StoryProgress] 대화 완료 후 진행: {currentStoryID}");
             TryAdvanceToNextStory();
         }
     }
 
-    public bool CanAdvanceStory(string targetStoryID)
+    private void TryAdvanceToNextStory()
     {
-        if (!storyConditions.ContainsKey(targetStoryID))
-            return true; // 조건이 없으면 진행 가능
+        var currentStoryID = GameDataManager.Instance.CurrentStoryID;
+        if (!storyNodes.ContainsKey(currentStoryID)) return;
 
-        var conditions = storyConditions[targetStoryID];
+        string nextStoryID = storyNodes[currentStoryID].NextStoryID;
+        if (string.IsNullOrEmpty(nextStoryID)) return;
 
-        foreach (var condition in conditions)
+        if (CanAdvanceStory(nextStoryID))
         {
-            if (!CheckCondition(condition))
+            ExecuteStoryNode(nextStoryID);
+        }
+    }
+
+    private bool CanAdvanceStory(string targetStoryID)
+    {
+        if (!storyConditions.ContainsKey(targetStoryID)) return true;
+        foreach (var condition in storyConditions[targetStoryID])
+        {
+            if (!conditionCheckers.ContainsKey(condition.ConditionType) ||
+                !conditionCheckers[condition.ConditionType](condition.Target, condition.Value))
             {
-                if (logConditionChecks)
-                    Debug.Log($"[StoryProgress] 조건 미충족: {targetStoryID} - {condition.conditionType}({condition.target})");
                 return false;
             }
         }
-
         return true;
     }
 
-    public void TryAdvanceToNextStory()
+    /*
+     * 이벤트를 진행시키기 위한 조건을 탐색한다.
+     */
+
+    private void HandleGameEvent(string eventType, string eventTargetID)
     {
-        if (!storyNodes.ContainsKey(currentStoryID))
-            return;
+        Debug.Log($"[StoryProgressManager] 게임 이벤트 수신: {eventType} - {eventTargetID}. 스토리 진행을 확인합니다.");
 
-        var currentNode = storyNodes[currentStoryID];
-        if (string.IsNullOrEmpty(currentNode.nextStoryID))
-            return;
+        var currentStoryID = GameDataManager.Instance.CurrentStoryID;
 
-        TryAdvanceStory(currentNode.nextStoryID);
-    }
+        var matchedTrigger = storyTriggersList.FirstOrDefault(trigger =>
+            trigger.CurrentStoryID == currentStoryID &&
+            trigger.TriggerType == eventType &&
+            trigger.TriggerTargetID == eventTargetID);
 
-    public void TryAdvanceStory(string targetStoryID)
-    {
-        if (string.IsNullOrEmpty(targetStoryID))
-            return;
-
-        if (!CanAdvanceStory(targetStoryID))
+        if (matchedTrigger != null)
         {
-            if (debugMode)
-                Debug.Log($"[StoryProgress] 스토리 진행 불가: {targetStoryID} (조건 미충족)");
-            return;
+            Debug.Log($"[StoryProgressManager] StoryTrigger 발견! {currentStoryID} -> {matchedTrigger.NextStoryID}");
+            ExecuteStoryNode(matchedTrigger.NextStoryID);
         }
-
-        AdvanceStory(targetStoryID);
-    }
-
-    public void AdvanceStory(string targetStoryID)
-    {
-        if (!storyNodes.ContainsKey(targetStoryID))
+        else
         {
-            Debug.LogError($"[StoryProgress] 존재하지 않는 스토리 ID: {targetStoryID}");
-            return;
+            TryAdvanceToNextStory();
         }
-
-        string previousStoryID = currentStoryID;
-        currentStoryID = targetStoryID;
-
-        // 스토리 진행 상태 저장
-        SaveCurrentStoryProgress();
-
-        if (logStoryChanges)
-            Debug.Log($"[StoryProgress] 스토리 진행: {previousStoryID} → {currentStoryID}");
-
-        // 이벤트 발생
-        OnStoryChanged?.Invoke(currentStoryID);
-
-        // 새 스토리 노드 실행
-        ExecuteCurrentStoryNode();
-    }
-
-    bool CheckCondition(StoryCondition condition)
-    {
-        if (!conditionCheckers.ContainsKey(condition.conditionType))
-        {
-            Debug.LogWarning($"[StoryProgress] 알 수 없는 조건 타입: {condition.conditionType}");
-            return true;
-        }
-
-        bool result = conditionCheckers[condition.conditionType](condition.target, condition.value);
-
-        if (logConditionChecks)
-        {
-            OnConditionChecked?.Invoke(condition.conditionType, condition.target, result);
-        }
-
-        return result;
-    }
-
-    void ExecuteStoryActions(string storyID)
-    {
-        if (!storyActions.ContainsKey(storyID))
-            return;
-
-        var actions = storyActions[storyID];
-
-        foreach (var action in actions)
-        {
-            ExecuteAction(action);
-        }
-    }
-
-    void ExecuteAction(StoryAction action)
-    {
-        if (!actionExecutors.ContainsKey(action.actionType))
-        {
-            Debug.LogWarning($"[StoryProgress] 알 수 없는 액션 타입: {action.actionType}");
-            return;
-        }
-
-        if (logActionExecutions)
-        {
-            Debug.Log($"[StoryAction] 실행: {action.actionType}({action.target}) - {action.description}");
-            OnActionExecuted?.Invoke(action.actionType, action.target, action.parameter);
-        }
-
-        actionExecutors[action.actionType](action.target, action.parameter);
-    }
-
-    // ===== 저장/로드 =====
-    void SaveCurrentStoryProgress()
-    {
-        PlayerPrefs.SetString("CurrentStoryID", currentStoryID);
-        PlayerPrefs.Save();
-    }
-
-    void LoadCurrentStoryProgress()
-    {
-        currentStoryID = PlayerPrefs.GetString("CurrentStoryID", "library_intro");
-    }
-
-    // ===== 공개 메서드들 =====
-    public string GetCurrentStoryID()
-    {
-        return currentStoryID;
-    }
-
-    public StoryNodeData GetCurrentStoryNode()
-    {
-        return storyNodes.ContainsKey(currentStoryID) ? storyNodes[currentStoryID] : null;
-    }
-
-    public StoryNodeData GetStoryNode(string storyID)
-    {
-        return storyNodes.ContainsKey(storyID) ? storyNodes[storyID] : null;
-    }
-
-    // ===== 디버그 메서드들 =====
-    [ContextMenu("Reload Story Data")]
-    public void ReloadStoryData()
-    {
-        LoadStoryDataFromCSV();
-        Debug.Log("[StoryProgress] 스토리 데이터 재로드 완료");
-    }
-
-    [ContextMenu("Show Current Story Info")]
-    public void ShowCurrentStoryInfo()
-    {
-        var node = GetCurrentStoryNode();
-        if (node != null)
-        {
-            Debug.Log($"=== 현재 스토리 정보 ===");
-            Debug.Log($"ID: {node.id}");
-            Debug.Log($"이름: {node.displayName}");
-            Debug.Log($"설명: {node.description}");
-            Debug.Log($"챕터: {node.chapter}");
-            Debug.Log($"다음: {node.nextStoryID}");
-            Debug.Log($"자동진행: {node.autoAdvance}");
-        }
-    }
-
-    [ContextMenu("List All Story Nodes")]
-    public void ListAllStoryNodes()
-    {
-        Debug.Log("=== 전체 스토리 노드 목록 ===");
-        foreach (var kvp in storyNodes)
-        {
-            Debug.Log($"{kvp.Key}: {kvp.Value.displayName}");
-        }
-    }
-
-    [ContextMenu("Reset Story Progress")]
-    public void ResetStoryProgress()
-    {
-        currentStoryID = "library_intro";
-        SaveCurrentStoryProgress();
-        Debug.Log("[StoryProgress] 스토리 진행도 초기화");
     }
 }

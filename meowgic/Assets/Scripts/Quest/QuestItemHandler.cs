@@ -121,25 +121,6 @@ public class QuestItemHandler : MonoBehaviour
 
     void StartQuestDialogue()
     {
-        if (DialogueManager.Instance == null)
-        {
-            Debug.LogError("DialogueManager.Instance가 null입니다!");
-            return;
-        }
-
-        // 포트레이트 정보 수집
-        Sprite playerPortrait = GetPlayerPortrait();
-        Sprite npcPortrait = GetNPCPortrait();
-
-        Debug.Log($"=== 포트레이트 설정 전 확인 ===");
-        Debug.Log($"Player Portrait: {(playerPortrait != null ? playerPortrait.name : "NULL")}");
-        Debug.Log($"NPC Portrait: {(npcPortrait != null ? npcPortrait.name : "NULL")}");
-
-        // DialogueManager에 포트레이트 먼저 설정
-        DialogueManager.Instance.SetCharacterPortraits(playerPortrait, npcPortrait);
-        Debug.Log("캐릭터 포트레이트 설정 완료");
-
-        // CSV 기반 대화 시작 (새로운 방식)
         DialogueManager.Instance.StartDialogue(questDialogueSetID);
     }
 
