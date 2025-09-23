@@ -180,10 +180,6 @@ public class MenuController : MonoBehaviour
         SettingsManager.Instance?.Close();
         if (!string.IsNullOrEmpty("MainMenu"))
         {
-            StoryProgressManager.Instance?.ResetStoryProgress();
-
-            var manager = FindObjectOfType<GameManager>();
-            if (manager != null) manager.SetPauseState(false);
             SceneManager.LoadScene("MainMenu");
         }
     }
