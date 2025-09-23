@@ -7,6 +7,7 @@ TagManager:
   - Monster
   - Global Resource
   - NPC
+  - DialogueUI
   layers:
   - Default
   - TransparentFX
@@ -49,6 +50,7 @@ TagManager:
     locked: 0
   - name: Effects
     uniqueID: 3867507687
+    locked: 0
   - name: water
     uniqueID: 3074252775
     locked: 0
@@ -81,4 +83,7 @@ TagManager:
     locked: 0
   - name: character_front
     uniqueID: 2744608685
+    locked: 0
+  - name: Fade
+    uniqueID: 737130563
     locked: 0
