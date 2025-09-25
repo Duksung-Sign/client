@@ -339,6 +339,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8349172647732880957}
+  - component: {fileID: 6637751747525854957}
   m_Layer: 0
   m_Name: arrows
   m_TagString: Untagged
@@ -354,7 +355,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1253607185367660750}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -363,6 +364,35 @@ Transform:
   - {fileID: 8884054406732338554}
   m_Father: {fileID: 1750714816254102059}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6637751747525854957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1253607185367660750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcd37d700c769154a9c691ff165ddfd8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  leftArrow: {fileID: 6643190304382691743}
+  rightArrow: {fileID: 8884054406732338554}
+  stepY: 100
+  minY: 250
+  maxY: 350
+  clampToBounds: 1
+  wrapAtEdges: 1
+  hasOkSlot: 0
+  okSlot: {fileID: 0}
+  okY: 0
+  hasBackSlot: 0
+  backSlot: {fileID: 0}
+  backY: 0
+  currentY: 0
+  currentIndex: 0
+  onOk: 0
+  onBack: 0
 --- !u!1 &1384422581316671102
 GameObject:
   m_ObjectHideFlags: 0
@@ -372,6 +402,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8267177742591084573}
+  - component: {fileID: 1664171829783817566}
   m_Layer: 0
   m_Name: arrows
   m_TagString: Untagged
@@ -396,6 +427,35 @@ Transform:
   - {fileID: 2311473880471984049}
   m_Father: {fileID: 7386282713624808023}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1664171829783817566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1384422581316671102}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcd37d700c769154a9c691ff165ddfd8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  leftArrow: {fileID: 5590607934906110950}
+  rightArrow: {fileID: 2311473880471984049}
+  stepY: 100
+  minY: 250
+  maxY: 350
+  clampToBounds: 1
+  wrapAtEdges: 0
+  hasOkSlot: 1
+  okSlot: {fileID: 5560974916132383565}
+  okY: -380
+  hasBackSlot: 1
+  backSlot: {fileID: 6462823807230091135}
+  backY: -280
+  currentY: 0
+  currentIndex: 0
+  onOk: 0
+  onBack: 0
 --- !u!1 &1612342199819673333
 GameObject:
   m_ObjectHideFlags: 0
@@ -763,7 +823,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uD654\uBA74 \uD06C\uAE30\n"
+  m_text: "\uD654\uBA74 \uBAA8\uB4DC\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bb1b1113d217e124698647ba98f59282, type: 2}
   m_sharedMaterial: {fileID: -4000767069676809506, guid: bb1b1113d217e124698647ba98f59282, type: 2}
@@ -1084,36 +1144,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5727291ba16570745b131e4ef444747c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  leftArrow: {fileID: 0}
-  rightArrow: {fileID: 0}
-  stepY: 50
-  minY: -350
-  maxY: 50
-  clampToBounds: 1
-  currentY: 0
-  currentIndex: 0
+  arrows: {fileID: 0}
   resolutionRowIndex: 0
   screenModeRowIndex: 1
   initialRowIndex: 0
-  hasOkSlot: 1
-  okSlot: {fileID: 0}
-  okY: 0
-  onOk: 0
-  hasBackSlot: 1
-  backSlot: {fileID: 0}
-  backY: 0
-  onBack: 0
   resolutionOptions:
   - {x: 1920, y: 1080}
   - {x: 1600, y: 900}
   - {x: 1280, y: 720}
-  selectedIndex: 0
-  textField: {fileID: 0}
+  selectedResIndex: 0
   screenModeText: {fileID: 0}
   screenModeOptions:
   - "\uC804\uCCB4\uD654\uBA74"
   - "\uCC3D\uBAA8\uB4DC"
   selectedModeIndex: 0
+  resolutionText: {fileID: 0}
   firstSelected: {fileID: 0}
 --- !u!1 &3113686166918946460
 GameObject:
@@ -2065,36 +2110,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5727291ba16570745b131e4ef444747c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  leftArrow: {fileID: 5590607934906110950}
-  rightArrow: {fileID: 2311473880471984049}
-  stepY: 100
-  minY: 250
-  maxY: 350
-  clampToBounds: 1
-  currentY: 350
-  currentIndex: 0
+  arrows: {fileID: 1664171829783817566}
   resolutionRowIndex: 0
   screenModeRowIndex: 1
   initialRowIndex: 0
-  hasOkSlot: 1
-  okSlot: {fileID: 5560974916132383565}
-  okY: -380
-  onOk: 0
-  hasBackSlot: 1
-  backSlot: {fileID: 6462823807230091135}
-  backY: -280
-  onBack: 0
   resolutionOptions:
   - {x: 1920, y: 1080}
   - {x: 1600, y: 900}
   - {x: 1280, y: 720}
-  selectedIndex: 0
-  textField: {fileID: 5699924649253571018}
+  selectedResIndex: 0
   screenModeText: {fileID: 107096728450308885}
   screenModeOptions:
   - "\uC804\uCCB4\uD654\uBA74"
   - "\uCC3D\uBAA8\uB4DC"
   selectedModeIndex: 0
+  resolutionText: {fileID: 5699924649253571018}
   firstSelected: {fileID: 0}
 --- !u!1 &6795091804439864560
 GameObject:
@@ -2217,9 +2247,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4244313313607079530}
-        m_TargetAssemblyTypeName: MenuController, Assembly-CSharp
-        m_MethodName: CloseSettings
+      - m_Target: {fileID: 9102830737562336570}
+        m_TargetAssemblyTypeName: SettingsController, Assembly-CSharp
+        m_MethodName: OnClickCancel
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2371,7 +2401,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1750714816254102059}
-  - component: {fileID: 4887987702097233327}
   m_Layer: 0
   m_Name: MenuPanel
   m_TagString: Untagged
@@ -2394,36 +2423,10 @@ Transform:
   m_Children:
   - {fileID: 6506841421917077201}
   - {fileID: 5600197513523529597}
-  - {fileID: 8349172647732880957}
   - {fileID: 3674492979441723395}
+  - {fileID: 8349172647732880957}
   m_Father: {fileID: 6066865853194746200}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4887987702097233327
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6883117760950597709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d3fd97e485c29e5439a800bc31cc8dd2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  leftArrow: {fileID: 0}
-  rightArrow: {fileID: 0}
-  stepY: 0
-  minY: 0
-  maxY: 0
-  clampToBounds: 1
-  currentY: 0
-  currentIndex: 0
-  firstSelected: {fileID: 0}
-  mainMenuPanel: {fileID: 0}
-  settingsPanel: {fileID: 0}
-  firstSelectedMain: {fileID: 0}
-  firstSelectedSettings: {fileID: 0}
-  settingsController: {fileID: 0}
 --- !u!1 &7071753427180214653
 GameObject:
   m_ObjectHideFlags: 0
@@ -2652,7 +2655,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uD574\uC0C1\uB3C4\n"
+  m_text: "\uD654\uBA74 \uD06C\uAE30"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bb1b1113d217e124698647ba98f59282, type: 2}
   m_sharedMaterial: {fileID: -4000767069676809506, guid: bb1b1113d217e124698647ba98f59282, type: 2}
@@ -3199,7 +3202,7 @@ GameObject:
   - component: {fileID: 7616049303027357827}
   - component: {fileID: 5699924649253571018}
   m_Layer: 5
-  m_Name: resolutionLabel (1)
+  m_Name: resolutionText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3632,15 +3635,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d3fd97e485c29e5439a800bc31cc8dd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  leftArrow: {fileID: 6643190304382691743}
-  rightArrow: {fileID: 8884054406732338554}
-  stepY: 100
-  minY: 250
-  maxY: 350
-  clampToBounds: 1
-  currentY: 0
-  currentIndex: 0
-  firstSelected: {fileID: 0}
+  arrows: {fileID: 6637751747525854957}
   mainMenuPanel: {fileID: 6883117760950597709}
   settingsPanel: {fileID: 7775753854392067058}
   firstSelectedMain: {fileID: 0}
@@ -3768,8 +3763,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 4244313313607079530}
-        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
-        m_MethodName: CloseSettings
+        m_TargetAssemblyTypeName: MenuController, Assembly-CSharp
+        m_MethodName: OnClickBack
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -4057,7 +4052,7 @@ GameObject:
   - component: {fileID: 414726103797246005}
   - component: {fileID: 107096728450308885}
   m_Layer: 5
-  m_Name: screenModeLabel (1)
+  m_Name: screenModeText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -82,13 +82,14 @@ public class DialogueManager : MonoBehaviour
     private string currentLineID;
     private bool isInDialogue = false;
     private bool isTyping = false;
+    private bool isPaused = false;
     private string fullText = "";
     private Coroutine typingCoroutine;
     private string lastSpeakerName = "";
 
     void Update()
     {
-        if (!isInDialogue) return;
+        if (isPaused || !isInDialogue) return;
 
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
         {
@@ -115,6 +116,7 @@ public class DialogueManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            GameEventManager.Instance.OnGameStateChanged += HandleGameStateChange;
         }
         else
         {
@@ -568,5 +570,10 @@ public class DialogueManager : MonoBehaviour
             yield return new WaitForSeconds(typingSpeed);
         }
         CompleteTyping();
+    }
+
+    private void HandleGameStateChange(GameState newState)
+    {
+        isPaused = (newState == GameState.Menu);
     }
 }

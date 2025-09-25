@@ -14,6 +14,9 @@ public class MenuController : MonoBehaviour
     [Header("Controllers")]
     [SerializeField] private SettingsController settingsController;
     private bool IsOnSettings => settingsPanel && settingsPanel.activeSelf;
+
+    private string titleSceneName = "MainMenu";
+
     void Awake()
     {
         arrows?.SyncFromLeftArrow();
@@ -89,9 +92,9 @@ public class MenuController : MonoBehaviour
     public void OnClickQuitToTitle()
     {
         SettingsManager.Instance?.Close();
-        if (!string.IsNullOrEmpty("MainMenu"))
+        if (!string.IsNullOrEmpty(titleSceneName))
         {
-            SceneManager.LoadScene("MainMenu");
+            SceneManager.LoadScene(titleSceneName);
         }
     }
 
