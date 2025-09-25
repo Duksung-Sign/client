@@ -91,6 +91,7 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnDialogueFinished += HandleGameEvent;
             GameEventManager.Instance.OnBattleOver += HandleGameEvent;
         }
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
@@ -102,6 +103,7 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnDialogueFinished -= HandleGameEvent;
             GameEventManager.Instance.OnBattleOver -= HandleGameEvent;
         }
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
     void Start()
@@ -109,6 +111,16 @@ public class StoryProgressManager : MonoBehaviour
         ExecuteStoryNode(GameDataManager.Instance.CurrentStoryID);
     }
     #endregion
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // 새 게임 버튼으로 입장하는 경우에만 가동
+        if (scene.name == "Library" && GameManager.Instance && GameManager.Instance.NewGameBootstrapPending)
+        {
+            ExecuteStoryNode(GameDataManager.Instance.CurrentStoryID);
+            GameManager.Instance.ClearNewGameBootstrapFlag();
+        }
+    }
 
     private void InitializeStorySystem()
     {
