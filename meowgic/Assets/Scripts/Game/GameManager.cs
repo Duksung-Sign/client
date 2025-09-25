@@ -23,6 +23,7 @@ public class GameManager : MonoBehaviour
     private bool isChangingScene = false;
 
     public GameState CurrentState { get; private set; }
+    public bool NewGameBootstrapPending { get; private set; } // 게임 재시작 확인 플래그
 
     void Awake()
     {
@@ -115,4 +116,16 @@ public class GameManager : MonoBehaviour
         
         isChangingScene = false;
     }
+
+    public void StartNewGame(string startSceneName)
+    {
+        GameDataManager.Instance?.ResetData();
+        Time.timeScale = 1f;
+
+        NewGameBootstrapPending = true;           // ★ 첫 Library 입장 때 스토리/대화 부팅
+
+        ChangeState(GameState.Loading);
+        SceneManager.LoadScene(startSceneName);
+    }
+    public void ClearNewGameBootstrapFlag() => NewGameBootstrapPending = false;
 }

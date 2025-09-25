@@ -21,7 +21,15 @@ public class MainMenuButtons : MonoBehaviour
         if (isLoading) return;
 
         isLoading = true;
-        
+
+        if (GameManager.Instance != null)
+        {
+            // 재시작: GameManager가 페이드/상태 전환/데이터 리셋까지 처리
+            GameManager.Instance.StartNewGame("Library");
+            isLoading = false;
+            return;
+        }
+
         StartCoroutine(LoadGameScenes());
     }
     private IEnumerator LoadGameScenes()
