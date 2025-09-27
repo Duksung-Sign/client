@@ -63,14 +63,22 @@ public class DialogueManager : MonoBehaviour
     [Header("외부 데이터베이스 참조")] 
     [SerializeField] private CharacterDatabase characterDatabase;
 
+    [Header("UI 프리팹")]
+    [SerializeField] private GameObject dialogueUIPrefab;
+
     [Header("CSV 파일 경로")]
     [SerializeField] private string dialogueLinesPath = "DialogueData/DialogueLines";
     [SerializeField] private string dialogueSetsPath = "DialogueData/DialogueSets";
     [SerializeField] private string dialogueConditionsPath = "DialogueData/DialogueConditions";
 
     [Header("타이핑 효과")]
-    public float typingSpeed = 0.05f;
+    public float baseTypingSpeed = 0.05f; 
+    public float typingSpeedVariance = 0.02f; 
+    public float punctuationPause = 0.3f;
     public bool skipTypingOnInput = true;
+
+    [Header("타이핑 사운드 설정")]
+    public float soundInterval = 0.1f;
 
     private Dictionary<string, DialogueLine> dialogueLines = new Dictionary<string, DialogueLine>();
     private Dictionary<string, DialogueSet> dialogueSets = new Dictionary<string, DialogueSet>();
@@ -85,6 +93,10 @@ public class DialogueManager : MonoBehaviour
     private string fullText = "";
     private Coroutine typingCoroutine;
     private string lastSpeakerName = "";
+
+    private AudioSource audioSource; 
+    private AudioClip currentTypingSound;
+    private float soundTimer;
 
     void Update()
     {
@@ -115,10 +127,45 @@ public class DialogueManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            DontDestroyOnLoad(gameObject);
+            
+            if (dialogueUIPrefab != null)
+            {
+                dialoguePanel = Instantiate(dialogueUIPrefab);
+                DontDestroyOnLoad(dialoguePanel);
+
+                var uiRefs = dialoguePanel.GetComponent<DialogueUIRefs>();
+                if (uiRefs != null)
+                {
+                    dialogueText = uiRefs.dialogueText;
+                    speakerNameText = uiRefs.speakerNameText;
+                    leftPortrait = uiRefs.leftPortrait;
+                    continueIndicator = uiRefs.continueIndicator;
+                    dialogueCanvasGroup = uiRefs.dialogueCanvasGroup;
+
+                    if (continueIndicator != null)
+                    {
+                        continueIndicatorRect = continueIndicator.GetComponent<RectTransform>();
+                    }
+                }
+                else
+                {
+                    Debug.LogError("[DialogueManager] dialogueUIPrefab에 DialogueUIRefs 컴포넌트가 없습니다!");
+                }
+                dialoguePanel.SetActive(false);
+            }
+            audioSource = gameObject.GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
         }
         else
         {
             Destroy(gameObject);
+        }
+
+        if (dialogueLines.Count == 0)
+        {
+            InitializeDialogueSystem();
         }
     }
 
@@ -413,8 +460,9 @@ public class DialogueManager : MonoBehaviour
         {
             if (characterDatabase != null)
             {
+                currentTypingSound = characterDatabase.GetTypingSound(speakerName);
                 Sprite portrait = characterDatabase.GetPortrait(speakerName);
-                
+
                 leftPortrait.DOKill();
 
                 if (portrait != null) 
@@ -439,8 +487,8 @@ public class DialogueManager : MonoBehaviour
                 }
             }
         }
-
         lastSpeakerName = speakerName;
+        StartTyping(fullText);
     }
 
     private void NextLine()
@@ -478,6 +526,17 @@ public class DialogueManager : MonoBehaviour
 
     private void BeginDialogueSequence()
     {
+        if (dialogueCanvasGroup == null)
+        {
+            FindAndAssignUIReferences();
+
+            if (dialogueCanvasGroup == null)
+            {
+                isInDialogue = false;
+                return;
+            }
+        }
+
         if (dialogueText != null)
         {
             dialogueText.text = "";
@@ -562,10 +621,33 @@ public class DialogueManager : MonoBehaviour
     IEnumerator TypeText(string text)
     {
         dialogueText.text = "";
+        soundTimer = 0f;
+
         foreach (char letter in text.ToCharArray())
         {
             dialogueText.text += letter;
-            yield return new WaitForSeconds(typingSpeed);
+
+            if (letter == ',' || letter == '.' || letter == '?' || letter == '!' || letter == '(' || letter == ')' || letter == '…')
+            {
+                yield return new WaitForSeconds(punctuationPause);
+            }
+            else
+            {
+                soundTimer += baseTypingSpeed;
+
+                if (!char.IsWhiteSpace(letter) && currentTypingSound != null && soundTimer >= soundInterval)
+                {
+                    soundTimer = 0f;
+                    audioSource.pitch = Random.Range(0.9f, 1.1f); 
+                    audioSource.PlayOneShot(currentTypingSound);
+                }
+
+                float currentTypingSpeed = Random.Range(
+                    baseTypingSpeed - typingSpeedVariance,
+                    baseTypingSpeed + typingSpeedVariance
+                );
+                yield return new WaitForSeconds(Mathf.Max(currentTypingSpeed, 0.01f)); 
+            }
         }
         CompleteTyping();
     }
