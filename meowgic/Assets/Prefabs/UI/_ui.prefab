@@ -41,6 +41,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 4620690494664691972}
     m_Modifications:
+    - target: {fileID: 633978099692089420, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
     - target: {fileID: 2821942995464324772, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -121,9 +125,33 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3300737210803310878, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
     - target: {fileID: 4659352658648560763, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
       propertyPath: m_Name
       value: UITalkPanel
+      objectReference: {fileID: 0}
+    - target: {fileID: 5860881853867462551, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
+    - target: {fileID: 6858121581214669523, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
+    - target: {fileID: 7751423191427765629, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
+    - target: {fileID: 8409346389361812572, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801828987952722664, guid: 1509775e0222148eca92a5e53ef5ea8a, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
