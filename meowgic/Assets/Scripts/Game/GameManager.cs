@@ -18,8 +18,10 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance;
 
     [Header("씬 전환 효과")]
-    [SerializeField] private CanvasGroup fadeCanvasGroup;
+    [SerializeField] private GameObject fadeUIPrefab;
     [SerializeField] private float fadeDuration = 0.5f;
+
+    private CanvasGroup fadeCanvasGroup;
     private bool isChangingScene = false;
 
     public GameState CurrentState { get; private set; }
@@ -31,6 +33,14 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            if (fadeUIPrefab != null)
+            {
+                GameObject fadeUIObject = Instantiate(fadeUIPrefab);
+                fadeCanvasGroup = fadeUIObject.GetComponent<CanvasGroup>();
+                DontDestroyOnLoad(fadeUIObject);
+            }
+
         }
         else
         {
