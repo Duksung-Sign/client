@@ -70,7 +70,7 @@ MonoBehaviour:
   m_text: "\uC544\uC774\uD15C \uC774\uB984\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bb1b1113d217e124698647ba98f59282, type: 2}
-  m_sharedMaterial: {fileID: -4000767069676809506, guid: bb1b1113d217e124698647ba98f59282, type: 2}
+  m_sharedMaterial: {fileID: -5725440718437399433, guid: bb1b1113d217e124698647ba98f59282, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

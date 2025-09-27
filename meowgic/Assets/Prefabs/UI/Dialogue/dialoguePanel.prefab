@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 1765489325043504197}
   m_Layer: 5
   m_Name: Image
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -88,7 +88,7 @@ GameObject:
   - component: {fileID: 9159410031965821962}
   m_Layer: 5
   m_Name: LeftPortrait
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -163,6 +163,7 @@ GameObject:
   - component: {fileID: 3046493024045929560}
   - component: {fileID: 4870434527264558356}
   - component: {fileID: 406059247400627286}
+  - component: {fileID: 482573734134031516}
   m_Layer: 5
   m_Name: dialoguePanel
   m_TagString: DialogueUI
@@ -266,6 +267,23 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!114 &482573734134031516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4659352658648560763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5baad4e974fb4a5438694657ef937c9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogueText: {fileID: 32226756576232179}
+  speakerNameText: {fileID: 7621659182123325030}
+  leftPortrait: {fileID: 9159410031965821962}
+  continueIndicator: {fileID: 2098918844544060168}
+  dialogueCanvasGroup: {fileID: 406059247400627286}
 --- !u!1 &4871373273815867039
 GameObject:
   m_ObjectHideFlags: 0
@@ -367,7 +385,7 @@ GameObject:
   - component: {fileID: 5831465888503725377}
   m_Layer: 5
   m_Name: Image_line
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -442,7 +460,7 @@ GameObject:
   - component: {fileID: 3350417154117385386}
   m_Layer: 5
   m_Name: Image
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -518,7 +536,7 @@ GameObject:
   - component: {fileID: 6284577797940011019}
   m_Layer: 5
   m_Name: talkPanel
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -597,7 +615,7 @@ GameObject:
   - component: {fileID: 7621659182123325030}
   m_Layer: 5
   m_Name: SpeakerNameText
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -652,7 +670,7 @@ MonoBehaviour:
   m_text: "\uC774\uB984"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bb1b1113d217e124698647ba98f59282, type: 2}
-  m_sharedMaterial: {fileID: -4000767069676809506, guid: bb1b1113d217e124698647ba98f59282, type: 2}
+  m_sharedMaterial: {fileID: -5725440718437399433, guid: bb1b1113d217e124698647ba98f59282, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -731,7 +749,7 @@ GameObject:
   - component: {fileID: 32226756576232179}
   m_Layer: 5
   m_Name: DialogueText
-  m_TagString: Untagged
+  m_TagString: DialogueUI
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -784,17 +802,17 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uC5EC\uAE30\uB294 \uB300\uD654\uCC3D \uD14C\uC2A4\uD2B8 \uC911\uC785\uB2C8\uB2E4. "
+  m_text: "\uC5EC\uAE30\uB294 \uB300\uD654\uCC3D \uD14C\uC2A4\uD2B8 \uC911\uC785\uB2C8\uB2E4."
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8cf2d371f58c9e84b8e40b061bb4dc35, type: 2}
-  m_sharedMaterial: {fileID: 3479435388821201939, guid: 8cf2d371f58c9e84b8e40b061bb4dc35, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: bb1b1113d217e124698647ba98f59282, type: 2}
+  m_sharedMaterial: {fileID: -5725440718437399433, guid: bb1b1113d217e124698647ba98f59282, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281676136
-  m_fontColor: {r: 0.40784314, g: 0.19215687, b: 0.20784314, a: 1}
+    rgba: 4280491858
+  m_fontColor: {r: 0.32156864, g: 0.12156863, b: 0.13725491, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
