@@ -5,9 +5,10 @@ using System.Linq;
 [CreateAssetMenu(fileName = "CharacterDatabase", menuName = "Game Data/Character Database")]
 public class CharacterDatabase : ScriptableObject
 {
-    [SerializeField] private List<CharacterPortrait> portraits;
+    [SerializeField] private List<CharacterData> characterDataList; 
 
     private Dictionary<string, Sprite> portraitDictionary;
+    private Dictionary<string, AudioClip> typingSoundDictionary;
 
     private void OnEnable()
     {
@@ -17,33 +18,35 @@ public class CharacterDatabase : ScriptableObject
     public void Initialize()
     {
         portraitDictionary = new Dictionary<string, Sprite>();
-        if (portraits == null) return;
-        
-        foreach (var entry in portraits)
+        typingSoundDictionary = new Dictionary<string, AudioClip>(); 
+        if (characterDataList == null) return;
+
+        foreach (var entry in characterDataList)
         {
             portraitDictionary[entry.characterName] = entry.portraitSprite;
+            typingSoundDictionary[entry.characterName] = entry.typingSound; 
         }
     }
 
     public Sprite GetPortrait(string characterName)
     {
-        if (portraitDictionary == null)
-        {
-            Initialize();
-        }
-        
-        if (portraitDictionary.TryGetValue(characterName, out Sprite portrait))
-        {
-            return portrait;
-        }
+        if (portraitDictionary == null) Initialize();
+        portraitDictionary.TryGetValue(characterName, out Sprite portrait);
+        return portrait;
+    }
 
-        return null;
+    public AudioClip GetTypingSound(string characterName)
+    {
+        if (typingSoundDictionary == null) Initialize();
+        typingSoundDictionary.TryGetValue(characterName, out AudioClip sound);
+        return sound;
     }
 }
 
 [System.Serializable]
-public class CharacterPortrait
+public class CharacterData 
 {
     public string characterName;
     public Sprite portraitSprite;
+    public AudioClip typingSound; 
 }
