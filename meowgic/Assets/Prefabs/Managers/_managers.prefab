@@ -53,10 +53,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   characterDatabase: {fileID: 11400000, guid: a5fd976f6d7bf46a1bfb022a704fe584, type: 2}
+  dialogueUIPrefab: {fileID: 0}
   dialogueLinesPath: DialogueData/DialogueLines
   dialogueSetsPath: DialogueData/DialogueSets
   dialogueConditionsPath: DialogueData/DialogueConditions
-  typingSpeed: 0.05
+  baseTypingSpeed: 0.05
+  typingSpeedVariance: 0.02
+  punctuationPause: 0.3
   skipTypingOnInput: 1
   soundInterval: 0.1
 --- !u!114 &7005365042903407806

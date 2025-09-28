@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
     private Vector2 movement;
-    private bool canMove = true; 
+    private bool canMove = true;
 
     void Awake()
     {
