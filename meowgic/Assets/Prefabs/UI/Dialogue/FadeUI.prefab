@@ -11,8 +11,7 @@ GameObject:
   - component: {fileID: 4068840617763213213}
   - component: {fileID: 111054981556413065}
   - component: {fileID: 6171791863321884878}
-  - component: {fileID: 6769605000871815100}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: FadePanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -76,18 +75,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!225 &6769605000871815100
-CanvasGroup:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6774911135320656131}
-  m_Enabled: 1
-  m_Alpha: 0
-  m_Interactable: 1
-  m_BlocksRaycasts: 0
-  m_IgnoreParentGroups: 0
 --- !u!1 &7398621241362868570
 GameObject:
   m_ObjectHideFlags: 0
@@ -149,7 +136,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 0
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 100
   m_TargetDisplay: 0
 --- !u!114 &7138109344180276662
 MonoBehaviour:
@@ -199,7 +186,7 @@ CanvasGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7398621241362868570}
   m_Enabled: 1
-  m_Alpha: 0
+  m_Alpha: 1
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0

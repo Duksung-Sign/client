@@ -4,40 +4,23 @@ using System.Collections;
 
 public class BattleManager : MonoBehaviour
 {
-    #region Battle Data & State
     public BattleState CurrentBattleState { get; private set; }
     private MonsterDataSO currentMonster;
     private string defeatedMonsterID;
     private int currentPlayerHP;
     private int currentMonsterHP;
     private string selectedSkill = "";
-    #endregion
 
-    #region Gesture Recognition
     private HolisticJsonSender holisticExtractor;
     private bool gestureResponseReceived = false;
-    #endregion
-
-    #region Dialogue & Message Constants
-    private static class CharacterDialogue
-    {
-        public static string AttackSuccess(string monsterName, int damage) => $"성공이야! {monsterName}에게 {damage}의 피해를 입혔어!";
-        public const string AttackFail = "인식 실패! 다시 해 보자!";
-        public static string MonsterAttack(string monsterName, int damage) => $"{monsterName}의 공격! {damage}의 피해를 입었어.";
-        public const string EscapeFail = "탈출에 실패했어!";
-        public const string EscapeBlocked = "도망칠 수 없다.";
-    }
 
     private static class SystemMessages
     {
         public const string MediaPipeStabilizing = "양 손바닥을 보여주세요.";
         public const string MediaPipeReady = "안정화 완료!";
-        public const string WaitingForGesture = "제스처를 인식 중...";
-        public const string InitializingBattle = "전투 준비 중...";
     }
-    #endregion
 
-    #region Unity Lifecycle & Event Management
+
     void Awake()
     {
         if (BattleEventManager.Instance != null)
@@ -66,9 +49,7 @@ public class BattleManager : MonoBehaviour
     {
         StartCoroutine(InitializeBattleSequence());
     }
-    #endregion
 
-    #region Battle Initialization
     private IEnumerator InitializeBattleSequence()
     {
         ChangeBattleState(BattleState.Initializing);
@@ -81,14 +62,21 @@ public class BattleManager : MonoBehaviour
 
         if (!LoadBattleData())
         {
-            SceneManager.LoadScene("MainMenu");
+            FadeManager.Instance.LoadSceneWithFade("MainMenu");
             yield break;
         }
         LoadPlayerData();
 
         yield return StartCoroutine(MonitorStabilization());
 
-        BattleEventManager.Instance?.TriggerBattleEvent(BattleEventType.BattleStarted);
+        BattleEventManager.Instance.TriggerBattleEvent(BattleEventType.BattleStarted);
+
+        if (!string.IsNullOrEmpty(GameDataManager.Instance.CurrentBattleDialogueID))
+        {
+            DialogueManager.Instance.StartDialogue(GameDataManager.Instance.CurrentBattleDialogueID);
+            yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+        }
+
         PlayerTurnStart();
     }
 
@@ -114,22 +102,21 @@ public class BattleManager : MonoBehaviour
     {
         if (holisticExtractor == null) yield break;
 
-        BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeStabilizing);
+        BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeStabilizing, 0);
         float waitTime = 0f;
         while (waitTime < 10f && !holisticExtractor.IsMediaPipeReady())
         {
             waitTime += Time.deltaTime;
             yield return null;
         }
-        BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeReady);
+        BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeReady, 1.5f);
         yield return new WaitForSeconds(1.5f);
     }
-    #endregion
 
-    #region Turn & Action Management
     private void PlayerTurnStart()
     {
         ChangeBattleState(BattleState.PlayerTurn_AwaitingInput);
+        BattleEventManager.Instance?.TriggerBattleEvent(BattleEventType.PlayerTurnStarted);
     }
 
     private void HandleAttackRequest()
@@ -151,7 +138,7 @@ public class BattleManager : MonoBehaviour
 
         if (holisticExtractor == null)
         {
-            OnGestureRecognized(selectedSkill); // 제스처 인식 없이 자동 성공
+            OnGestureRecognized(selectedSkill); 
             return;
         }
 
@@ -194,8 +181,11 @@ public class BattleManager : MonoBehaviour
     {
         int damage = PlayerStatsManager.Instance.GetAttackPower();
         currentMonsterHP = Mathf.Max(0, currentMonsterHP - damage);
-        BattleEventManager.Instance?.RequestShowCharacterDialogue(CharacterDialogue.AttackSuccess(currentMonster.displayName, damage));
-        yield return new WaitForSeconds(2.5f);
+
+        BattleEventManager.Instance?.TriggerBattleEvent(BattleEventType.PlayerAttackSuccess);
+
+        DialogueManager.Instance.StartDialogue("battle_attack_success");
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
 
         if (currentMonsterHP <= 0) EndBattle(true);
         else StartCoroutine(MonsterTurn());
@@ -203,22 +193,27 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator PlayerAttackFailed()
     {
-        BattleEventManager.Instance?.RequestShowCharacterDialogue(CharacterDialogue.AttackFail);
-        yield return new WaitForSeconds(2.5f);
+        BattleEventManager.Instance?.TriggerBattleEvent(BattleEventType.PlayerAttackFail);
+
+        DialogueManager.Instance.StartDialogue("battle_attack_fail"); 
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+
         StartCoroutine(MonsterTurn());
     }
 
     private IEnumerator MonsterTurn()
     {
         ChangeBattleState(BattleState.MonsterTurn);
+        BattleEventManager.Instance?.TriggerBattleEvent(BattleEventType.MonsterTurnStarted);
         yield return new WaitForSeconds(1f);
 
         ChangeBattleState(BattleState.ActionInProgress);
         int damage = currentMonster.attackPower;
         PlayerStatsManager.Instance.TakeDamage(damage);
         currentPlayerHP = PlayerStatsManager.Instance.GetCurrentHP();
-        BattleEventManager.Instance?.RequestShowCharacterDialogue(CharacterDialogue.MonsterAttack(currentMonster.displayName, damage));
-        yield return new WaitForSeconds(2.5f);
+
+        DialogueManager.Instance.StartDialogue("battle_monster_attack"); 
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
 
         if (currentPlayerHP <= 0) EndBattle(false);
         else PlayerTurnStart();
@@ -231,48 +226,55 @@ public class BattleManager : MonoBehaviour
         ChangeBattleState(BattleState.ActionInProgress);
         bool escapeSuccess = Random.value > 0.5f;
 
-        if (escapeSuccess) EndBattle(false, true);
+        if (escapeSuccess)
+        {
+            EndBattle(false, true);
+        }
         else
         {
-            BattleEventManager.Instance?.RequestShowCharacterDialogue(CharacterDialogue.EscapeFail);
-            StartCoroutine(MonsterTurn());
+            StartCoroutine(EscapeFailedSequence());
         }
     }
-    #endregion
 
-    #region Battle End & State Change
+    private IEnumerator EscapeFailedSequence()
+    {
+        DialogueManager.Instance.StartDialogue("battle_escape_fail"); 
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+        StartCoroutine(MonsterTurn());
+    }
+
     private void EndBattle(bool playerWon, bool escaped = false)
     {
         if (escaped)
         {
             ChangeBattleState(BattleState.Escaped);
+            BattleEventManager.Instance?.TriggerBattleEvent(BattleEventType.BattleEscaped);
         }
         else
         {
-            ChangeBattleState(playerWon ? BattleState.BattleOver_Victory : BattleState.BattleOver_Defeat);
+            BattleState endState = playerWon ? BattleState.BattleOver_Victory : BattleState.BattleOver_Defeat;
+            ChangeBattleState(endState);
+            BattleEventManager.Instance?.TriggerBattleEvent(playerWon ? BattleEventType.BattleVictory : BattleEventType.BattleDefeat);
         }
 
         if (playerWon && !string.IsNullOrEmpty(defeatedMonsterID))
         {
             GameDataManager.Instance.AddDefeatedMonster(defeatedMonsterID);
-        }
-
-        if (playerWon)
-        {
             GameEventManager.Instance.TriggerBattleOver(defeatedMonsterID);
         }
 
         GameDataManager.Instance.SaveState();
-        StartCoroutine(ReturnToField());
+        StartCoroutine(ReturnToField(playerWon, escaped));
     }
 
-
-
-    private IEnumerator ReturnToField()
+    private IEnumerator ReturnToField(bool playerWon, bool escaped)
     {
-        yield return new WaitForSeconds(3f);
+        string dialogueID = escaped ? "battle_escape_success" : (playerWon ? "battle_victory" : "battle_defeat");
+        DialogueManager.Instance.StartDialogue(dialogueID);
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+
         string returnScene = GameDataManager.Instance.PreviousSceneName;
-        SceneManager.LoadScene(string.IsNullOrEmpty(returnScene) ? "MainMenu" : returnScene);
+        FadeManager.Instance.LoadSceneWithFade(string.IsNullOrEmpty(returnScene) ? "MainMenu" : returnScene);
     }
 
     private void ChangeBattleState(BattleState newState)
@@ -281,5 +283,4 @@ public class BattleManager : MonoBehaviour
         CurrentBattleState = newState;
         BattleEventManager.Instance?.TriggerBattleStateChanged(newState);
     }
-    #endregion
 }

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using System;
 using DG.Tweening;
 
 public enum GameState
@@ -17,15 +18,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    [Header("씬 전환 효과")]
-    [SerializeField] private GameObject fadeUIPrefab;
-    [SerializeField] private float fadeDuration = 0.5f;
-
-    private CanvasGroup fadeCanvasGroup;
-    private bool isChangingScene = false;
-
     public GameState CurrentState { get; private set; }
-    public bool NewGameBootstrapPending { get; private set; } // 게임 재시작 확인 플래그
 
     void Awake()
     {
@@ -33,14 +26,6 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
-            if (fadeUIPrefab != null)
-            {
-                GameObject fadeUIObject = Instantiate(fadeUIPrefab);
-                fadeCanvasGroup = fadeUIObject.GetComponent<CanvasGroup>();
-                DontDestroyOnLoad(fadeUIObject);
-            }
-
         }
         else
         {
@@ -103,39 +88,10 @@ public class GameManager : MonoBehaviour
 
     public void ChangeScene(string sceneName)
     {
-        if (isChangingScene) return;
-
-        StartCoroutine(FadeAndLoadScene(sceneName));
+        FadeManager.Instance.LoadSceneWithFade(sceneName);
     }
-
-    private IEnumerator FadeAndLoadScene(string sceneName)
+    public void ChangeScene(string sceneName, Action onSceneLoaded)
     {
-        isChangingScene = true;
-
-        ChangeState(GameState.Loading); 
-        
-        fadeCanvasGroup.blocksRaycasts = true; 
-        yield return fadeCanvasGroup.DOFade(1f, fadeDuration).WaitForCompletion();
-
-        yield return SceneManager.LoadSceneAsync(sceneName);
-
-        yield return fadeCanvasGroup.DOFade(0f, fadeDuration).WaitForCompletion();
-        fadeCanvasGroup.blocksRaycasts = false; 
-
-        ChangeState(GameState.Field); 
-        
-        isChangingScene = false;
-    }
-
-    public void StartNewGame(string startSceneName)
-    {
-        GameDataManager.Instance?.ResetData();
-        Time.timeScale = 1f;
-
-        NewGameBootstrapPending = true;           // ★ 첫 Library 입장 때 스토리/대화 부팅
-
-        ChangeState(GameState.Loading);
-        SceneManager.LoadScene(startSceneName);
-    }
-    public void ClearNewGameBootstrapFlag() => NewGameBootstrapPending = false;
+    FadeManager.Instance.LoadSceneWithFade(sceneName, onSceneLoaded);
+    }   
 }
