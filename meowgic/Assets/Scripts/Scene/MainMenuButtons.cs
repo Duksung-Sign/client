@@ -1,48 +1,66 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using System.Collections; 
 
 public class MainMenuButtons : MonoBehaviour
 {
-    [Header("메뉴 버튼")]
-    public Button startGameButton;
-    
-    private bool isLoading = false; 
+    [Header("UI 버튼")]
+    [SerializeField] private Button newGameButton;
+    [SerializeField] private Button continueButton;
+    [SerializeField] private Button quitGameButton; 
+
+    [Header("새 게임 설정")]
+    [SerializeField] private string startingStoryID = "library_intro";
 
     private void Start()
     {
-        if (startGameButton != null)
-            startGameButton.onClick.AddListener(StartGame);
+        if (newGameButton != null)
+            newGameButton.onClick.AddListener(OnNewGameClicked);
+
+        if (continueButton != null)
+            continueButton.onClick.AddListener(OnContinueClicked);
+
+        if (quitGameButton != null) 
+            quitGameButton.onClick.AddListener(OnQuitGameClicked);
+
+        CheckForSaveData();
     }
 
-    public void StartGame()
+    private void CheckForSaveData()
     {
-        if (isLoading) return;
+        if (continueButton == null) return;
 
-        isLoading = true;
-        
-        StartCoroutine(LoadGameScenes());
+        if (PlayerPrefs.HasKey("CurrentStoryID"))
+        {
+            continueButton.interactable = true;
+        }
+        else
+        {
+            continueButton.interactable = false;
+        }
     }
-    private IEnumerator LoadGameScenes()
+
+    public void OnNewGameClicked()
     {
-        PlayerPrefs.DeleteAll();
-        PlayerPrefs.Save();
-        Debug.Log("[MainMenu] PlayerPrefs 데이터가 초기화되었습니다.");
+        Debug.Log("[MainMenu] 새 게임 시작을 요청합니다.");
+        StoryProgressManager.Instance.StartNewGame(startingStoryID);
+    }
 
-        if (GameDataManager.Instance != null)
-        {
-            GameDataManager.Instance.ResetData();
-        }
+    public void OnContinueClicked()
+    {
+        Debug.Log("[MainMenu] 이어하기를 요청합니다.");
+        StoryProgressManager.Instance.ContinueStory();
+    }
 
-        yield return SceneManager.LoadSceneAsync("Library");
+    public void OnQuitGameClicked()
+    {
+        Debug.Log("[MainMenu] 게임 상태 저장 후 종료를 요청합니다.");
 
-        if (!SceneManager.GetSceneByName("SettingScene").isLoaded)
-        {
-            yield return SceneManager.LoadSceneAsync("SettingScene", LoadSceneMode.Additive);
-        }
+        GameDataManager.Instance.SaveState();
 
-        Debug.Log("[MainMenu] 모든 씬 로딩 완료");
-        isLoading = false;
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }
