@@ -16,6 +16,9 @@ public class GameDataManager : MonoBehaviour
     public string CurrentBattleMonsterID { get; private set; }
     public string PreviousSceneName { get; private set; }
     public string PlayerSpawnPointID { get; private set; }
+    public string LastSceneName { get; private set; }
+    public string LastCheckpointID { get; private set; }
+    public Vector3 LastPlayerPosition { get; private set; }
 
 
     void Awake()
@@ -47,39 +50,81 @@ public class GameDataManager : MonoBehaviour
 
     public void SaveState()
     {
-        PlayerPrefs.SetString("CompletedQuestIDs", string.Join(",", CompletedQuestIDs));
         PlayerPrefs.SetString("CurrentStoryID", CurrentStoryID);
+        PlayerPrefs.SetString("LastSceneName", LastSceneName);
+        PlayerPrefs.SetString("LastCheckpointID", LastCheckpointID);
         PlayerPrefs.SetString("ObtainedItemIDs", string.Join(",", ObtainedItemIDs));
         PlayerPrefs.SetString("FinishedDialogueIDs", string.Join(",", FinishedDialogueIDs));
         PlayerPrefs.SetString("InspectedItemIDs", string.Join(",", InspectedItemIDs));
         PlayerPrefs.SetString("DefeatedMonsterIDs", string.Join(",", DefeatedMonsterIDs));
+        PlayerPrefs.SetString("CompletedQuestIDs", string.Join(",", CompletedQuestIDs));
+        PlayerPrefs.SetFloat("PlayerPosX", LastPlayerPosition.x);
+        PlayerPrefs.SetFloat("PlayerPosY", LastPlayerPosition.y);
+        PlayerPrefs.SetFloat("PlayerPosZ", LastPlayerPosition.z);
+
         PlayerPrefs.Save();
         Debug.Log("[GameDataManager] Game state saved.");
     }
 
     public void LoadState()
     {
-        ResetData();
-
-        CompletedQuestIDs = new HashSet<string>(PlayerPrefs.GetString("CompletedQuestIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         CurrentStoryID = PlayerPrefs.GetString("CurrentStoryID", "library_intro");
+        LastSceneName = PlayerPrefs.GetString("LastSceneName", "Library");
+        LastCheckpointID = PlayerPrefs.GetString("LastCheckpointID", "library_intro");
         ObtainedItemIDs = new HashSet<string>(PlayerPrefs.GetString("ObtainedItemIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         FinishedDialogueIDs = new HashSet<string>(PlayerPrefs.GetString("FinishedDialogueIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         InspectedItemIDs = new HashSet<string>(PlayerPrefs.GetString("InspectedItemIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         DefeatedMonsterIDs = new HashSet<string>(PlayerPrefs.GetString("DefeatedMonsterIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
+        CompletedQuestIDs = new HashSet<string>(PlayerPrefs.GetString("CompletedQuestIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
+
+        float posX = PlayerPrefs.GetFloat("PlayerPosX", 0);
+        float posY = PlayerPrefs.GetFloat("PlayerPosY", 0);
+        float posZ = PlayerPrefs.GetFloat("PlayerPosZ", 0);
+        LastPlayerPosition = new Vector3(posX, posY, posZ);
+
         Debug.Log("[GameDataManager] Game state loaded.");
     }
 
     public void ResetData()
     {
-        CompletedQuestIDs = new HashSet<string>();
+        PlayerPrefs.DeleteKey("CurrentStoryID");
+        PlayerPrefs.DeleteKey("LastSceneName");
+        PlayerPrefs.DeleteKey("LastCheckpointID");
+        PlayerPrefs.DeleteKey("ObtainedItemIDs");
+        PlayerPrefs.DeleteKey("FinishedDialogueIDs");
+        PlayerPrefs.DeleteKey("InspectedItemIDs");
+        PlayerPrefs.DeleteKey("DefeatedMonsterIDs");
+        PlayerPrefs.DeleteKey("CompletedQuestIDs");
+
         CurrentStoryID = "library_intro";
+        LastSceneName = "Library";
+        LastCheckpointID = "library_intro";
         ObtainedItemIDs = new HashSet<string>();
         FinishedDialogueIDs = new HashSet<string>();
         InspectedItemIDs = new HashSet<string>();
         DefeatedMonsterIDs = new HashSet<string>();
+        CompletedQuestIDs = new HashSet<string>();
 
-        Debug.Log("[GameDataManager] 메모리의 게임 데이터가 초기화되었습니다.");
+        PlayerPrefs.DeleteKey("PlayerPosX");
+        PlayerPrefs.DeleteKey("PlayerPosY");
+        PlayerPrefs.DeleteKey("PlayerPosZ");
+
+        Debug.Log("[GameDataManager] 메모리와 PlayerPrefs의 게임 데이터가 초기화되었습니다.");
+    }
+
+    public void SetLastPlayerPosition(Vector3 position)
+    {
+        LastPlayerPosition = position;
+    }
+
+    public void SetLastCheckpoint(string checkpointID)
+    {
+        LastCheckpointID = checkpointID;
+    }
+
+    public void SetLastSceneName(string sceneName)
+    {
+        LastSceneName = sceneName;
     }
 
     public void SetCurrentBattleMonster(MonsterDataSO data, string id, string dialogueId = null)
