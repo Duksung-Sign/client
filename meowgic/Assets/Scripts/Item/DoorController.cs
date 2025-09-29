@@ -79,7 +79,12 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         GameDataManager.Instance.SetNextPlayerSpawnPoint(targetSpawnPointID);
         GameDataManager.Instance.SetPreviousScene(SceneManager.GetActiveScene().name);
-        GameManager.Instance.ChangeScene(targetSceneName);
+        GameManager.Instance.ChangeScene(targetSceneName, () => {
+            if (GameEventManager.Instance != null)
+            {
+                GameEventManager.Instance.TriggerMapEntered(targetSceneName);
+            }
+        });
     }
 
     private void PlayOpenSound()
