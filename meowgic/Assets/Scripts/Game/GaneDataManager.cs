@@ -95,6 +95,10 @@ public class GameDataManager : MonoBehaviour
         PlayerPrefs.DeleteKey("InspectedItemIDs");
         PlayerPrefs.DeleteKey("DefeatedMonsterIDs");
         PlayerPrefs.DeleteKey("CompletedQuestIDs");
+        PlayerPrefs.DeleteKey("PlayerSpawnPointID");
+        PlayerPrefs.DeleteKey("PlayerPosX");
+        PlayerPrefs.DeleteKey("PlayerPosY");
+        PlayerPrefs.DeleteKey("PlayerPosZ");
 
         CurrentStoryID = "library_intro";
         LastSceneName = "Library";
@@ -105,9 +109,10 @@ public class GameDataManager : MonoBehaviour
         DefeatedMonsterIDs = new HashSet<string>();
         CompletedQuestIDs = new HashSet<string>();
 
-        PlayerPrefs.DeleteKey("PlayerPosX");
-        PlayerPrefs.DeleteKey("PlayerPosY");
-        PlayerPrefs.DeleteKey("PlayerPosZ");
+        LastPlayerPosition = Vector3.zero;
+        PlayerSpawnPointID = "";
+
+        PlayerPrefs.Save();
 
         Debug.Log("[GameDataManager] 메모리와 PlayerPrefs의 게임 데이터가 초기화되었습니다.");
     }
