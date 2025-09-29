@@ -748,7 +748,7 @@ MonoBehaviour:
   companyLogoImage: {fileID: 1226667097}
   autosaveIconImage: {fileID: 1280300263}
   fadeInDuration: 2
-  holdDuration: 1.5
+  holdDuration: 1
   fadeOutDuration: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
