@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using DG.Tweening;
 
 public class BattleUIManager : MonoBehaviour
 {
@@ -13,24 +14,16 @@ public class BattleUIManager : MonoBehaviour
     public Button helloSkillButton;
     public Button sorrySkillButton;
     public Button thankSkillButton;
-
-    [Header("채널 1: 캐릭터 대사 UI")]
-    public DynamicSpeechBubble canSpeechBubble;
-    [Header("채널 2: 튜토리얼 UI")]
-    public DynamicSpeechBubble tutorSpeechBubble;
-    [Header("채널 3: 시스템 상태 UI")]
     public TextMeshProUGUI statusText;
 
-    private Coroutine hideDialogueCoroutine;
+    private Coroutine statusMessageCoroutine;
 
     void Awake()
     {
         if (BattleEventManager.Instance != null)
         {
             BattleEventManager.Instance.OnBattleStateChanged += HandleBattleStateChange;
-
-            BattleEventManager.Instance.OnRequestShowCharacterDialogue += ShowCharacterDialogue;
-            BattleEventManager.Instance.OnRequestUpdateStatus += UpdateStatusText;
+            BattleEventManager.Instance.OnRequestUpdateStatus += ShowStatusMessage;
         }
     }
 
@@ -39,8 +32,7 @@ public class BattleUIManager : MonoBehaviour
         if (BattleEventManager.Instance != null)
         {
             BattleEventManager.Instance.OnBattleStateChanged -= HandleBattleStateChange;
-            BattleEventManager.Instance.OnRequestShowCharacterDialogue -= ShowCharacterDialogue;
-            BattleEventManager.Instance.OnRequestUpdateStatus -= UpdateStatusText;
+            BattleEventManager.Instance.OnRequestUpdateStatus -= ShowStatusMessage;
         }
     }
 
@@ -52,31 +44,29 @@ public class BattleUIManager : MonoBehaviour
 
     private void InitializeUIState()
     {
-        canSpeechBubble?.gameObject.SetActive(false);
-        tutorSpeechBubble?.gameObject.SetActive(false);
         statusText?.gameObject.SetActive(false);
         skillSelectionPanel?.SetActive(false);
     }
 
     private void SetupButtonEvents()
     {
-        attackButton?.onClick.AddListener(OnAttackButtonClicked);
-        escapeButton?.onClick.AddListener(OnEscapeButtonClicked);
-        helloSkillButton?.onClick.AddListener(() => OnSkillButtonClicked("hello"));
-        sorrySkillButton?.onClick.AddListener(() => OnSkillButtonClicked("sorry"));
-        thankSkillButton?.onClick.AddListener(() => OnSkillButtonClicked("thank"));
+        attackButton?.onClick.AddListener(() => BattleEventManager.Instance?.PlayerRequestsAttack());
+        escapeButton?.onClick.AddListener(() => BattleEventManager.Instance?.AttemptEscape());
+        helloSkillButton?.onClick.AddListener(() => BattleEventManager.Instance?.SelectPlayerSkill("hello"));
+        sorrySkillButton?.onClick.AddListener(() => BattleEventManager.Instance?.SelectPlayerSkill("sorry"));
+        thankSkillButton?.onClick.AddListener(() => BattleEventManager.Instance?.SelectPlayerSkill("thank"));
     }
 
     private void HandleBattleStateChange(BattleState newState)
     {
         ShowMainUI(false);
         ShowSkillPanel(false);
-        UpdateStatusText(null); 
+        ShowStatusMessage(null, 0);
 
         switch (newState)
         {
             case BattleState.Initializing:
-                UpdateStatusText("전투 준비 중...");
+                ShowStatusMessage("미오, 어떤 걸 할까?", 0); 
                 break;
 
             case BattleState.PlayerTurn_AwaitingInput:
@@ -88,7 +78,7 @@ public class BattleUIManager : MonoBehaviour
                 break;
 
             case BattleState.PlayerTurn_Gesture:
-                UpdateStatusText("제스처를 인식 중...");
+                ShowStatusMessage("미오! 묘어를 분석 중이야!", 0);
                 break;
 
             case BattleState.ActionInProgress:
@@ -96,32 +86,17 @@ public class BattleUIManager : MonoBehaviour
                 break;
 
             case BattleState.BattleOver_Victory:
-                ShowCharacterDialogue("승리했어!");
+                ShowStatusMessage("냐학! 승리했어!", 0);
                 break;
 
             case BattleState.BattleOver_Defeat:
-                ShowCharacterDialogue("패배했어...");
+                ShowStatusMessage("이런, 패배했어.", 0);
                 break;
 
             case BattleState.Escaped:
-                ShowCharacterDialogue("무사히 도망쳤다!");
+                ShowStatusMessage("냐냐냥! 도망치자!", 0);
                 break;
         }
-    }
-
-    void OnAttackButtonClicked()
-    {
-        BattleEventManager.Instance?.PlayerRequestsAttack();
-    }
-
-    void OnEscapeButtonClicked()
-    {
-        BattleEventManager.Instance?.AttemptEscape();
-    }
-
-    void OnSkillButtonClicked(string skillName)
-    {
-        BattleEventManager.Instance?.SelectPlayerSkill(skillName);
     }
 
     private void ShowMainUI(bool show)
@@ -135,37 +110,40 @@ public class BattleUIManager : MonoBehaviour
         skillSelectionPanel?.SetActive(show);
     }
 
-    private void ShowCharacterDialogue(string dialogue)
-    {
-        if (string.IsNullOrEmpty(dialogue) || canSpeechBubble == null) return;
-        if (hideDialogueCoroutine != null) StopCoroutine(hideDialogueCoroutine);
-
-        canSpeechBubble.gameObject.SetActive(true);
-        canSpeechBubble.SetText(dialogue);
-        hideDialogueCoroutine = StartCoroutine(HideDialogueAfterDelay(2.5f));
-    }
-
-    private void UpdateStatusText(string message)
+    private void ShowStatusMessage(string message, float duration = 2.5f)
     {
         if (statusText == null) return;
+        if (statusMessageCoroutine != null)
+        {
+            StopCoroutine(statusMessageCoroutine);
+            statusText.DOKill();
+        }
+
         if (string.IsNullOrEmpty(message))
         {
             statusText.gameObject.SetActive(false);
         }
         else
         {
-            statusText.text = message;
-            statusText.gameObject.SetActive(true);
+            statusMessageCoroutine = StartCoroutine(ShowMessageCoroutine(message, duration));
         }
     }
 
-    private IEnumerator HideDialogueAfterDelay(float delay)
+    private IEnumerator ShowMessageCoroutine(string message, float duration)
     {
-        yield return new WaitForSeconds(delay);
-        if (canSpeechBubble != null)
+        statusText.text = message;
+        statusText.gameObject.SetActive(true);
+        statusText.alpha = 0;
+
+        yield return statusText.DOFade(1f, 0.2f).WaitForCompletion();
+
+        if (duration > 0)
         {
-            canSpeechBubble.gameObject.SetActive(false);
+            yield return new WaitForSeconds(duration);
+
+            yield return statusText.DOFade(0f, 0.2f).WaitForCompletion();
+
+            statusText.gameObject.SetActive(false);
         }
-        hideDialogueCoroutine = null;
     }
 }

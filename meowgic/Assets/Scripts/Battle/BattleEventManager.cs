@@ -10,7 +10,6 @@ public class BattleEventManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
         }
         else
         {
@@ -23,7 +22,7 @@ public class BattleEventManager : MonoBehaviour
     public event Action OnRequestStartGestureRecognition;
     public event Action<string> OnRequestShowTutorialMessage;
     public event Action<string> OnRequestShowCharacterDialogue;
-    public event Action<string> OnRequestUpdateStatus;
+    public event Action<string, float> OnRequestUpdateStatus;
     public event Action<BattleState> OnBattleStateChanged;
 
     public event Action<bool> OnRequestShowMainUI;
@@ -37,8 +36,7 @@ public class BattleEventManager : MonoBehaviour
     public void StartGestureRecognition() => OnRequestStartGestureRecognition?.Invoke();
     public void ShowTutorialMessage(string message) => OnRequestShowTutorialMessage?.Invoke(message);
     public void RequestShowCharacterDialogue(string dialogue) => OnRequestShowCharacterDialogue?.Invoke(dialogue);
-    public void RequestUpdateStatus(string status) => OnRequestUpdateStatus?.Invoke(status);
-
+    public void RequestUpdateStatus(string status, float duration = 2.5f) => OnRequestUpdateStatus?.Invoke(status, duration); 
     public void RequestShowMainUI(bool show) => OnRequestShowMainUI?.Invoke(show);
     public void RequestShowSkillPanel(bool show) => OnRequestShowSkillPanel?.Invoke(show);
     public void PlayerRequestsAttack() => OnPlayerRequestsAttack?.Invoke();
