@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using System;
 using DG.Tweening;
 
 public enum GameState
@@ -89,4 +90,8 @@ public class GameManager : MonoBehaviour
     {
         FadeManager.Instance.LoadSceneWithFade(sceneName);
     }
+    public void ChangeScene(string sceneName, Action onSceneLoaded)
+    {
+    FadeManager.Instance.LoadSceneWithFade(sceneName, onSceneLoaded);
+    }   
 }
