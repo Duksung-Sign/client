@@ -128,7 +128,7 @@ public class DialogueManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            
+
             if (dialogueUIPrefab != null)
             {
                 dialoguePanel = Instantiate(dialogueUIPrefab);
@@ -142,7 +142,6 @@ public class DialogueManager : MonoBehaviour
                     leftPortrait = uiRefs.leftPortrait;
                     continueIndicator = uiRefs.continueIndicator;
                     dialogueCanvasGroup = uiRefs.dialogueCanvasGroup;
-
                     if (continueIndicator != null)
                     {
                         continueIndicatorRect = continueIndicator.GetComponent<RectTransform>();
@@ -152,20 +151,24 @@ public class DialogueManager : MonoBehaviour
                 {
                     Debug.LogError("[DialogueManager] dialogueUIPrefab에 DialogueUIRefs 컴포넌트가 없습니다!");
                 }
+
                 dialoguePanel.SetActive(false);
             }
-            audioSource = gameObject.GetComponent<AudioSource>();
-            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.loop = false;
         }
         else
         {
             Destroy(gameObject);
+            return;
         }
 
         if (dialogueLines.Count == 0)
         {
-            InitializeDialogueSystem();
+            LoadDialogueData();
+            InitializeConditionCheckers();
         }
     }
 
@@ -173,9 +176,8 @@ public class DialogueManager : MonoBehaviour
     {
         if (GameEventManager.Instance != null)
         {
-            GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
+            GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
         }
-        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
@@ -183,59 +185,6 @@ public class DialogueManager : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
-        }
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        Debug.Log($"[DialogueManager] {scene.name} 씬 로드됨. UI 참조를 다시 설정합니다.");
-        
-        if (dialogueLines.Count == 0)
-        {
-            InitializeDialogueSystem();
-        }
-
-        FindAndAssignUIReferences();
-    }
-
-    private void FindAndAssignUIReferences()
-    {
-        GameObject panelObject = GameObject.FindGameObjectWithTag("DialogueUI");
-
-        if (panelObject != null)
-        {
-            dialoguePanel = panelObject;
-            dialogueCanvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
-            if (dialogueCanvasGroup == null)
-            {
-                dialogueCanvasGroup = dialoguePanel.AddComponent<CanvasGroup>();
-            }
-
-            Transform talkPanelTransform = dialoguePanel.transform.Find("talkPanel");
-            if (talkPanelTransform != null)
-            {
-                dialogueText = talkPanelTransform.Find("Image/DialogueText").GetComponent<TextMeshProUGUI>();
-                speakerNameText = talkPanelTransform.Find("SpeakerNameText").GetComponent<TextMeshProUGUI>();
-            }
-
-            leftPortrait = dialoguePanel.transform.Find("LeftPortrait").GetComponent<Image>();
-            
-            continueIndicator = dialoguePanel.GetComponentInChildren<ContinueIndicator>(true);
-            if (continueIndicator != null)
-            {
-                continueIndicatorRect = continueIndicator.GetComponent<RectTransform>();
-            }
-            
-            if (speakerNameText == null) Debug.LogError("[DialogueManager] 'talkPanel/SpeakerNameText'를 찾을 수 없습니다! 하이어라키와 이름을 확인하세요.");
-            if (leftPortrait == null) Debug.LogError("[DialogueManager] 'LeftPortrait'를 찾을 수 없습니다! 하이어라키와 이름을 확인하세요.");
-
-            dialoguePanel.SetActive(false);
-            Debug.Log("[DialogueManager] UI 참조 설정 완료.");
-        }
-        else
-        {
-            Debug.LogWarning("[DialogueManager] 현재 씬에서 'DialogueUI' 태그를 가진 패널을 찾을 수 없습니다.");
         }
     }
 
@@ -528,13 +477,9 @@ public class DialogueManager : MonoBehaviour
     {
         if (dialogueCanvasGroup == null)
         {
-            FindAndAssignUIReferences();
-
-            if (dialogueCanvasGroup == null)
-            {
-                isInDialogue = false;
-                return;
-            }
+            Debug.LogError("[DialogueManager] 대화창 UI가 준비되지 않았습니다. Prefab이 제대로 연결되었는지 확인하십시오.");
+            isInDialogue = false;
+            return;
         }
 
         if (dialogueText != null)
@@ -546,17 +491,17 @@ public class DialogueManager : MonoBehaviour
         {
             leftPortrait.gameObject.SetActive(false);
         }
-        
+
         dialogueCanvasGroup.alpha = 0f;
         dialoguePanel.SetActive(true);
 
         DisplayCurrentLine();
 
-        dialogueCanvasGroup.DOKill(); 
-        dialogueCanvasGroup.DOFade(1f, 0.3f);
+        dialogueCanvasGroup.DOKill();
+        dialogueCanvasGroup.DOFade(1f, 0.3f).SetUpdate(true);
     }
 
-    public bool IsInDialogue()
+public bool IsInDialogue()
     {
         return isInDialogue;
     }
@@ -586,11 +531,22 @@ public class DialogueManager : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
 
-        if (continueIndicator != null && dialogueText.text.Length > 0)
+        if (dialogueText == null || continueIndicator == null || continueIndicatorRect == null)
+        {
+            yield break;
+        }
+
+        if (dialogueText.text.Length > 0)
         {
             TMP_TextInfo textInfo = dialogueText.textInfo;
+
+            if (textInfo == null || textInfo.characterCount == 0)
+            {
+                yield break;
+            }
+
             int lastCharacterIndex = textInfo.characterCount - 1;
-            
+
             while (lastCharacterIndex >= 0 && !textInfo.characterInfo[lastCharacterIndex].isVisible)
             {
                 lastCharacterIndex--;
@@ -601,7 +557,7 @@ public class DialogueManager : MonoBehaviour
                 TMP_CharacterInfo lastCharInfo = textInfo.characterInfo[lastCharacterIndex];
                 Vector3 lastCharPosition = lastCharInfo.topRight;
                 float yOffset = lastCharInfo.ascender - (lastCharInfo.ascender - lastCharInfo.descender) / 2f;
-                
+
                 continueIndicatorRect.anchoredPosition = new Vector2(lastCharPosition.x + 36f, yOffset);
             }
             else
@@ -611,7 +567,7 @@ public class DialogueManager : MonoBehaviour
 
             continueIndicator.Show();
         }
-        else if (continueIndicator != null)
+        else
         {
             continueIndicatorRect.anchoredPosition = Vector2.zero;
             continueIndicator.Show();

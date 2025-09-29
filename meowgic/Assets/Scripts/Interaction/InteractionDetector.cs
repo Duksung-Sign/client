@@ -9,10 +9,6 @@ public class InteractionDetector : MonoBehaviour
     public float detectionRange = 2f;
     public LayerMask interactionLayers = -1;
 
-    [Header("UI")]
-    public GameObject promptUI;
-    public TextMeshProUGUI promptText;
-
     private IInteractable currentTarget;
     private bool canInteract = true;
 
@@ -23,11 +19,6 @@ public class InteractionDetector : MonoBehaviour
             GameEventManager.Instance.OnDialogueStarted += (type, id) => canInteract = false;
             GameEventManager.Instance.OnDialogueFinished += (type, id) => canInteract = true;
         }
-    }
-
-    void Start()
-    {
-        if (promptUI != null) promptUI.SetActive(false);
     }
 
     void Update()
@@ -55,7 +46,6 @@ public class InteractionDetector : MonoBehaviour
         if (closest != currentTarget)
         {
             currentTarget = closest;
-            UpdatePrompt();
         }
     }
 
@@ -68,25 +58,11 @@ public class InteractionDetector : MonoBehaviour
         }
     }
 
-    void UpdatePrompt()
-    {
-        if (currentTarget != null)
-        {
-            promptUI.SetActive(true);
-            promptText.text = currentTarget.GetInteractionPromptText();
-        }
-        else
-        {
-            promptUI.SetActive(false);
-        }
-    }
-
     void ClearTarget()
     {
         if (currentTarget != null)
         {
             currentTarget = null;
-            UpdatePrompt();
         }
     }
 
