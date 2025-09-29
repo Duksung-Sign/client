@@ -10,16 +10,17 @@ using CsvHelper.Configuration.Attributes;
 using UnityEngine.SceneManagement;
 using CsvHelper.Configuration;
 
-#region Data Classes
 [System.Serializable]
 public class StoryNodes
 {
     public string StoryID { get; set; }
+    public string SceneName { get; set; }
     public string DisplayName { get; set; }
     public string Description { get; set; }
     public string Chapter { get; set; }
     public string NextStoryID { get; set; }
     public bool AutoAdvance { get; set; }
+    public bool IsCheckpoint { get; set; }
 }
 
 [System.Serializable]
@@ -52,8 +53,6 @@ public class StoryTriggers
     public string NextStoryID { get; set; }
 }
 
-#endregion
-
 public class StoryProgressManager : MonoBehaviour
 {
     public static StoryProgressManager Instance;
@@ -64,13 +63,14 @@ public class StoryProgressManager : MonoBehaviour
     private List<StoryTriggers> storyTriggersList = new List<StoryTriggers>();
     private Dictionary<string, Func<string, string, bool>> conditionCheckers;
 
+    private Queue<StoryAction> postSceneLoadActions;
+
     [Header("CSV 파일 경로")]
     [SerializeField] private string storyNodesPath = "StoryData/StoryNodes";
     [SerializeField] private string storyConditionsPath = "StoryData/StoryConditions";
     [SerializeField] private string storyActionsPath = "StoryData/StoryActions";
     [SerializeField] private string storyTriggersPath = "StoryData/StoryTriggers";
 
-    #region Unity Lifecycle & Event Management
     void Awake()
     {
         if (Instance == null)
@@ -78,6 +78,7 @@ public class StoryProgressManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             InitializeStorySystem();
+            postSceneLoadActions = new Queue<StoryAction>();
         }
         else Destroy(gameObject);
     }
@@ -104,11 +105,55 @@ public class StoryProgressManager : MonoBehaviour
         }
     }
 
-    void Start()
+    public void ContinueStory()
     {
-        ExecuteStoryNode(GameDataManager.Instance.CurrentStoryID);
+        if (GameDataManager.Instance != null && storyNodes != null)
+        {
+            string storyIDToContinue = GameDataManager.Instance.CurrentStoryID;
+
+            if (!storyNodes.ContainsKey(storyIDToContinue))
+            {
+                Debug.LogError($"[StoryProgressManager] 이어하기 실패: 저장된 StoryID '{storyIDToContinue}'를 찾을 수 없습니다.");
+                return;
+            }
+            string targetScene = storyNodes[storyIDToContinue].SceneName;
+            string currentScene = SceneManager.GetActiveScene().name;
+
+            Debug.Log($"[StoryProgressManager] 이어하기 요청: {targetScene} 씬의 {storyIDToContinue} 스토리부터 시작합니다.");
+
+            if (currentScene == targetScene)
+            {
+                ExecuteStoryNode(storyIDToContinue);
+            }
+            else
+            {
+                FadeManager.Instance.LoadSceneWithFade(targetScene, () => {
+                    ExecuteStoryNode(storyIDToContinue);
+                });
+            }
+        }
     }
-    #endregion
+
+    public void StartNewGame(string startingStoryID)
+    {
+        if (GameDataManager.Instance != null)
+        {
+            GameDataManager.Instance.ResetData();
+            Debug.Log($"[StoryProgressManager] 새 게임 시작 요청. 데이터 초기화 완료.");
+
+            string startingScene = "Library";
+
+            FadeManager.Instance.LoadSceneWithFade(startingScene, () => {
+                Debug.Log($"[StoryProgressManager] '{startingScene}' 씬 로드 완료. '{startingStoryID}' 스토리 실행.");
+                ExecuteStoryNode(startingStoryID);
+            });
+        }
+        else
+        {
+            Debug.LogError("[StoryProgressManager] GameDataManager.Instance가 null입니다!");
+        }
+    }
+
 
     private void InitializeStorySystem()
     {
@@ -184,16 +229,32 @@ public class StoryProgressManager : MonoBehaviour
 
     private void ExecuteStoryNode(string storyID)
     {
-        if (!storyNodes.ContainsKey(storyID)) return;
+        if (!storyNodes.ContainsKey(storyID))
+        {
+            Debug.LogError($"[StoryProgressManager] 존재하지 않는 StoryID: {storyID}");
+            return;
+        }
 
         var currentNode = storyNodes[storyID];
 
         GameDataManager.Instance.SetCurrentStoryID(storyID);
+
+        if (currentNode.IsCheckpoint)
+        {
+            string nextStoryID = currentNode.NextStoryID;
+            if (!string.IsNullOrEmpty(nextStoryID))
+            {
+                GameDataManager.Instance.SetLastCheckpoint(nextStoryID);
+                Debug.Log($"[StoryProgressManager] 체크포인트 저장: 다음 시작 노드는 {nextStoryID} 입니다.");
+            }
+        }
+
         GameEventManager.Instance.TriggerStoryAdvanced(storyID);
 
         if (storyActions.ContainsKey(storyID))
         {
-            StartCoroutine(ExecuteActionsCoroutine(storyActions[storyID]));
+            var actionsToExecute = storyActions[storyID].OrderBy(a => a.Order).ToList();
+            StartCoroutine(ExecuteActionsCoroutine(actionsToExecute));
         }
         else
         {
@@ -203,8 +264,10 @@ public class StoryProgressManager : MonoBehaviour
 
     private IEnumerator ExecuteActionsCoroutine(List<StoryAction> actions)
     {
-        foreach (var action in actions.OrderBy(a => a.Order))
+        for (int i = 0; i < actions.Count; i++)
         {
+            var action = actions[i];
+
             switch (action.ActionType)
             {
                 case "show_dialogue":
@@ -213,13 +276,24 @@ public class StoryProgressManager : MonoBehaviour
                     break;
                 case "change_scene":
                     GameManager.Instance.ChangeState(GameState.Loading);
-                    GameManager.Instance.ChangeScene(action.Target);
+                    postSceneLoadActions.Clear();
+                    for (int j = i + 1; j < actions.Count; j++)
+                    {
+                        postSceneLoadActions.Enqueue(actions[j]);
+                    }
+                    FadeManager.Instance.LoadSceneWithFade(action.Target, OnSceneLoadComplete);
                     yield break; 
                 case "enable_player":
                     GameManager.Instance.ChangeState(GameState.Field);
                     break;
                 case "disable_player":
                     GameManager.Instance.ChangeState(GameState.Dialogue);
+                    break;
+                case "enable_interaction":
+                    if (InteractionManager.Instance != null)
+                    {
+                        InteractionManager.Instance.EnableObject(action.Target);
+                    }
                     break;
                 case "start_battle":
                     GameEventManager.Instance.TriggerBattleStartRequested(Resources.Load<MonsterDataSO>(action.Target), null, action.Parameter);
@@ -241,6 +315,17 @@ public class StoryProgressManager : MonoBehaviour
         OnAllActionsCompleted();
     }
 
+    private void OnSceneLoadComplete()
+    {
+        Debug.Log("[StoryProgressManager] 씬 전환 완료. 저장된 후속 액션을 실행합니다.");
+        if (postSceneLoadActions.Count > 0)
+        {
+            var actionsToRun = postSceneLoadActions.ToList();
+            postSceneLoadActions.Clear();
+            StartCoroutine(ExecuteActionsCoroutine(actionsToRun));
+        }
+    }
+
     private void OnAllActionsCompleted()
     {
         var currentNode = storyNodes[GameDataManager.Instance.CurrentStoryID];
@@ -253,14 +338,34 @@ public class StoryProgressManager : MonoBehaviour
     private void TryAdvanceToNextStory()
     {
         var currentStoryID = GameDataManager.Instance.CurrentStoryID;
-        if (!storyNodes.ContainsKey(currentStoryID)) return;
+
+        if (!storyNodes.ContainsKey(currentStoryID))
+        {
+            return;
+        }
 
         string nextStoryID = storyNodes[currentStoryID].NextStoryID;
-        if (string.IsNullOrEmpty(nextStoryID)) return;
+
+        if (string.IsNullOrEmpty(nextStoryID))
+        {
+            return;
+        }
 
         if (CanAdvanceStory(nextStoryID))
         {
+            if (PlayerController.Instance != null)
+            {
+                GameDataManager.Instance.SetLastPlayerPosition(PlayerController.Instance.transform.position);
+            }
+
+            GameDataManager.Instance.SetCurrentStoryID(nextStoryID);
+            GameDataManager.Instance.SaveState();
+
             ExecuteStoryNode(nextStoryID);
+        }
+        else
+        {
+            GameDataManager.Instance.SaveState();
         }
     }
 
@@ -284,10 +389,9 @@ public class StoryProgressManager : MonoBehaviour
 
     private void HandleGameEvent(string eventType, string eventTargetID)
     {
-        Debug.Log($"[StoryProgressManager] 게임 이벤트 수신: {eventType} - {eventTargetID}. 스토리 진행을 확인합니다.");
+        Debug.Log($"[StoryProgressManager] 게임 이벤트 수신: {eventType} - {eventTargetID}.");
 
         var currentStoryID = GameDataManager.Instance.CurrentStoryID;
-
         var matchedTrigger = storyTriggersList.FirstOrDefault(trigger =>
             trigger.CurrentStoryID == currentStoryID &&
             trigger.TriggerType == eventType &&
@@ -295,12 +399,19 @@ public class StoryProgressManager : MonoBehaviour
 
         if (matchedTrigger != null)
         {
-            Debug.Log($"[StoryProgressManager] StoryTrigger 발견! {currentStoryID} -> {matchedTrigger.NextStoryID}");
-            ExecuteStoryNode(matchedTrigger.NextStoryID);
-        }
-        else
-        {
-            TryAdvanceToNextStory();
+            string nextStoryID = matchedTrigger.NextStoryID;
+            Debug.Log($"[StoryProgressManager] StoryTrigger 발견! {currentStoryID} -> {nextStoryID}");
+
+            if (PlayerController.Instance != null)
+            {
+                GameDataManager.Instance.SetLastPlayerPosition(PlayerController.Instance.transform.position);
+            }
+
+            GameDataManager.Instance.SetCurrentStoryID(nextStoryID);
+            GameDataManager.Instance.SaveState();
+            Debug.Log($"[StoryProgressManager] 진행 상황 저장 완료. 다음 스토리: {nextStoryID}");
+
+            ExecuteStoryNode(nextStoryID);
         }
     }
 }

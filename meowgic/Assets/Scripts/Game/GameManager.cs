@@ -17,13 +17,6 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    [Header("씬 전환 효과")]
-    [SerializeField] private GameObject fadeUIPrefab;
-    [SerializeField] private float fadeDuration = 0.5f;
-
-    private CanvasGroup fadeCanvasGroup;
-    private bool isChangingScene = false;
-
     public GameState CurrentState { get; private set; }
 
     void Awake()
@@ -32,14 +25,6 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
-            if (fadeUIPrefab != null)
-            {
-                GameObject fadeUIObject = Instantiate(fadeUIPrefab);
-                fadeCanvasGroup = fadeUIObject.GetComponent<CanvasGroup>();
-                DontDestroyOnLoad(fadeUIObject);
-            }
-
         }
         else
         {
@@ -102,27 +87,6 @@ public class GameManager : MonoBehaviour
 
     public void ChangeScene(string sceneName)
     {
-        if (isChangingScene) return;
-
-        StartCoroutine(FadeAndLoadScene(sceneName));
-    }
-
-    private IEnumerator FadeAndLoadScene(string sceneName)
-    {
-        isChangingScene = true;
-
-        ChangeState(GameState.Loading); 
-        
-        fadeCanvasGroup.blocksRaycasts = true; 
-        yield return fadeCanvasGroup.DOFade(1f, fadeDuration).WaitForCompletion();
-
-        yield return SceneManager.LoadSceneAsync(sceneName);
-
-        yield return fadeCanvasGroup.DOFade(0f, fadeDuration).WaitForCompletion();
-        fadeCanvasGroup.blocksRaycasts = false; 
-
-        ChangeState(GameState.Field); 
-        
-        isChangingScene = false;
+        FadeManager.Instance.LoadSceneWithFade(sceneName);
     }
 }
