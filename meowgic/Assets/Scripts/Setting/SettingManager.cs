@@ -9,7 +9,6 @@ public class SettingsManager : MonoBehaviour
 
     [Header("Assign in Inspector")]
     [SerializeField] private GameObject settingsPrefab;          // ✅ 프리팹(설계도)
-    [SerializeField] private GameObject firstSelectedOverride;   // 선택 사항: 강제로 첫 포커스 줄 UI
     [SerializeField] private bool openBlocked = false;
 
     private GameObject settingsUIInstance;   // ✅ 런타임 인스턴스
@@ -20,7 +19,7 @@ public class SettingsManager : MonoBehaviour
 
     [Header("Scene rules")]
     [SerializeField] private string titleSceneName = "MainMenu";  // 타이틀 씬 이름
-    [SerializeField] private bool destroyUIOnTitle = true;      // 타이틀에서 프리팹 인스턴스 완전 파기할지
+    [SerializeField] private bool destroyUIOnTitle = false;      // 타이틀에서 프리팹 인스턴스 완전 파기할지
 
     private GameState previousState;
 
@@ -64,9 +63,7 @@ public class SettingsManager : MonoBehaviour
 
         mainMenuController?.ShowMainMenu();
 
-        settingController?.RefreshUIFromPrefsOnly();
         settingsUIInstance.SetActive(true);
-        SetFirstSelected();
         isOpen = true;
     }
 
@@ -119,19 +116,6 @@ public class SettingsManager : MonoBehaviour
         // UI 클릭 가능하게
         if (settingsUIInstance.GetComponent<UnityEngine.UI.GraphicRaycaster>() == null)
             settingsUIInstance.AddComponent<UnityEngine.UI.GraphicRaycaster>();
-    }
-
-    // 첫 포커스 지정(override > 컨트롤러의 firstSelected 순)
-    private void SetFirstSelected()
-    {
-        GameObject target = firstSelectedOverride;
-        if (target == null && settingController != null) target = settingController.firstSelected;
-
-        if (EventSystem.current != null && target != null)
-        {
-            EventSystem.current.SetSelectedGameObject(null);
-            EventSystem.current.SetSelectedGameObject(target);
-        }
     }
 
     private void GuardEventSystem()
