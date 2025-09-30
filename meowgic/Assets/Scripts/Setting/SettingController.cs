@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
+using UnityEngine.Audio;
+using UnityEngine.UI;
 public class SettingsController : MonoBehaviour
 {
     [Header("Arrow Cursor")]
@@ -8,8 +10,12 @@ public class SettingsController : MonoBehaviour
     [Header("Rows (Index)")]
     [SerializeField] private int resolutionRowIndex = 0; // 1줄: 해상도
     [SerializeField] private int screenModeRowIndex = 1; // 2줄: 화면모드
+    [SerializeField] private int bgmRowIndex = 2;        // 3줄: bgm
+    [SerializeField] private int seRowIndex = 3;         // 4줄: 효과음 
     [SerializeField] private int initialRowIndex = 0; // 시작 줄
+
     [Header("Resolution Options")]
+    public TMP_Text resolutionText; // 해상도 표시 텍스트(TMP)
     public Vector2Int[] resolutionOptions = new Vector2Int[]
     {
         new Vector2Int(1920, 1080),
@@ -21,21 +27,36 @@ public class SettingsController : MonoBehaviour
     (resolutionOptions != null && resolutionOptions.Length > 0)
     ? resolutionOptions[Mathf.Clamp(selectedResIndex, 0, resolutionOptions.Length - 1)]
     : new Vector2Int(0, 0);
+
     [Header("Screen Mode")]
     public TMP_Text screenModeText; // "전체화면"/"창모드" 표시
     public string[] screenModeOptions = { "전체화면", "창모드" };
     [SerializeField] private int selectedModeIndex = 0; // 0: 전체화면, 1: 창모드
 
-    [Header("Labels")]
-    public TMP_Text resolutionText; // 해상도 표시 텍스트(TMP)
+    [Header("Audio")]
+    [SerializeField] private Slider bgmSlider;   // 0~1
+    [SerializeField] private Slider seSlider;    // 0~1
+    [SerializeField] private AudioMixer mixer;      // Master/BGM/SE 파라미터 노출된 믹서
+    [SerializeField] private string MIXER_BGM = "BGMVolume";
+    [SerializeField] private string MIXER_SE = "SEVolume";
+    [SerializeField, Tooltip("dB 스텝")] private float volumeStepDb = 2f;
+    [SerializeField, Tooltip("최소/최대 dB")] private float minDb = -80f, maxDb = 0f;
+    [SerializeField] private float defaultBgmDb = -5f;
+    [SerializeField] private float defaultSeDb = -5f;
+
     [Header("Focus (선택)")]
     public GameObject firstSelected; // 매니저에서 못 넘겨줄 때 대비
                                      // PlayerPrefs 키
     const string KEY_RES_INDEX = "Settings.ResolutionIndex";
     const string KEY_FULLSCREEN = "Settings.Fullscreen";
+    const string KEY_BGM_DB = "Settings.BGM_dB";
+    const string KEY_SE_DB = "Settings.SE_dB";
+
     // 저장값을 메모리에 보류
     private int pendingResIndex;
     private bool pendingFullscreen;
+    private float pendingBgmDb;
+    private float pendingSeDb;
     private int FullscreenOptionIndex()
     {
         for (int i = 0; i < screenModeOptions.Length; i++)
@@ -222,7 +243,7 @@ public void OnClickBack()
 var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed; //
 macOS 안전
 #else
-        var mode = fullscreen ? FullScreenMode.ExclusiveFullScreen : FullScreenMode.Windowed;
+        var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
 #endif
         Screen.fullScreenMode = mode;
 #if UNITY_2022_2_OR_NEWER
