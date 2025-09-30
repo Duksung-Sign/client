@@ -82,7 +82,6 @@ public class HolisticJsonSender : MonoBehaviour
         {
             if (dataProcessor == null || !isCollectingGesture) return;
 
-            // 프레임 간격 체크 - 설정한 간격이 지나지 않았으면 수집하지 않음
             if (Time.time - lastFrameTime < frameCollectionInterval)
                 return;
 
@@ -93,7 +92,7 @@ public class HolisticJsonSender : MonoBehaviour
             if (collectedFrames.Count < targetFrameCount)
             {
                 collectedFrames.Add(processedData);
-                lastFrameTime = Time.time;  // 프레임 수집 시간 기록
+                lastFrameTime = Time.time;  
                 Debug.Log($"Frame collected: {collectedFrames.Count}/{targetFrameCount}");
             }
         }
@@ -129,7 +128,7 @@ public class HolisticJsonSender : MonoBehaviour
         }
 
         collectedFrames.Clear();
-        lastFrameTime = 0f;  // 타이머 초기화
+        lastFrameTime = 0f; 
         gestureCollectionCoroutine = StartCoroutine(CollectGestureWithDelay());
     }
 
@@ -165,7 +164,7 @@ public class HolisticJsonSender : MonoBehaviour
 
         Debug.Log("제스처 시작!");
         isCollectingGesture = true;
-        lastFrameTime = Time.time;  // 수집 시작 시간 기록
+        lastFrameTime = Time.time; 
 
         yield return StartCoroutine(CollectGestureAndRecognize());
     }
@@ -174,7 +173,6 @@ public class HolisticJsonSender : MonoBehaviour
     {
         Debug.Log($"Collecting {targetFrameCount} frames...");
 
-        // 타임아웃을 충분히 늘림 (프레임 간격 * 프레임 수 + 여유시간)
         float timeoutTimer = (frameCollectionInterval * targetFrameCount) + 5f;
 
         while (collectedFrames.Count < targetFrameCount && timeoutTimer > 0)
@@ -209,7 +207,6 @@ public class HolisticJsonSender : MonoBehaviour
 
         string json = JsonConvert.SerializeObject(frameData, Formatting.Indented);
 
-        // ===== JSON 파일 저장 =====
         string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
         string fileName = $"gesture_data_{timestamp}.json";
         string filePath = System.IO.Path.Combine(Application.persistentDataPath, fileName);
@@ -224,7 +221,6 @@ public class HolisticJsonSender : MonoBehaviour
         {
             Debug.LogError($"JSON 저장 실패: {e.Message}");
         }
-        // =========================
 
         string url = $"http://{serverIP}:{serverPort}{serverEndpoint}";
 
@@ -264,7 +260,6 @@ public class HolisticJsonSender : MonoBehaviour
     {
         List<float> vector = new List<float>();
 
-        // 1. 왼손 좌표 (63개 = 21 * 3)
         for (int i = 0; i < 21; i++)
         {
             vector.Add(GetFieldValue(data, $"left_hand_{i}_x"));
@@ -272,7 +267,6 @@ public class HolisticJsonSender : MonoBehaviour
             vector.Add(GetFieldValue(data, $"left_hand_{i}_z"));
         }
 
-        // 2. 오른손 좌표 (63개 = 21 * 3)
         for (int i = 0; i < 21; i++)
         {
             vector.Add(GetFieldValue(data, $"right_hand_{i}_x"));
@@ -280,7 +274,6 @@ public class HolisticJsonSender : MonoBehaviour
             vector.Add(GetFieldValue(data, $"right_hand_{i}_z"));
         }
 
-        // 3. 포즈 좌표 (27개 = 9 * 3)
         string[] poseJoints = { "l_shoulder", "r_shoulder", "l_elbow", "r_elbow",
                                "l_wrist", "r_wrist", "l_hip", "r_hip", "hip_center" };
         foreach (var joint in poseJoints)
@@ -290,7 +283,6 @@ public class HolisticJsonSender : MonoBehaviour
             vector.Add(GetFieldValue(data, $"{joint}_z"));
         }
 
-        // 4. 얼굴 좌표 (63개 = 21 * 3)
         for (int i = 0; i < 21; i++)
         {
             vector.Add(GetFieldValue(data, $"face_{i}_x"));
@@ -298,7 +290,6 @@ public class HolisticJsonSender : MonoBehaviour
             vector.Add(GetFieldValue(data, $"face_{i}_z"));
         }
 
-        // 5. 관절 각도 (8개)
         vector.Add(data.l_elbow_cos);
         vector.Add(data.l_elbow_sin);
         vector.Add(data.l_shoulder_cos);
@@ -308,7 +299,6 @@ public class HolisticJsonSender : MonoBehaviour
         vector.Add(data.r_shoulder_cos);
         vector.Add(data.r_shoulder_sin);
 
-        // 6. 손가락 상태 (8개)
         vector.Add(data.left_index_state);
         vector.Add(data.left_middle_state);
         vector.Add(data.left_ring_state);
@@ -318,7 +308,6 @@ public class HolisticJsonSender : MonoBehaviour
         vector.Add(data.right_ring_state);
         vector.Add(data.right_pinky_state);
 
-        // 7. 손바닥 법선 (6개)
         vector.Add(data.left_palm_nx);
         vector.Add(data.left_palm_ny);
         vector.Add(data.left_palm_nz);
@@ -326,17 +315,14 @@ public class HolisticJsonSender : MonoBehaviour
         vector.Add(data.right_palm_ny);
         vector.Add(data.right_palm_nz);
 
-        // 8. 속도 (2개)
         vector.Add(data.speed_your);
         vector.Add(data.speed_friend);
 
-        // 9. 마스크 플래그 (4개)
         vector.Add(data.lh_flag);
         vector.Add(data.rh_flag);
         vector.Add(data.pose_flag);
         vector.Add(data.face_flag);
 
-        // 총 244개 확인
         if (vector.Count != 244)
         {
             Debug.LogWarning($"Vector dimension mismatch! Expected: 244, Actual: {vector.Count}");
