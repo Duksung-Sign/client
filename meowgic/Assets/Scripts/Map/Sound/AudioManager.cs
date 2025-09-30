@@ -16,10 +16,21 @@ public class AudioManager : MonoBehaviour
     private MapAudioProfile currentMapProfile;
 
     [Header("페이드 설정")]
-    [SerializeField] private float crossfadeDuration = 2.0f; 
+    [SerializeField] private float crossfadeDuration = 2.0f;
+
+    [Header("볼륨 설정")]
+    [Range(0f, 1f)] public float bgmVolume = 0.5f;
+    [Range(0f, 1f)] public float sfxVolume = 0.8f;
 
     private AudioSource _activeBgmSource; 
-    private AudioSource _inactiveBgmSource; 
+    private AudioSource _inactiveBgmSource;
+
+    void Start()
+    {
+        bgmSourceA.volume = 0; 
+        bgmSourceB.volume = 0;
+        sfxSource.volume = sfxVolume;
+    }
 
     void Awake()
     {
@@ -73,6 +84,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+
     private void HandleStoryEvent(string storyID)
     {
     }
@@ -83,9 +95,9 @@ public class AudioManager : MonoBehaviour
 
         _inactiveBgmSource.clip = newClip;
         _inactiveBgmSource.Play();
-        _inactiveBgmSource.DOFade(1, crossfadeDuration).SetEase(Ease.Linear);
 
-        _activeBgmSource.DOFade(0, crossfadeDuration).SetEase(Ease.Linear);
+        _inactiveBgmSource.DOFade(bgmVolume, crossfadeDuration).SetEase(Ease.InOutSine);
+        _activeBgmSource.DOFade(0, crossfadeDuration).SetEase(Ease.InOutSine);
 
         AudioSource temp = _activeBgmSource;
         _activeBgmSource = _inactiveBgmSource;
