@@ -1562,7 +1562,7 @@ MonoBehaviour:
   _openGlEsConfig: {fileID: 4900000, guid: 5db98b44b5bd2a0e8b5c7dec21d0577d, type: 3}
   _timeoutMicrosec: 100000
   refineFaceLandmarks: 0
-  modelComplexity: 0
+  modelComplexity: 1
   smoothLandmarks: 1
   enableSegmentation: 1
   smoothSegmentation: 1
@@ -6123,8 +6123,9 @@ GameObject:
   m_Component:
   - component: {fileID: 2118140694}
   - component: {fileID: 2118140693}
+  - component: {fileID: 2118140695}
   m_Layer: 0
-  m_Name: HolisticJason
+  m_Name: HolisticJson
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6142,26 +6143,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b4b514c86283df4084a67802bd65aa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  holisticSolution: {fileID: 479761099}
-  enableLogging: 1
-  sendToServer: 1
-  serverUrl: http://3.39.24.148:8000/predict
-  frameSkip: 1
-  enableUIFeedback: 1
-  requiredConsecutiveFrames: 15
-  collectionStartDelay: 3
-  mediapipeStabilizationTime: 3
-  minHandVisibility: 1
-  maxInterpolationFrames: 3
-  collectPose: 1
-  collectFace: 1
-  collectHands: 1
-  faceMode: 2
-  poseMode: 2
-  useSequenceMode: 1
-  sequenceFrameCount: 30
-  saveToTextFile: 1
-  saveDirectory: C:\Users\a1vm5\Desktop\test
+  dataProcessor: {fileID: 2118140695}
+  serverIP: 3.39.24.148
+  serverPort: 8000
+  serverEndpoint: /predict
 --- !u!4 &2118140694
 Transform:
   m_ObjectHideFlags: 0
@@ -6177,6 +6162,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2118140695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2118140692}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f71393081244ca245a3cceaed8414396, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
