@@ -176,7 +176,7 @@ public class DialogueManager : MonoBehaviour
     {
         if (GameEventManager.Instance != null)
         {
-            GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
+            GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
         }
     }
 
