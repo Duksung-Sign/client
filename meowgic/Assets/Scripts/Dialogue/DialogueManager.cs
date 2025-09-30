@@ -90,6 +90,7 @@ public class DialogueManager : MonoBehaviour
     private string currentLineID;
     private bool isInDialogue = false;
     private bool isTyping = false;
+    private bool isPaused = false;
     private string fullText = "";
     private Coroutine typingCoroutine;
     private string lastSpeakerName = "";
@@ -100,7 +101,7 @@ public class DialogueManager : MonoBehaviour
 
     void Update()
     {
-        if (!isInDialogue) return;
+        if (isPaused || !isInDialogue) return;
 
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
         {
@@ -169,6 +170,8 @@ public class DialogueManager : MonoBehaviour
         {
             LoadDialogueData();
             InitializeConditionCheckers();
+            GameEventManager.Instance.OnGameStateChanged += HandleGameStateChange;
+
         }
     }
 
@@ -176,7 +179,7 @@ public class DialogueManager : MonoBehaviour
     {
         if (GameEventManager.Instance != null)
         {
-            GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
+            GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
         }
     }
 
@@ -606,5 +609,22 @@ public bool IsInDialogue()
             }
         }
         CompleteTyping();
+    }
+
+    private void HandleGameStateChange(GameState newState)
+    {
+        isPaused = (newState == GameState.Menu);
+        if (isInDialogue)
+        {
+            if (newState == GameState.Loading)
+            {
+                dialoguePanel.SetActive(false);
+            }
+            else
+            {
+                dialoguePanel.SetActive(true);
+            }
+        }
+        
     }
 }

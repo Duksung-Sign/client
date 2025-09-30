@@ -47,6 +47,10 @@ public class MenuController : MonoBehaviour
             {
                 OnClickQuitToTitle();
             }
+            else if (arrows.CurrentIndex == 2) // 세 번쨰 줄: 게임으로 돌아감
+            {
+                OnClickBack();
+            }
         }
     }
 
@@ -94,7 +98,12 @@ public class MenuController : MonoBehaviour
         SettingsManager.Instance?.Close();
         if (!string.IsNullOrEmpty(titleSceneName))
         {
-            SceneManager.LoadScene(titleSceneName);
+            if(GameDataManager.Instance != null)
+            {
+                GameDataManager.Instance.SaveState();
+                GameEventManager.Instance.TriggerGameStateChanged(GameState.Loading);
+                FadeManager.Instance.LoadSceneWithFade("MainMenu");
+            }
         }
     }
 
