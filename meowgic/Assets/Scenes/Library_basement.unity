@@ -1022,6 +1022,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &315684732
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 315684733}
+  m_Layer: 0
+  m_Name: DoorPosition
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &315684733
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 315684732}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 5.22, y: 2.883, z: 0.047938116}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &316538527
 GameObject:
   m_ObjectHideFlags: 0
@@ -1486,6 +1517,8 @@ MonoBehaviour:
   smoothTime: 0.3
   shakeIntensity: 0.1
   shakeDuration: 0.5
+  zoomDuration: 1
+  zoomEase: 6
   showMapBounds: 1
   debugMode: 0
 --- !u!114 &472289349
@@ -3131,6 +3164,61 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1005149535}
   m_CullTransparentMesh: 1
+--- !u!1 &1065881610
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1065881612}
+  - component: {fileID: 1065881611}
+  m_Layer: 0
+  m_Name: TunaSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1065881611
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1065881610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c957c4b9e1a549418c650309ff767ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tunaPrefab: {fileID: 7799184961172969805, guid: e4f061fc9a494f24a99447d4a73e321f, type: 3}
+  spawnPosition: {fileID: 1065881612}
+  spawnTriggerLineID: hello_tuna_002
+  spawnSound: {fileID: 8300000, guid: c3434266d530f2d4aa8491ef3e46b188, type: 3}
+  spawnEffect: {fileID: 1742465213}
+  zoomTargetSize: 2
+  zoomDuration: 2
+  doorPosition: {fileID: 315684733}
+  moveDuration: 3
+  floatHeight: 0.3
+  floatSpeed: 1
+--- !u!4 &1065881612
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1065881610}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.687, y: -1.814, z: 0.047967333}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1167830929
 GameObject:
   m_ObjectHideFlags: 0
@@ -15215,3 +15303,5 @@ SceneRoots:
   - {fileID: 1665524565}
   - {fileID: 153880763}
   - {fileID: 308011165}
+  - {fileID: 1065881612}
+  - {fileID: 315684733}

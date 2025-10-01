@@ -1,21 +1,22 @@
 using UnityEngine;
 using System.Collections;
+using DG.Tweening;
 
 public class CameraController : MonoBehaviour
 {
     [Header("타겟 설정")]
-    public Transform target; 
+    public Transform target;
 
     [Header("카메라 설정")]
-    public float cameraSize = 3f; 
+    public float cameraSize = 3f;
 
     [Header("카메라 팔로우 설정")]
-    public float followSpeed = 2f; 
-    public Vector3 offset = new Vector3(0, 0, -10); 
+    public float followSpeed = 2f;
+    public Vector3 offset = new Vector3(0, 0, -10);
 
     [Header("맵 경계 설정")]
     public bool useMapBounds = true;
-    public Bounds mapBounds; 
+    public Bounds mapBounds;
 
     [Header("부드러운 이동")]
     public bool useSmoothFollow = true;
@@ -24,6 +25,12 @@ public class CameraController : MonoBehaviour
     [Header("카메라 흔들림 (셰이크)")]
     public float shakeIntensity = 0.1f;
     public float shakeDuration = 0.5f;
+
+    [Header("줌 효과")]
+    public float zoomDuration = 1f;
+    public Ease zoomEase = Ease.OutQuad;
+    private float originalCameraSize;
+    private Tweener currentZoomTween;
 
     [Header("디버그")]
     public bool showMapBounds = true;
@@ -63,7 +70,10 @@ public class CameraController : MonoBehaviour
     void Start()
     {
         if (cam != null)
+        {
             cam.orthographicSize = cameraSize;
+            originalCameraSize = cameraSize;
+        }
 
         if (useMapBounds && mapBounds.size == Vector3.zero)
         {
@@ -88,16 +98,14 @@ public class CameraController : MonoBehaviour
     {
         if (target == null) return;
 
-
         UpdateCameraPosition();
         UpdateCameraBounds();
     }
 
-    #region 카메라 위치 업데이트
 
     void UpdateCameraPosition()
     {
-        if (isShaking) return; 
+        if (isShaking) return;
 
         targetPosition = target.position + offset;
 
@@ -143,10 +151,6 @@ public class CameraController : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region 카메라 효과
-
     public void ShakeCamera(float intensity = 0, float duration = 0)
     {
         if (intensity == 0) intensity = shakeIntensity;
@@ -172,12 +176,38 @@ public class CameraController : MonoBehaviour
             transform.position = originalPosition + new Vector3(x, y, 0);
 
             elapsed += Time.deltaTime;
-            intensity = Mathf.Lerp(shakeIntensity, 0, elapsed / duration); // 점점 약해짐
+            intensity = Mathf.Lerp(shakeIntensity, 0, elapsed / duration);
             yield return null;
         }
 
         transform.position = originalPosition;
         isShaking = false;
+    }
+
+    public void ZoomTo(float targetSize, float duration = 0)
+    {
+        if (duration == 0) duration = zoomDuration;
+
+        if (currentZoomTween != null && currentZoomTween.IsActive())
+        {
+            currentZoomTween.Kill();
+        }
+
+        currentZoomTween = DOTween.To(
+            () => cam.orthographicSize,
+            x => {
+                cam.orthographicSize = x;
+                cameraSize = x;
+                UpdateCameraBounds();
+            },
+            targetSize,
+            duration
+        ).SetEase(zoomEase);
+    }
+
+    public void ResetZoom(float duration = 0)
+    {
+        ZoomTo(originalCameraSize, duration);
     }
 
     public void FocusOnTarget(Transform newTarget, float focusTime = 1f)
@@ -194,10 +224,6 @@ public class CameraController : MonoBehaviour
 
         target = originalTarget;
     }
-
-    #endregion
-
-    #region 맵 경계 설정
 
     void AutoDetectMapBounds()
     {
@@ -238,19 +264,13 @@ public class CameraController : MonoBehaviour
         useMapBounds = true;
     }
 
-    #endregion
-
-    #region 기즈모 그리기
-
     void OnDrawGizmosSelected()
     {
         if (showMapBounds && useMapBounds)
         {
-            // 맵 경계 표시
             Gizmos.color = Color.red;
             Gizmos.DrawWireCube(mapBounds.center, mapBounds.size);
 
-            // 카메라 뷰 경계 표시 (카메라가 이동할 수 있는 범위)
             if (Application.isPlaying)
             {
                 Gizmos.color = Color.yellow;
@@ -264,7 +284,6 @@ public class CameraController : MonoBehaviour
             }
         }
 
-        // 타겟 표시
         if (target != null)
         {
             Gizmos.color = Color.green;
@@ -272,7 +291,6 @@ public class CameraController : MonoBehaviour
             Gizmos.DrawLine(transform.position, target.position);
         }
 
-        // 현재 카메라 뷰 영역 표시
         if (Application.isPlaying && cam != null)
         {
             Gizmos.color = Color.blue;
@@ -281,6 +299,4 @@ public class CameraController : MonoBehaviour
             Gizmos.DrawWireCube(transform.position, new Vector3(width, height, 0));
         }
     }
-
-    #endregion
 }
