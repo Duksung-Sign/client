@@ -29,7 +29,8 @@ public class GameEventManager : MonoBehaviour
     public event Action<string, string> OnDialogueFinished;
     public event Action<string, string> OnKeyEvent;
     public event Action<string, string> OnBattleOver;
-    public event System.Action<string, string> OnMapEntered;
+    public event Action<string, string> OnMapEntered;
+    public event Action<string, string> OnSkillBookClosed;
 
 
     public void TriggerGameStateChanged(GameState newState) => OnGameStateChanged?.Invoke(newState);
@@ -55,4 +56,6 @@ public class GameEventManager : MonoBehaviour
     public void TriggerBattleOver(string battleID)
     => OnBattleOver?.Invoke("BATTLE_OVER", battleID);
     public void TriggerMapEntered(string sceneName) => OnMapEntered?.Invoke("MAP_ENTERED", sceneName);
+
+    public void TriggerSkillBookClosed() => OnSkillBookClosed?.Invoke("SKILLBOOK_CLOSED", "");
 }
