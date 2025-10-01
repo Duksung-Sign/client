@@ -358,4 +358,9 @@ public class HolisticJsonSender : MonoBehaviour
             StopCoroutine(gestureCollectionCoroutine);
         }
     }
+
+    public bool IsCollectingGesture()
+    {
+        return isCollectingGesture;
+    }
 }

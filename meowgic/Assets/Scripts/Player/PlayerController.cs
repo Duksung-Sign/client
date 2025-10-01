@@ -10,7 +10,6 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
     private Vector2 movement;
-    private bool canMove = true;
 
     void Awake()
     {
@@ -43,10 +42,6 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        if (GameManager.Instance != null)
-        {
-            HandleGameStateChange(GameManager.Instance.CurrentState);
-        }
         PositionPlayerOnLoad();
     }
 
@@ -55,6 +50,7 @@ public class PlayerController : MonoBehaviour
         if (GameDataManager.Instance == null) return;
 
         string spawnPointName = GameDataManager.Instance.PlayerSpawnPointID;
+
         if (!string.IsNullOrEmpty(spawnPointName))
         {
             GameObject spawnPointObject = GameObject.Find(spawnPointName);
@@ -78,7 +74,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleGameStateChange(GameState newState)
     {
-        canMove = (newState == GameState.Field || newState == GameState.Cutscene);
+        bool canMove = (newState == GameState.Field);
 
         if (!canMove)
         {
@@ -89,19 +85,20 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (canMove)
+        if (!GameManager.Instance.CanPlayerMove())
         {
-            GetInput();
-        }
-        else
-        {
+            rb.velocity = Vector2.zero;
+            animator.SetBool("isWalk", false);
             movement = Vector2.zero;
+            return;
         }
+
+        GetInput();
     }
 
     void FixedUpdate()
     {
-        if (canMove)
+        if (GameManager.Instance.CanPlayerMove())
         {
             rb.MovePosition(rb.position + movement * moveSpeed * Time.fixedDeltaTime);
         }

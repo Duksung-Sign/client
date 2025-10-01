@@ -99,6 +99,8 @@ public class GameDataManager : MonoBehaviour
         PlayerPrefs.DeleteKey("PlayerPosX");
         PlayerPrefs.DeleteKey("PlayerPosY");
         PlayerPrefs.DeleteKey("PlayerPosZ");
+        PlayerPrefs.DeleteKey("HasSeenDoodlePage");
+        PlayerPrefs.DeleteKey("HasCompletedSkillBookTutorial");
 
         CurrentStoryID = "library_intro";
         LastSceneName = "Library";

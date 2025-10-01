@@ -90,8 +90,14 @@ public class GameManager : MonoBehaviour
     {
         FadeManager.Instance.LoadSceneWithFade(sceneName);
     }
+
     public void ChangeScene(string sceneName, Action onSceneLoaded)
     {
     FadeManager.Instance.LoadSceneWithFade(sceneName, onSceneLoaded);
     }   
+
+    public bool CanPlayerMove()
+    {
+        return CurrentState == GameState.Field;
+    }
 }

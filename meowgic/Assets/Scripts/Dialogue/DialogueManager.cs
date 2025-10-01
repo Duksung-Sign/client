@@ -59,6 +59,7 @@ public class DialogueManager : MonoBehaviour
     private RectTransform continueIndicatorRect;
     private Image leftPortrait;
     private CanvasGroup dialogueCanvasGroup;
+    public event System.Action<string> OnLineDisplayed;
 
     [Header("외부 데이터베이스 참조")] 
     [SerializeField] private CharacterDatabase characterDatabase;
@@ -400,6 +401,9 @@ public class DialogueManager : MonoBehaviour
     {
         var line = dialogueLines[currentLineID];
         fullText = line.Text;
+
+        OnLineDisplayed?.Invoke(currentLineID);
+
         StartTyping(fullText);
 
         string speakerName = string.IsNullOrEmpty(line.CustomSpeaker) ? line.SpeakerName : line.CustomSpeaker;
