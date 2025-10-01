@@ -79,7 +79,10 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         GameDataManager.Instance.SetNextPlayerSpawnPoint(targetSpawnPointID);
         GameDataManager.Instance.SetPreviousScene(SceneManager.GetActiveScene().name);
+
         GameManager.Instance.ChangeScene(targetSceneName, () => {
+            GameManager.Instance.ChangeState(GameState.Field);
+
             if (GameEventManager.Instance != null)
             {
                 GameEventManager.Instance.TriggerMapEntered(targetSceneName);
