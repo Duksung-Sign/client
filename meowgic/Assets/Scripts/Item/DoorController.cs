@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 public class DoorController : MonoBehaviour, IInteractable
 {
     [Header("고유 ID")]
-    [SerializeField] private string doorID = "library_basement_door"; 
+    [SerializeField] private string doorID = "library_basement_door";
 
     [Header("씬 이동 설정")]
     [SerializeField] private string targetSceneName = "Library_basement";
@@ -20,6 +20,11 @@ public class DoorController : MonoBehaviour, IInteractable
 
     [Header("이동 딜레이")]
     [SerializeField] private float sceneTransitionDelay = 1.0f;
+
+    [Header("스토리 제한")]
+    [SerializeField] private bool checkStoryRestriction = false;
+    [SerializeField] private string[] blockedStoryIDs;
+    [SerializeField] private string blockedDialogueID = "door_blocked";
 
     [Header("디버그")]
     [SerializeField] private bool debugMode = false;
@@ -37,6 +42,14 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         if (isOpening) return;
 
+        // 1. 스토리 제한 체크 (가장 먼저)
+        if (checkStoryRestriction && IsStoryBlocked())
+        {
+            ShowBlockedDialogue();
+            return;
+        }
+
+        // 2. 아이템 체크
         bool hasKey = GameDataManager.Instance.HasItem(requiredItemID);
 
         if (hasKey)
@@ -52,6 +65,33 @@ public class DoorController : MonoBehaviour, IInteractable
         }
     }
 
+    private bool IsStoryBlocked()
+    {
+        if (GameDataManager.Instance == null || blockedStoryIDs == null || blockedStoryIDs.Length == 0)
+            return false;
+
+        string currentStory = GameDataManager.Instance.CurrentStoryID;
+
+        foreach (string blockedID in blockedStoryIDs)
+        {
+            if (currentStory == blockedID)
+            {
+                if (debugMode) Debug.Log($"[DoorController] 스토리 '{currentStory}'에서는 이 문을 사용할 수 없습니다.");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ShowBlockedDialogue()
+    {
+        if (DialogueManager.Instance != null && !string.IsNullOrEmpty(blockedDialogueID))
+        {
+            DialogueManager.Instance.StartDialogue(blockedDialogueID);
+        }
+    }
+
     public string GetInteractionPromptText()
     {
         return "조사하기";
@@ -61,16 +101,13 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         isOpening = true;
         PlayOpenSound();
-
         GameManager.Instance.ChangeState(GameState.Cutscene);
-
         StartCoroutine(TransitionToScene());
     }
 
     private IEnumerator TransitionToScene()
     {
         if (debugMode) Debug.Log($"[DoorController] {sceneTransitionDelay}초 후 {targetSceneName} 씬으로 이동");
-
         yield return new WaitForSeconds(sceneTransitionDelay);
         LoadTargetScene();
     }
@@ -79,10 +116,8 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         GameDataManager.Instance.SetNextPlayerSpawnPoint(targetSpawnPointID);
         GameDataManager.Instance.SetPreviousScene(SceneManager.GetActiveScene().name);
-
         GameManager.Instance.ChangeScene(targetSceneName, () => {
             GameManager.Instance.ChangeState(GameState.Field);
-
             if (GameEventManager.Instance != null)
             {
                 GameEventManager.Instance.TriggerMapEntered(targetSceneName);
