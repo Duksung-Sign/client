@@ -8,8 +8,8 @@ public class AudioManager : MonoBehaviour
     public static AudioManager Instance;
 
     [Header("오디오 소스")]
-    [SerializeField] private AudioSource bgmSourceA; 
-    [SerializeField] private AudioSource bgmSourceB; 
+    [SerializeField] private AudioSource bgmSourceA;
+    [SerializeField] private AudioSource bgmSourceB;
     [SerializeField] private AudioSource sfxSource;
 
     [Header("오디오 프로필")]
@@ -22,15 +22,8 @@ public class AudioManager : MonoBehaviour
     [Range(0f, 1f)] public float bgmVolume = 0.5f;
     [Range(0f, 1f)] public float sfxVolume = 0.8f;
 
-    private AudioSource _activeBgmSource; 
+    private AudioSource _activeBgmSource;
     private AudioSource _inactiveBgmSource;
-
-    void Start()
-    {
-        bgmSourceA.volume = 0; 
-        bgmSourceB.volume = 0;
-        sfxSource.volume = sfxVolume;
-    }
 
     void Awake()
     {
@@ -38,7 +31,6 @@ public class AudioManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
             _activeBgmSource = bgmSourceA;
             _inactiveBgmSource = bgmSourceB;
         }
@@ -46,6 +38,13 @@ public class AudioManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+    }
+
+    void Start()
+    {
+        bgmSourceA.volume = 0;
+        bgmSourceB.volume = 0;
+        sfxSource.volume = sfxVolume;
     }
 
     void OnEnable()
@@ -84,7 +83,6 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-
     private void HandleStoryEvent(string storyID)
     {
     }
@@ -95,12 +93,37 @@ public class AudioManager : MonoBehaviour
 
         _inactiveBgmSource.clip = newClip;
         _inactiveBgmSource.Play();
-
         _inactiveBgmSource.DOFade(bgmVolume, crossfadeDuration).SetEase(Ease.InOutSine);
         _activeBgmSource.DOFade(0, crossfadeDuration).SetEase(Ease.InOutSine);
 
         AudioSource temp = _activeBgmSource;
         _activeBgmSource = _inactiveBgmSource;
         _inactiveBgmSource = temp;
+    }
+
+    public void PauseBGM()
+    {
+        if (_activeBgmSource != null && _activeBgmSource.isPlaying)
+        {
+            _activeBgmSource.Pause();
+            Debug.Log("[AudioManager] BGM 일시정지");
+        }
+    }
+
+    public void ResumeBGM()
+    {
+        if (_activeBgmSource != null && !_activeBgmSource.isPlaying)
+        {
+            _activeBgmSource.UnPause();
+            Debug.Log("[AudioManager] BGM 재개");
+        }
+    }
+
+    public void PlaySFX(AudioClip clip, float volumeScale = 1f)
+    {
+        if (clip != null && sfxSource != null)
+        {
+            sfxSource.PlayOneShot(clip, sfxVolume * volumeScale);
+        }
     }
 }

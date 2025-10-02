@@ -10,7 +10,6 @@ public class TunaSpawner : MonoBehaviour
 
     [Header("연출")]
     public AudioClip spawnSound;
-    public ParticleSystem spawnEffect;
 
     [Header("카메라 줌")]
     public float zoomTargetSize = 2f;
@@ -89,19 +88,23 @@ public class TunaSpawner : MonoBehaviour
         CameraController camController = Camera.main.GetComponent<CameraController>();
         if (camController != null)
         {
-            camController.ZoomTo(zoomTargetSize, zoomDuration);
+            camController.ZoomTo(zoomTargetSize, zoomDuration, () => {
+                CreateTunaInstance();
+            });
         }
+        else
+        {
+            CreateTunaInstance();
+        }
+    }
 
+    private void CreateTunaInstance()
+    {
         tunaInstance = Instantiate(tunaPrefab, spawnPosition.position, Quaternion.identity);
 
         if (spawnSound != null)
         {
-            audioSource.PlayOneShot(spawnSound);
-        }
-
-        if (spawnEffect != null)
-        {
-            Instantiate(spawnEffect, spawnPosition.position, Quaternion.identity);
+            audioSource.PlayOneShot(spawnSound, 0.3f);
         }
 
         tunaInstance.transform.localScale = Vector3.zero;
@@ -119,7 +122,7 @@ public class TunaSpawner : MonoBehaviour
         Vector3 startPos = tunaInstance.transform.position;
         Vector3 targetPos = doorPosition.position;
 
-        Tween moveTween = null; 
+        Tween moveTween = null;
 
         moveTween = tunaInstance.transform.DOMove(targetPos, moveDuration)
             .SetEase(Ease.InOutQuad)
@@ -135,6 +138,7 @@ public class TunaSpawner : MonoBehaviour
             })
             .OnComplete(() => {
                 Debug.Log("[TunaSpawner] 튜나가 문 앞에 도착했습니다.");
+                GameEventManager.Instance.TriggerCustomEvent("TUNA_ARRIVED_AT_DOOR");
             });
     }
 }
