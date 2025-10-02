@@ -38,9 +38,17 @@
         [SerializeField] private Slider seSlider;    // 0~1
         [SerializeField, Tooltip("키 입력 한 칸 스텝(0~1)")] private float volumeStep = 0.05f;
 
+        [SerializeField, Tooltip("길게 누를 때 첫 반복까지 대기 시간(초)")]
+        private float holdInitialDelay = 0.35f;
+        [SerializeField, Tooltip("반복 간격(초)")]
+        private float holdRepeatInterval = 0.06f;
+
+        private int _holdDir = 0;              // -1(Left/A), +1(Right/D), 0(None)
+        private float _nextRepeatTime = 0f;    // 다음 반복 시각 (unscaled)
+
         [Header("Focus (선택)")]
         public GameObject firstSelected; // 매니저에서 못 넘겨줄 때 대비
-                                         // PlayerPrefs 키
+        // PlayerPrefs 키
         const string KEY_RES_INDEX = "Settings.ResolutionIndex";
         const string KEY_FULLSCREEN = "Settings.Fullscreen";
 
@@ -72,7 +80,7 @@
             }
             return Mathf.Min(1, Mathf.Max(0, screenModeOptions.Length - 1));
         }
-        private bool SelectedFullscreen => selectedModeIndex == FullscreenOptionIndex();
+
         void Awake()
         {
             // 화살표 위치 동기화 + 시작 줄 강제
@@ -103,29 +111,47 @@
             UpdateUIFromSelection();
         }
         void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)) arrows?.Move(+1);
+        if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)) arrows?.Move(-1);
+        if (arrows == null) return;
+
+        bool rightDown = Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D);
+        bool leftDown = Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A);
+        bool rightHeld = Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D);
+        bool leftHeld = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A);
+
+        // 일반 줄: 좌우 처리 + 길게 누르기 반복
+        if (!arrows.OnOk && !arrows.OnBack)
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)) arrows?.Move(+1);
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
-                arrows?.Move(-1);
-            if (arrows == null) return;
-            // 일반 줄에서 좌/우
-            if (!arrows.OnOk && !arrows.OnBack)
+            // 현재 커서가 BGM/SE 줄일 때만 반복을 켠다
+            bool isVolRow = (arrows.CurrentIndex == bgmRowIndex) || (arrows.CurrentIndex == seRowIndex);
+
+            // 1) 즉시 1회
+            if (rightDown) { HandleLeftRight(+1); if (isVolRow) { _holdDir = +1; _nextRepeatTime = Time.unscaledTime + holdInitialDelay; } }
+            if (leftDown) { HandleLeftRight(-1); if (isVolRow) { _holdDir = -1; _nextRepeatTime = Time.unscaledTime + holdInitialDelay; } }
+
+            // 2) 홀드 유지/해제
+            if (!isVolRow || (!rightHeld && !leftHeld)) _holdDir = 0;
+
+            // 3) 반복 발사
+            if (_holdDir != 0 && Time.unscaledTime >= _nextRepeatTime)
             {
-                if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
-                    HandleLeftRight(+1);
-                if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
-                    HandleLeftRight(-1);
-            }
-            else if (!arrows.OnOk && arrows.OnBack)
-            {
-                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)) OnClickBack();
-            }
-            else // OnOk
-            {
-                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
-                    OnClickConfirm();
+                HandleLeftRight(_holdDir);
+                _nextRepeatTime = Time.unscaledTime + holdRepeatInterval;
             }
         }
+        else if (!arrows.OnOk && arrows.OnBack)
+        {
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)) OnClickBack();
+            _holdDir = 0;
+        }
+        else // OnOk
+        {
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)) OnClickConfirm();
+            _holdDir = 0;
+        }
+    }
 
         // === 매니저에서 열릴 때 호출(권장) ===
         public void OnOpen()
@@ -203,7 +229,7 @@
             SettingsManager.Instance?.Close();
         }
 
-    public void OnClickBack()
+        public void OnClickBack()
         {
             Debug.Log("[Settings] 뒤로 클릭");
             RefreshUIFromPrefsOnly();
@@ -221,7 +247,7 @@
             seSlider.SetValueWithoutNotify(pendingSe);
             AudioManager.Instance.SetBgmVolume(pendingBgm, true);
             AudioManager.Instance.SetsfxVolume(pendingSe, true);
-        UpdateUIFromSelection();
+            UpdateUIFromSelection();
         }
 
         // === 내부: 저장/로드 ===
