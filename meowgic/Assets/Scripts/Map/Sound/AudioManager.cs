@@ -91,6 +91,14 @@ public class AudioManager : MonoBehaviour
             sfxSource.PlayOneShot(currentMapProfile.footstepSound);
         }
     }
+    public void PlayTypingSound(AudioClip clip)
+    {
+        if (sfxSource != null && clip != null)
+        {
+            sfxSource.pitch = Random.Range(0.9f, 1.1f);
+            sfxSource.PlayOneShot(clip);
+        }
+    }
 
 
     private void HandleStoryEvent(string storyID)

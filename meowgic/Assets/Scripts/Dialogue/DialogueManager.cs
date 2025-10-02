@@ -96,7 +96,6 @@ public class DialogueManager : MonoBehaviour
     private Coroutine typingCoroutine;
     private string lastSpeakerName = "";
 
-    private AudioSource audioSource; 
     private AudioClip currentTypingSound;
     private float soundTimer;
 
@@ -156,10 +155,6 @@ public class DialogueManager : MonoBehaviour
 
                 dialoguePanel.SetActive(false);
             }
-
-            audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.playOnAwake = false;
-            audioSource.loop = false;
         }
         else
         {
@@ -407,7 +402,7 @@ public class DialogueManager : MonoBehaviour
 
         OnLineDisplayed?.Invoke(currentLineID);
 
-        StartTyping(fullText);
+        StartTyping(fullText, currentTypingSound);
 
         string speakerName = string.IsNullOrEmpty(line.CustomSpeaker) ? line.SpeakerName : line.CustomSpeaker;
         speakerNameText.text = speakerName;
@@ -444,7 +439,7 @@ public class DialogueManager : MonoBehaviour
             }
         }
         lastSpeakerName = speakerName;
-        StartTyping(fullText);
+        StartTyping(fullText, currentTypingSound);
     }
 
     private void NextLine()
@@ -513,12 +508,12 @@ public bool IsInDialogue()
         return isInDialogue;
     }
 
-    void StartTyping(string text)
+    void StartTyping(string text, AudioClip typingSound)
     {
         if (continueIndicator != null) continueIndicator.Hide();
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
         isTyping = true;
-        typingCoroutine = StartCoroutine(TypeText(text));
+        typingCoroutine = StartCoroutine(TypeText(text, typingSound));
     }
 
     void CompleteTyping()
@@ -581,7 +576,7 @@ public bool IsInDialogue()
         }
     }
 
-    IEnumerator TypeText(string text)
+    IEnumerator TypeText(string text, AudioClip typingSound)
     {
         dialogueText.text = "";
         soundTimer = 0f;
@@ -598,11 +593,10 @@ public bool IsInDialogue()
             {
                 soundTimer += baseTypingSpeed;
 
-                if (!char.IsWhiteSpace(letter) && currentTypingSound != null && soundTimer >= soundInterval)
+                if (AudioManager.Instance != null && !char.IsWhiteSpace(letter) && typingSound!= null && soundTimer >= soundInterval)
                 {
                     soundTimer = 0f;
-                    audioSource.pitch = Random.Range(0.9f, 1.1f); 
-                    audioSource.PlayOneShot(currentTypingSound);
+                    AudioManager.Instance.PlayTypingSound(typingSound);
                 }
 
                 float currentTypingSpeed = Random.Range(
