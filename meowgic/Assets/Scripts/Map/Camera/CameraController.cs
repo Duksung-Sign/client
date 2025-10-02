@@ -184,7 +184,7 @@ public class CameraController : MonoBehaviour
         isShaking = false;
     }
 
-    public void ZoomTo(float targetSize, float duration = 0)
+    public void ZoomTo(float targetSize, float duration = 0, System.Action onComplete = null)
     {
         if (duration == 0) duration = zoomDuration;
 
@@ -202,7 +202,7 @@ public class CameraController : MonoBehaviour
             },
             targetSize,
             duration
-        ).SetEase(zoomEase);
+        ).SetEase(zoomEase).OnComplete(() => onComplete?.Invoke());
     }
 
     public void ResetZoom(float duration = 0)
