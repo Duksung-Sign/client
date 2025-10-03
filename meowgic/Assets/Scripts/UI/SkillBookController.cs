@@ -148,14 +148,18 @@ public class SkillBookController : MonoBehaviour
                 hasCompletedTutorial = false;
                 currentPhase = TutorialPhase.NotStarted;
                 canUseNavigation = false;
-                Debug.Log("[SkillBookController] wait_for_skill_tutorial 스토리 - 튜토리얼 초기화");
             }
             else if (!hasCompletedTutorial)
             {
                 PlayerPrefs.DeleteKey("HasSeenDoodlePage");
                 currentPhase = TutorialPhase.NotStarted;
                 canUseNavigation = false;
-                Debug.Log("[SkillBookController] 튜토리얼 미완료 - 초기화");
+            }
+            else 
+            {
+                currentPhase = TutorialPhase.Completed;
+                canUseNavigation = true;
+                isInTutorial = false;
             }
 
             if (GameDataManager.Instance.CurrentStoryID == "library_intro")
