@@ -79,6 +79,7 @@ public class SkillBookController : MonoBehaviour
 
     [Header("Audio")]
     public AudioClip pageFlipSound;
+    public AudioClip doodleSound;
     private AudioSource audioSource;
 
     private int currentPageIndex = 0;
@@ -147,14 +148,18 @@ public class SkillBookController : MonoBehaviour
                 hasCompletedTutorial = false;
                 currentPhase = TutorialPhase.NotStarted;
                 canUseNavigation = false;
-                Debug.Log("[SkillBookController] wait_for_skill_tutorial 스토리 - 튜토리얼 초기화");
             }
             else if (!hasCompletedTutorial)
             {
                 PlayerPrefs.DeleteKey("HasSeenDoodlePage");
                 currentPhase = TutorialPhase.NotStarted;
                 canUseNavigation = false;
-                Debug.Log("[SkillBookController] 튜토리얼 미완료 - 초기화");
+            }
+            else 
+            {
+                currentPhase = TutorialPhase.Completed;
+                canUseNavigation = true;
+                isInTutorial = false;
             }
 
             if (GameDataManager.Instance.CurrentStoryID == "library_intro")
@@ -314,6 +319,11 @@ public class SkillBookController : MonoBehaviour
                 StopCoroutine(tutorialTimeoutCoroutine);
                 tutorialTimeoutCoroutine = null;
             }
+
+            if (DialogueManager.Instance != null)
+            {
+                DialogueManager.Instance.StartDialogue("library_tuna_tutorial");
+            }
         }
         else if (dialogueId == doodleDialogueID && isShowingSpecialPage)
         {
@@ -328,8 +338,7 @@ public class SkillBookController : MonoBehaviour
         hasCompletedTutorial = true;
         PlayerPrefs.SetInt("HasCompletedSkillBookTutorial", 1);
         PlayerPrefs.Save();
-
-        Debug.Log("[SkillBookController] 스킬북 튜토리얼 완료!");
+        GameEventManager.Instance.TriggerCustomEvent("SKILLBOOK_TUTORIAL_COMPLETED");
     }
 
     private IEnumerator TutorialReminderTimeout()
@@ -415,10 +424,9 @@ public class SkillBookController : MonoBehaviour
 
         if (hasCompletedTutorial &&
             GameDataManager.Instance != null &&
-            GameDataManager.Instance.CurrentStoryID == "wait_for_skill_tutorial" &&
-            !closedByReminder)
+            GameDataManager.Instance.CurrentStoryID == "wait_for_skill_tutorial")
         {
-            Debug.Log("[SkillBookController] 플레이어가 스킬북을 닫음 - 다음 스토리로 이동");
+            Debug.Log("[SkillBookController] 튜토리얼 완료 후 스킬북 닫음 - SKILLBOOK_CLOSED 이벤트 발생");
             GameEventManager.Instance.TriggerSkillBookClosed();
         }
 
@@ -517,14 +525,28 @@ public class SkillBookController : MonoBehaviour
         if (leftArrowObject != null) leftArrowObject.SetActive(false);
         if (rightArrowObject != null) rightArrowObject.SetActive(false);
 
+        if (GameDataManager.Instance != null &&
+            GameDataManager.Instance.HasFinishedDialogue(doodleDialogueID))
+        {
+            Debug.Log("[SkillBookController] 두들 대화를 이미 봤으므로 바로 다음 페이지로");
+            HideSpecialPage();
+            return;
+        }
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PauseBGM();
+
+            if (doodleSound != null)
+            {
+                AudioManager.Instance.PlaySFX(doodleSound, 0.5f);
+            }
+        }
+
         if (DialogueManager.Instance != null)
         {
             DialogueManager.Instance.StartDialogue(doodleDialogueID);
         }
-
-        hasSeenDoodlePage = true;
-        PlayerPrefs.SetInt("HasSeenDoodlePage", 1);
-        PlayerPrefs.Save();
     }
 
     void HideSpecialPage()
@@ -537,13 +559,23 @@ public class SkillBookController : MonoBehaviour
 
         currentPageIndex = 1;
         UpdatePageContent();
+
+        hasSeenDoodlePage = true;
+        PlayerPrefs.SetInt("HasSeenDoodlePage", 1);
+        PlayerPrefs.Save();
+        Debug.Log("[SkillBookController] 두들 페이지 확인 완료 - 저장됨");
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.ResumeBGM();
+        }
     }
 
     void PlayPageFlipSound()
     {
         if (pageFlipSound != null && audioSource != null)
         {
-            audioSource.PlayOneShot(pageFlipSound);
+            audioSource.PlayOneShot(pageFlipSound, 0.3f);
         }
     }
 

@@ -9,7 +9,17 @@ public class ItemManager : MonoBehaviour, IInteractable
     [Header("효과 설정")]
     public GameObject idleEffect;
 
+    [Header("사운드 설정")]
+    [SerializeField] private AudioClip collectSound; 
+
+    private AudioSource audioSource;
     private bool isInspectionDialogueRunning = false;
+
+    void Awake()
+    {
+        audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+    }
 
     void OnEnable()
     {
@@ -69,13 +79,35 @@ public class ItemManager : MonoBehaviour, IInteractable
 
     private void Collect()
     {
+        PlayCollectSound();
+
         GameDataManager.Instance.AddItem(itemData.itemID);
-        GameDataManager.Instance.SaveState(); 
+        GameDataManager.Instance.SaveState();
 
         GameEventManager.Instance.TriggerItemCollected(itemData.itemID);
 
         Debug.Log($"[ItemManager] {itemData.displayName} 획득.");
-        Destroy(gameObject);
+
+        if (collectSound != null)
+        {
+            Destroy(gameObject, collectSound.length);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void PlayCollectSound()
+    {
+        if (collectSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(collectSound);
+        }
+        else if (AudioManager.Instance != null && collectSound != null)
+        {
+            AudioManager.Instance.PlaySFX(collectSound, 0.3f);
+        }
     }
 
     private void Inspect()
@@ -125,7 +157,7 @@ public class ItemManager : MonoBehaviour, IInteractable
 
         Debug.Log($"[ItemManager] '{itemData.displayName}' 조사를 완료했습니다.");
     }
-    
+
     public string GetInteractionPromptText()
     {
         if (itemData != null)

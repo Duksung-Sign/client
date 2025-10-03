@@ -8,8 +8,8 @@ public class AudioManager : MonoBehaviour
     public static AudioManager Instance;
 
     [Header("오디오 소스")]
-    [SerializeField] private AudioSource bgmSourceA; 
-    [SerializeField] private AudioSource bgmSourceB; 
+    [SerializeField] private AudioSource bgmSourceA;
+    [SerializeField] private AudioSource bgmSourceB;
     [SerializeField] private AudioSource sfxSource;
 
     [Header("오디오 프로필")]
@@ -22,19 +22,8 @@ public class AudioManager : MonoBehaviour
     [Range(0f, 1f)] public float bgmVolume = 0.5f;
     [Range(0f, 1f)] public float sfxVolume = 0.8f;
 
-    private AudioSource _activeBgmSource; 
+    private AudioSource _activeBgmSource;
     private AudioSource _inactiveBgmSource;
-
-    private const string KEY_BGM = "Settings.BGM";
-    private const string KEY_SFX = "Settings.SFX";
-
-
-    void Start()
-    {
-        bgmSourceA.volume = 0; 
-        bgmSourceB.volume = 0;
-        sfxSource.volume = sfxVolume;
-    }
 
     void Awake()
     {
@@ -42,18 +31,20 @@ public class AudioManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
             _activeBgmSource = bgmSourceA;
             _inactiveBgmSource = bgmSourceB;
-
-            (bgmVolume, sfxVolume) = PeekSavedVolumes();
-            SetBgmVolume(bgmVolume);
-            SetsfxVolume(sfxVolume);
         }
         else
         {
             Destroy(gameObject);
         }
+    }
+
+    void Start()
+    {
+        bgmSourceA.volume = 0;
+        bgmSourceB.volume = 0;
+        sfxSource.volume = sfxVolume;
     }
 
     void OnEnable()
@@ -91,15 +82,6 @@ public class AudioManager : MonoBehaviour
             sfxSource.PlayOneShot(currentMapProfile.footstepSound);
         }
     }
-    public void PlayTypingSound(AudioClip clip)
-    {
-        if (sfxSource != null && clip != null)
-        {
-            sfxSource.pitch = Random.Range(0.9f, 1.1f);
-            sfxSource.PlayOneShot(clip);
-        }
-    }
-
 
     private void HandleStoryEvent(string storyID)
     {
@@ -111,7 +93,6 @@ public class AudioManager : MonoBehaviour
 
         _inactiveBgmSource.clip = newClip;
         _inactiveBgmSource.Play();
-
         _inactiveBgmSource.DOFade(bgmVolume, crossfadeDuration).SetEase(Ease.InOutSine);
         _activeBgmSource.DOFade(0, crossfadeDuration).SetEase(Ease.InOutSine);
 
@@ -120,36 +101,29 @@ public class AudioManager : MonoBehaviour
         _inactiveBgmSource = temp;
     }
 
-    // === Settings에서 호출할 API ===
-    public void SetBgmVolume(float volume, bool save = false)
+    public void PauseBGM()
     {
-        bgmVolume = Mathf.Clamp01(volume);
-
-        if (_activeBgmSource) _activeBgmSource.volume = bgmVolume;
-        if (_inactiveBgmSource) _inactiveBgmSource.volume = Mathf.Min(_inactiveBgmSource.volume, bgmVolume);
-
-        if (save)
+        if (_activeBgmSource != null && _activeBgmSource.isPlaying)
         {
-            PlayerPrefs.SetFloat(KEY_BGM, bgmVolume);
-            PlayerPrefs.Save();
-        }
-    }   
-
-    public void SetsfxVolume(float volume, bool save = false)
-    {
-        sfxVolume = Mathf.Clamp01(volume);
-        if (sfxSource) sfxSource.volume = sfxVolume;
-
-        if (save)
-        {
-            PlayerPrefs.SetFloat(KEY_SFX, sfxVolume);
-            PlayerPrefs.Save();
+            _activeBgmSource.Pause();
+            Debug.Log("[AudioManager] BGM 일시정지");
         }
     }
-    public (float bgm, float sfx) PeekSavedVolumes()
+
+    public void ResumeBGM()
     {
-        float bgmSaved = PlayerPrefs.HasKey(KEY_BGM) ? Mathf.Clamp01(PlayerPrefs.GetFloat(KEY_BGM)) : bgmVolume;
-        float sfxSaved = PlayerPrefs.HasKey(KEY_SFX) ? Mathf.Clamp01(PlayerPrefs.GetFloat(KEY_SFX)) : sfxVolume;
-        return (bgmSaved, sfxSaved);
-    }   
+        if (_activeBgmSource != null && !_activeBgmSource.isPlaying)
+        {
+            _activeBgmSource.UnPause();
+            Debug.Log("[AudioManager] BGM 재개");
+        }
+    }
+
+    public void PlaySFX(AudioClip clip, float volumeScale = 1f)
+    {
+        if (clip != null && sfxSource != null)
+        {
+            sfxSource.PlayOneShot(clip, sfxVolume * volumeScale);
+        }
+    }
 }

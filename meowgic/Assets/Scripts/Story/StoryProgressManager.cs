@@ -309,11 +309,6 @@ public class StoryProgressManager : MonoBehaviour
                     yield return new WaitForSeconds(0.2f);
                     KeyInputListener.Instance.StartListeningFor(action.Target, action.Parameter);
                     break;
-                /*
-                case "START_UI_TUTORIAL":
-                    UITutorialManager.Instance.StartTutorial(action.Target);
-                    yield return new WaitUntil(() => !UITutorialManager.Instance.IsTutorialRunning);
-                    break; */
             }
         }
         OnAllActionsCompleted();
@@ -396,10 +391,12 @@ public class StoryProgressManager : MonoBehaviour
         Debug.Log($"[StoryProgressManager] 게임 이벤트 수신: {eventType} - {eventTargetID}.");
 
         var currentStoryID = GameDataManager.Instance.CurrentStoryID;
+        Debug.Log($"[StoryProgressManager] 현재 스토리 상태: {currentStoryID}");
+
         var matchedTrigger = storyTriggersList.FirstOrDefault(trigger =>
             trigger.CurrentStoryID == currentStoryID &&
             trigger.TriggerType == eventType &&
-            trigger.TriggerTargetID == eventTargetID);
+            (trigger.TriggerTargetID == eventTargetID || string.IsNullOrEmpty(trigger.TriggerTargetID)));
 
         if (matchedTrigger != null)
         {
@@ -416,6 +413,10 @@ public class StoryProgressManager : MonoBehaviour
             Debug.Log($"[StoryProgressManager] 진행 상황 저장 완료. 다음 스토리: {nextStoryID}");
 
             ExecuteStoryNode(nextStoryID);
+        }
+        else
+        {
+            Debug.Log($"[StoryProgressManager] 매칭되는 트리거 없음. CurrentStory={currentStoryID}, EventType={eventType}, TargetID={eventTargetID}");
         }
     }
 }
