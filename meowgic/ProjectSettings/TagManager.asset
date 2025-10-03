@@ -87,3 +87,6 @@ TagManager:
   - name: Fade
     uniqueID: 737130563
     locked: 0
+  - name: Wall
+    uniqueID: 1837371395
+    locked: 0

@@ -22,7 +22,6 @@ public class GameEventManager : MonoBehaviour
     public event Action<string> OnStoryAdvanced;
     public event Action<string> OnLockedDoorInteracted;
     public event Action<MonsterDataSO, string, string> OnBattleStartRequested;
-
     public event Action<string, string> OnItemCollected;
     public event Action<string, string> OnItemInspected;
     public event Action<string, string> OnDialogueStarted;
@@ -31,11 +30,17 @@ public class GameEventManager : MonoBehaviour
     public event Action<string, string> OnBattleOver;
     public event Action<string, string> OnMapEntered;
     public event Action<string, string> OnSkillBookClosed;
+    public event Action<string, string> OnCustomEvent;
 
+    public void TriggerGameStateChanged(GameState newState)
+        => OnGameStateChanged?.Invoke(newState);
 
-    public void TriggerGameStateChanged(GameState newState) => OnGameStateChanged?.Invoke(newState);
-    public void TriggerStoryAdvanced(string storyID) => OnStoryAdvanced?.Invoke(storyID);
-    public void TriggerLockedDoorInteracted(string doorID) => OnLockedDoorInteracted?.Invoke(doorID);
+    public void TriggerStoryAdvanced(string storyID)
+        => OnStoryAdvanced?.Invoke(storyID);
+
+    public void TriggerLockedDoorInteracted(string doorID)
+        => OnLockedDoorInteracted?.Invoke(doorID);
+
     public void TriggerBattleStartRequested(MonsterDataSO monsterData, string uniqueMonsterID, string battleDialogueID = null)
         => OnBattleStartRequested?.Invoke(monsterData, uniqueMonsterID, battleDialogueID);
 
@@ -51,11 +56,18 @@ public class GameEventManager : MonoBehaviour
     public void TriggerDialogueFinished(string dialogueID)
         => OnDialogueFinished?.Invoke("DIALOGUE_FINISHED", dialogueID);
 
-    public void TriggerKeyEvent(string type, string id) => OnKeyEvent?.Invoke(type, id);
+    public void TriggerKeyEvent(string type, string id)
+        => OnKeyEvent?.Invoke(type, id);
 
     public void TriggerBattleOver(string battleID)
-    => OnBattleOver?.Invoke("BATTLE_OVER", battleID);
-    public void TriggerMapEntered(string sceneName) => OnMapEntered?.Invoke("MAP_ENTERED", sceneName);
+        => OnBattleOver?.Invoke("BATTLE_OVER", battleID);
 
-    public void TriggerSkillBookClosed() => OnSkillBookClosed?.Invoke("SKILLBOOK_CLOSED", "");
+    public void TriggerMapEntered(string sceneName)
+        => OnMapEntered?.Invoke("MAP_ENTERED", sceneName);
+
+    public void TriggerSkillBookClosed()
+        => OnSkillBookClosed?.Invoke("SKILLBOOK_CLOSED", "");
+
+    public void TriggerCustomEvent(string eventID)
+        => OnCustomEvent?.Invoke("CUSTOM_EVENT", eventID);
 }
