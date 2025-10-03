@@ -505,7 +505,7 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_NormalColor: {r: 0.8, g: 0.84313726, b: 0.98039216, a: 1}
     m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
@@ -626,7 +626,7 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_NormalColor: {r: 0.8, g: 0.84313726, b: 0.98039216, a: 1}
     m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
@@ -825,8 +825,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 2700793804
-  m_fontColor: {r: 0.8, g: 0.84313726, b: 0.98039216, a: 0.627451}
+    rgba: 2700466104
+  m_fontColor: {r: 0.72169816, g: 0.84474766, b: 0.9622642, a: 0.627451}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -959,8 +959,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 2700793804
-  m_fontColor: {r: 0.8, g: 0.84313726, b: 0.98039216, a: 0.627451}
+    rgba: 2700466104
+  m_fontColor: {r: 0.72169816, g: 0.84474766, b: 0.9622642, a: 0.627451}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1677,8 +1677,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 2700793804
-  m_fontColor: {r: 0.8, g: 0.84313726, b: 0.98039216, a: 0.627451}
+    rgba: 2700466104
+  m_fontColor: {r: 0.72169816, g: 0.84474766, b: 0.9622642, a: 0.627451}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1911,7 +1911,7 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_NormalColor: {r: 0.8, g: 0.84313726, b: 0.98039216, a: 1}
     m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
@@ -2397,6 +2397,8 @@ MonoBehaviour:
   continueButton: {fileID: 156420031}
   quitGameButton: {fileID: 251444046}
   startingStoryID: library_intro
+  normalTextColor: {r: 0.72156864, g: 0.84313726, b: 0.9607843, a: 1}
+  disabledTextColor: {r: 0.41960785, g: 0.5529412, b: 0.65882355, a: 1}
 --- !u!114 &2141558422
 MonoBehaviour:
   m_ObjectHideFlags: 0
