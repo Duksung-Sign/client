@@ -8,7 +8,7 @@ public class SettingsManager : MonoBehaviour
     public static SettingsManager Instance { get; private set; }
 
     [Header("Assign in Inspector")]
-    [SerializeField] private GameObject settingsPrefab;          // ✅ 프리팹(설계도)
+    [SerializeField] private GameObject settingsPrefab;        
     [SerializeField] private bool openBlocked = false;
 
     private GameObject settingsUIInstance;   // ✅ 런타임 인스턴스
@@ -19,6 +19,7 @@ public class SettingsManager : MonoBehaviour
 
     [Header("Scene rules")]
     [SerializeField] private string titleSceneName = "MainMenu";  // 타이틀 씬 이름
+    [SerializeField] private string battleSceneName = "BattleScene";  // 배틀씬 이름
     [SerializeField] private bool destroyUIOnTitle = false;      // 타이틀에서 프리팹 인스턴스 완전 파기할지
 
     private GameState previousState;
@@ -150,8 +151,9 @@ public class SettingsManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // 타이틀 씬이면: 열기 차단 + 닫기(+원하면 파기)
-        if (!string.IsNullOrEmpty(titleSceneName) && scene.name == titleSceneName)
+        // 타이틀 씬이거나 배틀 씬이면: 열기 차단 + 닫기(+원하면 파기)
+        if ((!string.IsNullOrEmpty(titleSceneName) && scene.name == titleSceneName) 
+            || (!string.IsNullOrEmpty(battleSceneName) && scene.name == battleSceneName))
         {
             // 앞으로 열기 금지
             SetOpenBlocked(true);

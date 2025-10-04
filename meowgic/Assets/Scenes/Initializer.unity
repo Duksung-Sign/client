@@ -449,14 +449,14 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 7947041962681573905, guid: 849c2e08305ac4a98acc4ee64c06127a, type: 3}
       insertIndex: 9
-      addedObject: {fileID: 1166122386}
+      addedObject: {fileID: 1166122399}
   m_SourcePrefab: {fileID: 100100000, guid: 849c2e08305ac4a98acc4ee64c06127a, type: 3}
 --- !u!1 &1166122385 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7947041962681573905, guid: 849c2e08305ac4a98acc4ee64c06127a, type: 3}
   m_PrefabInstance: {fileID: 1166122384}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1166122386
+--- !u!114 &1166122399
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -471,6 +471,7 @@ MonoBehaviour:
   settingsPrefab: {fileID: 2981701737866818087, guid: b00a3d539aa5a5a42bbe9b3bf8b71a28, type: 3}
   openBlocked: 0
   titleSceneName: MainMenu
+  battleSceneName: BattleScene
   destroyUIOnTitle: 0
 --- !u!1 &1226667095
 GameObject:
