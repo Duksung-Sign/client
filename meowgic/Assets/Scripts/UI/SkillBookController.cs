@@ -3,6 +3,8 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
+
 
 public class SkillBookController : MonoBehaviour
 {
@@ -25,6 +27,9 @@ public class SkillBookController : MonoBehaviour
     [Header("UI References")]
     public GameObject skillWindow;
     public CanvasGroup pageGroup;
+
+    private Canvas panelCanvas;
+    private Camera cachedMainCam;
 
     [Header("Skill Slots - 왼쪽 페이지")]
     public SkillSlot leftSlot1;
@@ -80,7 +85,6 @@ public class SkillBookController : MonoBehaviour
     [Header("Audio")]
     public AudioClip pageFlipSound;
     public AudioClip doodleSound;
-    private AudioSource audioSource;
 
     private int currentPageIndex = 0;
     private SkillSlot[] allSlots;
@@ -100,6 +104,7 @@ public class SkillBookController : MonoBehaviour
         {
             DialogueManager.Instance.OnLineDisplayed += HandleLineDisplayed;
         }
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
@@ -115,6 +120,7 @@ public class SkillBookController : MonoBehaviour
         {
             DialogueManager.Instance.OnLineDisplayed -= HandleLineDisplayed;
         }
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
     void Start()
@@ -124,11 +130,10 @@ public class SkillBookController : MonoBehaviour
         leftArrowButton.onClick.AddListener(PreviousPage);
         rightArrowButton.onClick.AddListener(NextPage);
 
-        audioSource = gameObject.AddComponent<AudioSource>();
-        audioSource.playOnAwake = false;
-
         skillWindow.SetActive(false);
         isWindowOpen = false;
+
+        panelCanvas = skillWindow.GetComponentInChildren<Canvas>(true);
 
         if (doodlePage != null)
         {
@@ -214,6 +219,43 @@ public class SkillBookController : MonoBehaviour
             {
                 ToggleWindow();
             }
+        }
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // 씬 카메라 교체에 대비해 1프레임 대기 후 재바인딩
+        StartCoroutine(BindCanvasNextFrame());
+    }
+
+    IEnumerator BindCanvasNextFrame()
+    {
+        yield return null; // Camera.main 준비 기다림
+        EnsureCanvasBound();
+    }
+    void EnsureCanvasBound()
+    {
+        if (!panelCanvas) {
+            Debug.Log("캔버스X");
+            return; }
+
+        if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
+            panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+
+        var main = Camera.main;
+        if (!main)
+        {
+            Debug.Log("카메라X");
+            return;
+        } // 메인 카메라가 아직 없을 수도 있음
+
+        // 같은 카메라면 재할당 생략 (불필요한 작업/로그 방지)
+        if (cachedMainCam != main || panelCanvas.worldCamera != main)
+        {
+            panelCanvas.worldCamera = main;
+            panelCanvas.sortingOrder = 500; // 원하는 값
+            cachedMainCam = main;
+            // Debug.Log($"[Dialogue] Canvas bound to {main.name}");
         }
     }
 
@@ -573,9 +615,9 @@ public class SkillBookController : MonoBehaviour
 
     void PlayPageFlipSound()
     {
-        if (pageFlipSound != null && audioSource != null)
+        if (pageFlipSound != null && AudioManager.Instance != null)
         {
-            audioSource.PlayOneShot(pageFlipSound, 0.3f);
+            AudioManager.Instance.PlaySeSound(pageFlipSound);
         }
     }
 
