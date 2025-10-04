@@ -67,6 +67,9 @@ public class DialogueManager : MonoBehaviour
     [Header("UI 프리팹")]
     [SerializeField] private GameObject dialogueUIPrefab;
 
+    private Canvas panelCanvas;
+    private Camera cachedMainCam;
+
     [Header("CSV 파일 경로")]
     [SerializeField] private string dialogueLinesPath = "DialogueData/DialogueLines";
     [SerializeField] private string dialogueSetsPath = "DialogueData/DialogueSets";
@@ -133,6 +136,7 @@ public class DialogueManager : MonoBehaviour
             if (dialogueUIPrefab != null)
             {
                 dialoguePanel = Instantiate(dialogueUIPrefab);
+                panelCanvas = dialoguePanel.GetComponent<Canvas>();
                 DontDestroyOnLoad(dialoguePanel);
 
                 var uiRefs = dialoguePanel.GetComponent<DialogueUIRefs>();
@@ -177,6 +181,7 @@ public class DialogueManager : MonoBehaviour
         {
             GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
         }
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
@@ -184,6 +189,39 @@ public class DialogueManager : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
+        }
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // 씬 카메라 교체에 대비해 1프레임 대기 후 재바인딩
+        StartCoroutine(BindCanvasNextFrame());
+    }
+
+    IEnumerator BindCanvasNextFrame()
+    {
+        yield return null; // Camera.main 준비 기다림
+        EnsureCanvasBound();
+    }
+
+    void EnsureCanvasBound()
+    {
+        if (!panelCanvas) return;
+
+        if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
+            panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+
+        var main = Camera.main;
+        if (!main) return; // 메인 카메라가 아직 없을 수도 있음
+
+        // 같은 카메라면 재할당 생략 (불필요한 작업/로그 방지)
+        if (cachedMainCam != main || panelCanvas.worldCamera != main)
+        {
+            panelCanvas.worldCamera = main;
+            panelCanvas.sortingOrder = 900; // 원하는 값
+            cachedMainCam = main;
+            // Debug.Log($"[Dialogue] Canvas bound to {main.name}");
         }
     }
 
