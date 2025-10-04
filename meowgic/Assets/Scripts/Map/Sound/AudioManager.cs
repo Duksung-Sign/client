@@ -25,6 +25,10 @@ public class AudioManager : MonoBehaviour
     private AudioSource _activeBgmSource;
     private AudioSource _inactiveBgmSource;
 
+    private const string KEY_BGM = "Settings.BGM";
+    private const string KEY_SFX = "Settings.SFX";
+
+
     void Awake()
     {
         if (Instance == null)
@@ -45,6 +49,10 @@ public class AudioManager : MonoBehaviour
         bgmSourceA.volume = 0;
         bgmSourceB.volume = 0;
         sfxSource.volume = sfxVolume;
+
+        (bgmVolume, sfxVolume) = PeekSavedVolumes();
+        SetBgmVolume(bgmVolume);
+        SetsfxVolume(sfxVolume);
     }
 
     void OnEnable()
@@ -80,6 +88,23 @@ public class AudioManager : MonoBehaviour
         if (currentMapProfile != null && currentMapProfile.footstepSound != null)
         {
             sfxSource.PlayOneShot(currentMapProfile.footstepSound);
+        }
+    }
+
+    public void PlayTypingSound(AudioClip clip)
+    {
+        if (sfxSource != null && clip != null)
+        {
+            sfxSource.pitch = Random.Range(0.9f, 1.1f);
+            sfxSource.PlayOneShot(clip);
+        }
+    }
+
+    public void PlaySeSound(AudioClip clip)
+    {
+        if (sfxSource != null && clip != null)
+        {
+            sfxSource.PlayOneShot(clip);
         }
     }
 
@@ -126,4 +151,38 @@ public class AudioManager : MonoBehaviour
             sfxSource.PlayOneShot(clip, sfxVolume * volumeScale);
         }
     }
+
+    // === Settings에서 호출할 API ===
+    public void SetBgmVolume(float volume, bool save = false)
+    {
+        bgmVolume = Mathf.Clamp01(volume);
+
+        if (_activeBgmSource) _activeBgmSource.volume = bgmVolume;
+        if (_inactiveBgmSource) _inactiveBgmSource.volume = Mathf.Min(_inactiveBgmSource.volume, bgmVolume);
+
+        if (save)
+        {
+            PlayerPrefs.SetFloat(KEY_BGM, bgmVolume);
+            PlayerPrefs.Save();
+        }
+    }
+
+    public void SetsfxVolume(float volume, bool save = false)
+    {
+        sfxVolume = Mathf.Clamp01(volume);
+        if (sfxSource) sfxSource.volume = sfxVolume;
+
+        if (save)
+        {
+            PlayerPrefs.SetFloat(KEY_SFX, sfxVolume);
+            PlayerPrefs.Save();
+        }
+    }
+    public (float bgm, float sfx) PeekSavedVolumes()
+    {
+        float bgmSaved = PlayerPrefs.HasKey(KEY_BGM) ? Mathf.Clamp01(PlayerPrefs.GetFloat(KEY_BGM)) : bgmVolume;
+        float sfxSaved = PlayerPrefs.HasKey(KEY_SFX) ? Mathf.Clamp01(PlayerPrefs.GetFloat(KEY_SFX)) : sfxVolume;
+        return (bgmSaved, sfxSaved);
+    }
+
 }
