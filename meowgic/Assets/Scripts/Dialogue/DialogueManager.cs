@@ -67,6 +67,9 @@ public class DialogueManager : MonoBehaviour
     [Header("UI 프리팹")]
     [SerializeField] private GameObject dialogueUIPrefab;
 
+    private Canvas panelCanvas;
+    private Camera cachedMainCam;
+
     [Header("CSV 파일 경로")]
     [SerializeField] private string dialogueLinesPath = "DialogueData/DialogueLines";
     [SerializeField] private string dialogueSetsPath = "DialogueData/DialogueSets";
@@ -91,17 +94,17 @@ public class DialogueManager : MonoBehaviour
     private string currentLineID;
     private bool isInDialogue = false;
     private bool isTyping = false;
+    private bool isPaused = false;
     private string fullText = "";
     private Coroutine typingCoroutine;
     private string lastSpeakerName = "";
 
-    private AudioSource audioSource; 
     private AudioClip currentTypingSound;
     private float soundTimer;
 
     void Update()
     {
-        if (!isInDialogue) return;
+        if (isPaused || !isInDialogue) return;
 
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
         {
@@ -133,6 +136,7 @@ public class DialogueManager : MonoBehaviour
             if (dialogueUIPrefab != null)
             {
                 dialoguePanel = Instantiate(dialogueUIPrefab);
+                panelCanvas = dialoguePanel.GetComponent<Canvas>();
                 DontDestroyOnLoad(dialoguePanel);
 
                 var uiRefs = dialoguePanel.GetComponent<DialogueUIRefs>();
@@ -155,10 +159,6 @@ public class DialogueManager : MonoBehaviour
 
                 dialoguePanel.SetActive(false);
             }
-
-            audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.playOnAwake = false;
-            audioSource.loop = false;
         }
         else
         {
@@ -170,6 +170,8 @@ public class DialogueManager : MonoBehaviour
         {
             LoadDialogueData();
             InitializeConditionCheckers();
+            GameEventManager.Instance.OnGameStateChanged += HandleGameStateChange;
+
         }
     }
 
@@ -179,6 +181,7 @@ public class DialogueManager : MonoBehaviour
         {
             GameEventManager.Instance.OnLockedDoorInteracted += HandleLockedDoorInteraction;
         }
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
@@ -186,6 +189,39 @@ public class DialogueManager : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
+        }
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // 씬 카메라 교체에 대비해 1프레임 대기 후 재바인딩
+        StartCoroutine(BindCanvasNextFrame());
+    }
+
+    IEnumerator BindCanvasNextFrame()
+    {
+        yield return null; // Camera.main 준비 기다림
+        EnsureCanvasBound();
+    }
+
+    void EnsureCanvasBound()
+    {
+        if (!panelCanvas) return;
+
+        if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
+            panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+
+        var main = Camera.main;
+        if (!main) return; // 메인 카메라가 아직 없을 수도 있음
+
+        // 같은 카메라면 재할당 생략 (불필요한 작업/로그 방지)
+        if (cachedMainCam != main || panelCanvas.worldCamera != main)
+        {
+            panelCanvas.worldCamera = main;
+            panelCanvas.sortingOrder = 900; // 원하는 값
+            cachedMainCam = main;
+            // Debug.Log($"[Dialogue] Canvas bound to {main.name}");
         }
     }
 
@@ -404,7 +440,7 @@ public class DialogueManager : MonoBehaviour
 
         OnLineDisplayed?.Invoke(currentLineID);
 
-        StartTyping(fullText);
+        StartTyping(fullText, currentTypingSound);
 
         string speakerName = string.IsNullOrEmpty(line.CustomSpeaker) ? line.SpeakerName : line.CustomSpeaker;
         speakerNameText.text = speakerName;
@@ -441,7 +477,7 @@ public class DialogueManager : MonoBehaviour
             }
         }
         lastSpeakerName = speakerName;
-        StartTyping(fullText);
+        StartTyping(fullText, currentTypingSound);
     }
 
     private void NextLine()
@@ -510,12 +546,12 @@ public bool IsInDialogue()
         return isInDialogue;
     }
 
-    void StartTyping(string text)
+    void StartTyping(string text, AudioClip typingSound)
     {
         if (continueIndicator != null) continueIndicator.Hide();
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
         isTyping = true;
-        typingCoroutine = StartCoroutine(TypeText(text));
+        typingCoroutine = StartCoroutine(TypeText(text, typingSound));
     }
 
     void CompleteTyping()
@@ -578,7 +614,7 @@ public bool IsInDialogue()
         }
     }
 
-    IEnumerator TypeText(string text)
+    IEnumerator TypeText(string text, AudioClip typingSound)
     {
         dialogueText.text = "";
         soundTimer = 0f;
@@ -595,11 +631,10 @@ public bool IsInDialogue()
             {
                 soundTimer += baseTypingSpeed;
 
-                if (!char.IsWhiteSpace(letter) && currentTypingSound != null && soundTimer >= soundInterval)
+                if (AudioManager.Instance != null && !char.IsWhiteSpace(letter) && typingSound!= null && soundTimer >= soundInterval)
                 {
                     soundTimer = 0f;
-                    audioSource.pitch = Random.Range(0.9f, 1.1f); 
-                    audioSource.PlayOneShot(currentTypingSound);
+                    AudioManager.Instance.PlayTypingSound(typingSound);
                 }
 
                 float currentTypingSpeed = Random.Range(
@@ -610,5 +645,22 @@ public bool IsInDialogue()
             }
         }
         CompleteTyping();
+    }
+
+    private void HandleGameStateChange(GameState newState)
+    {
+        isPaused = (newState == GameState.Menu);
+        if (isInDialogue)
+        {
+            if (newState == GameState.Loading)
+            {
+                dialoguePanel.SetActive(false);
+            }
+            else
+            {
+                dialoguePanel.SetActive(true);
+            }
+        }
+        
     }
 }

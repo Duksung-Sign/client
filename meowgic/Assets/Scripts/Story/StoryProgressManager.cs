@@ -159,7 +159,6 @@ public class StoryProgressManager : MonoBehaviour
         }
     }
 
-
     private void InitializeStorySystem()
     {
         LoadStoryData();
