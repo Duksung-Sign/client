@@ -209,20 +209,32 @@ public class DialogueManager : MonoBehaviour
     {
         if (!panelCanvas) return;
 
-        if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
-            panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+        bool settingsOpen = SettingsManager.Instance != null &&
+                            SettingsManager.Instance.IsOpen; 
 
-        var main = Camera.main;
-        if (!main) return; // 메인 카메라가 아직 없을 수도 있음
-
-        // 같은 카메라면 재할당 생략 (불필요한 작업/로그 방지)
-        if (cachedMainCam != main || panelCanvas.worldCamera != main)
+        if (settingsOpen)
         {
-            panelCanvas.worldCamera = main;
-            panelCanvas.sortingOrder = 900; // 원하는 값
-            cachedMainCam = main;
-            // Debug.Log($"[Dialogue] Canvas bound to {main.name}");
+            if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
+                panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+
+            var main = Camera.main;
+            if (main && (cachedMainCam != main || panelCanvas.worldCamera != main))
+            {
+                panelCanvas.worldCamera = main;
+                panelCanvas.sortingOrder = 10000; 
+                cachedMainCam = main;
+            }
         }
+        else
+        {
+            if (panelCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                panelCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        }
+    }
+
+    public void RefreshCanvasMode()
+    {
+        EnsureCanvasBound();
     }
 
     private List<T> LoadData<T>(string path)
