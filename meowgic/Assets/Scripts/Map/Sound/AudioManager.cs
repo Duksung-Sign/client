@@ -83,11 +83,11 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    public void PlayFootstepSound()
+    public void PlayFootstepSound(float volumeScale = 1f)
     {
         if (currentMapProfile != null && currentMapProfile.footstepSound != null)
         {
-            sfxSource.PlayOneShot(currentMapProfile.footstepSound);
+            sfxSource.PlayOneShot(currentMapProfile.footstepSound, sfxVolume * volumeScale);
         }
     }
 
@@ -100,11 +100,11 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    public void PlaySeSound(AudioClip clip)
+    public void PlaySeSound(AudioClip clip, float volumeScale = 1f)
     {
         if (sfxSource != null && clip != null)
         {
-            sfxSource.PlayOneShot(clip);
+            sfxSource.PlayOneShot(clip, sfxVolume * volumeScale);
         }
     }
 
@@ -152,7 +152,6 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    // === Settings에서 호출할 API ===
     public void SetBgmVolume(float volume, bool save = false)
     {
         bgmVolume = Mathf.Clamp01(volume);

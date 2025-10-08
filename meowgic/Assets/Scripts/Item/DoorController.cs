@@ -42,14 +42,12 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         if (isOpening) return;
 
-        // 1. 스토리 제한 체크 (가장 먼저)
         if (checkStoryRestriction && IsStoryBlocked())
         {
             ShowBlockedDialogue();
             return;
         }
 
-        // 2. 아이템 체크
         bool hasKey = GameDataManager.Instance.HasItem(requiredItemID);
 
         if (hasKey)
@@ -129,7 +127,7 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         if (audioSource != null && doorOpenSound != null)
         {
-            audioSource.PlayOneShot(doorOpenSound);
+            audioSource.PlayOneShot(doorOpenSound, 0.3f);
         }
     }
 
@@ -137,7 +135,7 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         if (audioSource != null && doorLockedSound != null)
         {
-            audioSource.PlayOneShot(doorLockedSound);
+            audioSource.PlayOneShot(doorLockedSound, 0.3f);
         }
     }
 

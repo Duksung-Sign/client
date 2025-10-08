@@ -9,6 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8514358196492450367}
+  - component: {fileID: 1592140704698090008}
+  - component: {fileID: 5497960665061514356}
   - component: {fileID: 7554041905995459766}
   - component: {fileID: 7005365042903407806}
   - component: {fileID: 4246260365993051961}
@@ -46,6 +48,110 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1592140704698090008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7947041962681573905}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cedb51c67f8a24a40a6e35d87cb7be61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &5497960665061514356
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7947041962681573905}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4322f33284003042b9478bd8e0d63b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skillWindowPrefab: {fileID: 6316651544168606742, guid: 84c715ec0e28ad841894eea30774b0bf, type: 3}
+  pageGroup: {fileID: 0}
+  allSkills:
+  - skillName: "\uBB18\uC5B4 1. \uC548\uB155\uD558\uC138\uC694"
+    description: "\uC624\uB978 \uC190\uBC14\uB2E5\uC73C\uB85C \uC8FC\uBA39\uC744
+      \uC954 \uC67C \uD314\uC744 \uC4F8\uC5B4\uB0B4\uB9B0 \uB2E4\uC74C \uB450 \uC8FC\uBA39\uC744
+      \uC950\uACE0 \uBC14\uB2E5\uC774 \uC544\uB798\uB85C \uD5A5\uD558\uAC8C \uD558\uC5EC
+      \uAC00\uC2B4 \uC55E\uC5D0\uC11C \uC544\uB798\uB85C \uB0B4\uB9B0\uB2E4."
+    skillImage: {fileID: 21300000, guid: d978001afcba5a549a497240dbb81bf2, type: 3}
+  - skillName: "\uBB18\uC5B4 2. \uBC18\uAC11\uC2B5\uB2C8\uB2E4"
+    description: "\uB450 \uC190\uC744 \uC57D\uAC04 \uAD6C\uBD80\uB824 \uC190\uB05D\uC744
+      \uC591\uCABD \uAC00\uC2B4\uC5D0 \uB300\uACE0 \uC0C1\uD558\uB85C \uC5C7\uAC08\uB9AC\uAC8C
+      \uB450 \uBC88 \uC6C0\uC9C1\uC778\uB2E4."
+    skillImage: {fileID: 21300000, guid: d75f42b9f7545b840a2cf1252e9339bd, type: 3}
+  - skillName: "\uBB18\uC5B4 3. \uAC10\uC0AC\uD569\uB2C8\uB2E4"
+    description: "\uC190\uB05D\uC774 \uBC16\uC73C\uB85C \uD5A5\uD558\uAC8C \uD3B4\uC11C
+      \uBAA8\uB85C \uC138\uC6B4 \uC624\uB978\uC190\uC758 4\uC9C0 \uC606\uBA74\uC744
+      \uC190\uBC14\uB2E5\uC774 \uC544\uB798\uB85C \uD5A5\uD558\uAC8C \uD3B8 \uC67C
+      \uC190\uB4F1\uC5D0 \uB450 \uBC88 \uB304\uB2E4."
+    skillImage: {fileID: 21300000, guid: 87d9b9793e41b6c41a5913f0beec25c0, type: 3}
+  - skillName: "\uBB18\uC5B4 4. \uAD1C\uCC2E\uC544\uC694"
+    description: "\uC624\uB978 \uC8FC\uBA39\uC758 4\uC9C0\uB97C \uD3B4\uC11C \uB05D
+      \uBC14\uB2E5\uC744 \uD131\uC5D0 \uAC00\uBCCD\uAC8C \uB450 \uBC88 \uB304\uB2E4."
+    skillImage: {fileID: 21300000, guid: a6bd09fa6bfa64f40994a6a900ec9311, type: 3}
+  - skillName: "\uBB18\uC5B4 5. \uC0AC\uB791\uD55C\uB2E4"
+    description: "5\uC9C0 \uBC14\uB2E5\uC744 1\uC9C0 \uC606\uBA74\uC5D0 \uB300\uACE0
+      \uC190\uB4F1\uC774 \uC67C\uCABD\uC73C\uB85C \uD5A5\uD558\uAC8C \uBAA8\uB85C
+      \uC138\uC6B4 \uC67C \uC8FC\uBA39 \uC704\uC5D0 \uC624\uB978 \uC190\uBC14\uB2E5\uC744
+      \uB300\uACE0 \uC624\uB978\uC190\uB9CC \uC624\uB978\uCABD\uC73C\uB85C \uB3CC\uB9B0\uB2E4."
+    skillImage: {fileID: 21300000, guid: 29b8416476842964ba35f867a787c22f, type: 3}
+  - skillName: "\uBB18\uC5B4 6. \uC5F0\uB77D\uD574\uC8FC\uC138\uC694"
+    description: "\uC624\uB978 \uC8FC\uBA39\uC744 \uCF54\uC5D0 1\uC9C0\uC640 5\uC9C0
+      \uC606\uBA74\uC774 \uB2FF\uAC8C \uB304\uB2E4."
+    skillImage: {fileID: 21300000, guid: 6dab16a2c3caf4a4c8d5a48df80a2876, type: 3}
+  - skillName: "\uBB18\uC5B4 7. \uB3C4\uCC29\uD558\uB2E4"
+    description: "\uC67C\uC190\uC744 \uD3B4\uC11C \uC190\uBC14\uB2E5\uC774 \uC624\uB978\uCABD\uC73C\uB85C
+      \uC190\uB05D\uC774 \uBC16\uC73C\uB85C \uD5A5\uD558\uAC8C \uD558\uACE0, \uC624\uB978\uC190\uC744
+      \uC57D\uAC04 \uAD6C\uBD80\uB824 \uB05D\uC744 \uC624\uB978\uCABD\uC5D0\uC11C\uBD80\uD130
+      \uC67C \uC190\uBC14\uB2E5\uC5D0 \uAC00\uC838\uB2E4 \uB300\uB294 \uB3D9\uC791\uC744
+      \uCC9C\uCC9C\uD788 \uD06C\uAC8C \uD55C\uB2E4."
+    skillImage: {fileID: 21300000, guid: 64e9e2fde07b88c40a741aec813b4582, type: 3}
+  - skillName: "\uBB18\uC5B4 8. \uB2F9\uC2E0"
+    description: "\uC624\uB978\uC190\uC744 \uD3B4\uC11C \uC190\uBC14\uB2E5\uC774
+      \uC704\uB85C \uC190\uB05D\uC774 \uBC16\uC73C\uB85C \uD5A5\uD558\uAC8C \uD558\uC5EC
+      \uBC16(\uC0C1\uB300\uBC29)\uC73C\uB85C \uB0B4\uBBFC\uB2E4."
+    skillImage: {fileID: 21300000, guid: ce0e409cd057ab641a480385c8a94246, type: 3}
+  - skillName: "\uBB18\uC5B4 9. \uB098"
+    description: "\uC624\uB978 \uC190\uBC14\uB2E5\uC744 \uAC00\uC2B4 \uC911\uC559\uC5D0
+      \uB304\uB2E4."
+    skillImage: {fileID: 21300000, guid: 1407713c5cb751942a7d5ebb8f802ec7, type: 3}
+  - skillName: "\uBB18\uC5B4 10. \uC2EB\uB2E4"
+    description: "\uC624\uB978 \uC8FC\uBA39\uC758 1\uC640 5\uC9C0\uB97C \uD3B4\uC11C
+      \uC57D\uAC04 \uAD6C\uBD80\uB824 \uB05D\uC744 \uD131\uC5D0 \uB304\uB2E4."
+    skillImage: {fileID: 21300000, guid: 8ba34b522a4372b4d9f1241d9b8b2a17, type: 3}
+  - skillName: "\uBB18\uC5B4 11. \uC88B\uB2E4"
+    description: "\uC624\uB978 \uC8FC\uBA39\uC744 \uCF54\uC5D0 1\uC9C0\uC640 5\uC9C0
+      \uC606\uBA74\uC774 \uB2FF\uAC8C \uB304\uB2E4."
+    skillImage: {fileID: 21300000, guid: 51a796177ad92b342b2c49729dc98c13, type: 3}
+  - skillName: "\uBB18\uC5B4 12. \uC8C4\uC1A1\uD569\uB2C8\uB2E4"
+    description: "\uC624\uB978\uC190\uC758 1\uC640 5\uC9C0 \uB05D\uC744 \uB9DE\uB300\uC5B4
+      \uB3D9\uADF8\uB77C\uBBF8\uB97C \uB9CC\uB4E4\uC5B4 \uC774\uB9C8\uC5D0 \uB314\uB2E4\uAC00
+      1\uC640 5\uC9C0\uB97C \uD3B4\uBA70, \uC190\uB4F1\uC774 \uC704\uB85C \uC190\uB05D\uC774
+      \uC624\uB978\uCABD\uC73C\uB85C \uD5A5\uD558\uAC8C \uD3B8 \uC67C \uC190\uB4F1\uC5D0
+      \uB0B4\uB824\uB193\uB294\uB2E4."
+    skillImage: {fileID: 21300000, guid: 63d33206e50cc9b4dba1fe44de57944c, type: 3}
+  - skillName: "\uBB18\uC5B4 13. \uACF5\uBD80"
+    description: "\uC190\uB05D\uC774 \uC704\uB85C \uC190\uBC14\uB2E5\uC774 \uC606\uC73C\uB85C
+      \uD5A5\uD558\uAC8C \uD3B4\uC11C \uC138\uC6B4 \uB450 \uC190\uC744 \uC591\uCABD
+      \uADC0 \uC606\uC5D0\uC11C \uBC16\uC73C\uB85C \uB450 \uBC88 \uB0B4\uBBFC\uB2E4."
+    skillImage: {fileID: 21300000, guid: 434b8c181964bd64f9a7897ef63dafc0, type: 3}
+  doodleDialogueID: skillbook_doodle_surprise
+  tutorialOpenDialogueID: skillbook_tutorial_open
+  tutorialNavigationDialogueID: skillbook_tutorial_navigation
+  tutorialReminderDialogueID: skillbook_tutorial_reminder
+  arrowActivationLineID: skill_open_006
+  tutorialTimeoutDuration: 10
+  requiredKPresses: 3
+  holisticJsonSender: {fileID: 0}
+  pageFlipSound: {fileID: 8300000, guid: f1984b0c91785f3459563268e407c894, type: 3}
+  doodleSound: {fileID: 8300000, guid: 99dc88d2fd7cfd848a88c6b353480e27, type: 3}
 --- !u!114 &7554041905995459766
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -150,6 +256,8 @@ MonoBehaviour:
   bgmSourceB: {fileID: 4507566054675378042}
   sfxSource: {fileID: 1234120293663030639}
   crossfadeDuration: 2
+  bgmVolume: 0.5
+  sfxVolume: 0.8
 --- !u!114 &4186333285583266809
 MonoBehaviour:
   m_ObjectHideFlags: 0

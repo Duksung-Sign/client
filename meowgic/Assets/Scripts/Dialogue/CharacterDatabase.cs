@@ -48,5 +48,6 @@ public class CharacterData
 {
     public string characterName;
     public Sprite portraitSprite;
-    public AudioClip typingSound; 
+    public AudioClip typingSound;
+    public float soundInterval = 0.1f;
 }
