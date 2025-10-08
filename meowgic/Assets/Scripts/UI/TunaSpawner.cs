@@ -26,11 +26,29 @@ public class TunaSpawner : MonoBehaviour
 
     private GameObject tunaInstance;
     private AudioSource audioSource;
+    private bool hasRestoredState = false;
+
+    private Vector3 cachedTunaPosition;
+    private bool wasTunaSpawned = false;
 
     void Awake()
     {
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
+    }
+
+    void Start()
+    {
+        RestoreTunaState();
+    }
+
+    void Update()
+    {
+        if (tunaInstance != null)
+        {
+            cachedTunaPosition = tunaInstance.transform.position;
+            wasTunaSpawned = true;
+        }
     }
 
     void OnEnable()
@@ -43,6 +61,7 @@ public class TunaSpawner : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnDialogueFinished += HandleDialogueFinished;
+            GameEventManager.Instance.OnCustomEvent += HandleCustomEvent;
         }
     }
 
@@ -56,7 +75,91 @@ public class TunaSpawner : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnDialogueFinished -= HandleDialogueFinished;
+            GameEventManager.Instance.OnCustomEvent -= HandleCustomEvent;
         }
+
+        SaveTunaState();
+    }
+
+    private void RestoreTunaState()
+    {
+        if (GameDataManager.Instance == null)
+        {
+            Debug.LogWarning("[TunaSpawner] GameDataManager가 없습니다.");
+            return;
+        }
+
+        if (hasRestoredState)
+        {
+            Debug.Log("[TunaSpawner] 이미 상태를 복원했습니다.");
+            return;
+        }
+
+        string currentStory = GameDataManager.Instance.CurrentStoryID;
+
+        string[] tunaStories = new string[]
+        {
+            "wait_for_skill_tutorial",
+            "after_skill_tutorial",
+            "library_tuna_meeting_story",
+            "library_after_tuna"
+        };
+
+        bool shouldTunaExist = System.Array.Exists(tunaStories, story => story == currentStory);
+
+        Debug.Log($"[TunaSpawner] 현재 스토리: {currentStory}, 튜나 존재 여부: {GameDataManager.Instance.IsTunaSpawned}, 튜나가 있어야 하는가: {shouldTunaExist}");
+
+        if (shouldTunaExist && GameDataManager.Instance.IsTunaSpawned)
+        {
+            Vector3 restoredPosition = GameDataManager.Instance.TunaPosition;
+
+            if (restoredPosition != Vector3.zero)
+            {
+                tunaInstance = Instantiate(tunaPrefab, restoredPosition, Quaternion.identity);
+                cachedTunaPosition = restoredPosition;
+                wasTunaSpawned = true;
+                Debug.Log($"[TunaSpawner] 튜나 상태 복원: 위치 {restoredPosition}");
+            }
+            else
+            {
+                tunaInstance = Instantiate(tunaPrefab, spawnPosition.position, Quaternion.identity);
+                cachedTunaPosition = spawnPosition.position;
+                wasTunaSpawned = true;
+                Debug.Log("[TunaSpawner] 튜나 기본 위치에 복원");
+            }
+
+            hasRestoredState = true;
+        }
+        else if (!shouldTunaExist)
+        {
+            Debug.Log($"[TunaSpawner] 현재 스토리({currentStory})에서는 튜나가 등장하지 않습니다.");
+        }
+    }
+
+    private void SaveTunaState()
+    {
+        if (GameDataManager.Instance == null) return;
+
+        bool isTunaAlive = tunaInstance != null;
+
+        if (isTunaAlive)
+        {
+            cachedTunaPosition = tunaInstance.transform.position;
+            wasTunaSpawned = true;
+        }
+
+        if (wasTunaSpawned)
+        {
+            GameDataManager.Instance.SetTunaSpawned(true, cachedTunaPosition);
+            Debug.Log($"[TunaSpawner] 튜나 상태 저장: 위치 {cachedTunaPosition} (캐시 사용)");
+        }
+        else
+        {
+            GameDataManager.Instance.SetTunaSpawned(false);
+            Debug.Log("[TunaSpawner] 튜나 상태 저장: 비생성");
+        }
+
+        GameDataManager.Instance.SaveState();
     }
 
     private void HandleLineDisplayed(string lineID)
@@ -86,7 +189,7 @@ public class TunaSpawner : MonoBehaviour
     {
         if (dialogueId == "library_tuna_meeting")
         {
-            CameraController camController = Camera.main.GetComponent<CameraController>();
+            CameraController camController = Camera.main?.GetComponent<CameraController>();
             if (camController != null)
             {
                 camController.ResetZoom(1f);
@@ -98,12 +201,24 @@ public class TunaSpawner : MonoBehaviour
             {
                 MoveTunaToDoor();
             }
+            else
+            {
+                Debug.LogWarning("[TunaSpawner] 튜나 또는 문 위치가 없어서 이동할 수 없습니다.");
+            }
+        }
+    }
+
+    private void HandleCustomEvent(string eventType, string eventID)
+    {
+        if (eventID == "TUNA_ARRIVED_AT_DOOR")
+        {
+            SaveTunaState();
         }
     }
 
     private void SpawnTuna()
     {
-        CameraController camController = Camera.main.GetComponent<CameraController>();
+        CameraController camController = Camera.main?.GetComponent<CameraController>();
         if (camController != null)
         {
             camController.ZoomTo(zoomTargetSize, zoomDuration, () => {
@@ -118,6 +233,12 @@ public class TunaSpawner : MonoBehaviour
 
     private void CreateTunaInstance()
     {
+        if (tunaInstance != null)
+        {
+            Debug.LogWarning("[TunaSpawner] 튜나가 이미 존재합니다.");
+            return;
+        }
+
         tunaInstance = Instantiate(tunaPrefab, spawnPosition.position, Quaternion.identity);
 
         if (spawnSound != null)
@@ -132,11 +253,32 @@ public class TunaSpawner : MonoBehaviour
         tunaInstance.transform.DOMoveY(spawnPosition.position.y + 0.2f, 0.3f)
             .SetLoops(2, LoopType.Yoyo);
 
+        cachedTunaPosition = tunaInstance.transform.position;
+        wasTunaSpawned = true;
+
+        if (GameDataManager.Instance != null)
+        {
+            GameDataManager.Instance.SetTunaSpawned(true, cachedTunaPosition);
+            GameDataManager.Instance.SaveState();
+        }
+
         Debug.Log("[TunaSpawner] 튜나 등장!");
     }
 
     private void MoveTunaToDoor()
     {
+        if (tunaInstance == null)
+        {
+            Debug.LogWarning("[TunaSpawner] 튜나가 없어서 이동할 수 없습니다.");
+            return;
+        }
+
+        if (doorPosition == null)
+        {
+            Debug.LogWarning("[TunaSpawner] 문 위치가 설정되지 않았습니다.");
+            return;
+        }
+
         Vector3 startPos = tunaInstance.transform.position;
         Vector3 targetPos = doorPosition.position;
 
@@ -145,6 +287,8 @@ public class TunaSpawner : MonoBehaviour
         moveTween = tunaInstance.transform.DOMove(targetPos, moveDuration)
             .SetEase(Ease.InOutQuad)
             .OnUpdate(() => {
+                if (tunaInstance == null || moveTween == null) return;
+
                 float progress = moveTween.ElapsedPercentage();
                 float baseY = Mathf.Lerp(startPos.y, targetPos.y, progress);
                 float floatOffset = Mathf.Sin(Time.time * (Mathf.PI * 2 / floatSpeed)) * floatHeight;
@@ -153,10 +297,21 @@ public class TunaSpawner : MonoBehaviour
                     baseY + floatOffset,
                     tunaInstance.transform.position.z
                 );
+
+                cachedTunaPosition = tunaInstance.transform.position;
             })
             .OnComplete(() => {
                 Debug.Log("[TunaSpawner] 튜나가 문 앞에 도착했습니다.");
-                GameEventManager.Instance.TriggerCustomEvent("TUNA_ARRIVED_AT_DOOR");
+
+                if (GameEventManager.Instance != null)
+                {
+                    GameEventManager.Instance.TriggerCustomEvent("TUNA_ARRIVED_AT_DOOR");
+                }
             });
+    }
+
+    void OnApplicationQuit()
+    {
+        SaveTunaState();
     }
 }

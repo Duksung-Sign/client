@@ -6,12 +6,22 @@ public class FootstepSound : MonoBehaviour
     [SerializeField] private float volume = 0.3f;
     [SerializeField] private bool enableFootsteps = true;
 
+    [Tooltip("최소 발소리 재생 간격 (초)")]
+    [SerializeField] private float cooldown = 0.3f;
+    private float lastPlayTime = -1f;
+
     public void PlayFootstep()
     {
         if (!enableFootsteps) return;
 
+        if (Time.time < lastPlayTime + cooldown)
+        {
+            return;
+        }
+
         if (AudioManager.Instance != null)
         {
+            lastPlayTime = Time.time; 
             AudioManager.Instance.PlayFootstepSound(volume);
         }
     }
