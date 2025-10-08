@@ -150,11 +150,6 @@ public class ItemManager : MonoBehaviour, IInteractable
 
         GameEventManager.Instance.TriggerItemInspected(itemData.itemID);
 
-        if (idleEffect != null)
-        {
-            idleEffect.SetActive(false);
-        }
-
         Debug.Log($"[ItemManager] '{itemData.displayName}' 조사를 완료했습니다.");
 
         Destroy(gameObject);

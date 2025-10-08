@@ -19,7 +19,10 @@ public class GameDataManager : MonoBehaviour
     public string LastSceneName { get; private set; }
     public string LastCheckpointID { get; private set; }
     public Vector3 LastPlayerPosition { get; private set; }
+    public HashSet<string> CompletedQuestIDs { get; private set; } = new HashSet<string>();
 
+    public bool IsTunaSpawned { get; private set; }
+    public Vector3 TunaPosition { get; private set; }
 
     void Awake()
     {
@@ -43,10 +46,24 @@ public class GameDataManager : MonoBehaviour
     public bool HasItem(string itemID) => ObtainedItemIDs.Contains(itemID);
     public bool HasFinishedDialogue(string dialogueID) => FinishedDialogueIDs.Contains(dialogueID);
     public bool HasInspectedItem(string itemID) => InspectedItemIDs.Contains(itemID);
-    public HashSet<string> CompletedQuestIDs { get; private set; } = new HashSet<string>();
 
     public bool IsMonsterDefeated(string monsterID) => DefeatedMonsterIDs.Contains(monsterID);
     public void AddDefeatedMonster(string monsterID) => DefeatedMonsterIDs.Add(monsterID);
+
+    public void SetTunaSpawned(bool spawned, Vector3 position = default)
+    {
+        IsTunaSpawned = spawned;
+        if (spawned)
+        {
+            TunaPosition = position;
+            Debug.Log($"[GameDataManager] 튜나 상태: 생성됨, 위치: {position}");
+        }
+        else
+        {
+            TunaPosition = Vector3.zero;
+            Debug.Log("[GameDataManager] 튜나 상태: 비생성");
+        }
+    }
 
     public void SaveState()
     {
@@ -58,9 +75,15 @@ public class GameDataManager : MonoBehaviour
         PlayerPrefs.SetString("InspectedItemIDs", string.Join(",", InspectedItemIDs));
         PlayerPrefs.SetString("DefeatedMonsterIDs", string.Join(",", DefeatedMonsterIDs));
         PlayerPrefs.SetString("CompletedQuestIDs", string.Join(",", CompletedQuestIDs));
+
         PlayerPrefs.SetFloat("PlayerPosX", LastPlayerPosition.x);
         PlayerPrefs.SetFloat("PlayerPosY", LastPlayerPosition.y);
         PlayerPrefs.SetFloat("PlayerPosZ", LastPlayerPosition.z);
+
+        PlayerPrefs.SetInt("IsTunaSpawned", IsTunaSpawned ? 1 : 0);
+        PlayerPrefs.SetFloat("TunaPosX", TunaPosition.x);
+        PlayerPrefs.SetFloat("TunaPosY", TunaPosition.y);
+        PlayerPrefs.SetFloat("TunaPosZ", TunaPosition.z);
 
         PlayerPrefs.Save();
         Debug.Log("[GameDataManager] Game state saved.");
@@ -71,6 +94,7 @@ public class GameDataManager : MonoBehaviour
         CurrentStoryID = PlayerPrefs.GetString("CurrentStoryID", "library_intro");
         LastSceneName = PlayerPrefs.GetString("LastSceneName", "Library");
         LastCheckpointID = PlayerPrefs.GetString("LastCheckpointID", "library_intro");
+
         ObtainedItemIDs = new HashSet<string>(PlayerPrefs.GetString("ObtainedItemIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         FinishedDialogueIDs = new HashSet<string>(PlayerPrefs.GetString("FinishedDialogueIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
         InspectedItemIDs = new HashSet<string>(PlayerPrefs.GetString("InspectedItemIDs", "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries));
@@ -82,7 +106,13 @@ public class GameDataManager : MonoBehaviour
         float posZ = PlayerPrefs.GetFloat("PlayerPosZ", 0);
         LastPlayerPosition = new Vector3(posX, posY, posZ);
 
-        Debug.Log("[GameDataManager] Game state loaded.");
+        IsTunaSpawned = PlayerPrefs.GetInt("IsTunaSpawned", 0) == 1;
+        float tunaPosX = PlayerPrefs.GetFloat("TunaPosX", 0);
+        float tunaPosY = PlayerPrefs.GetFloat("TunaPosY", 0);
+        float tunaPosZ = PlayerPrefs.GetFloat("TunaPosZ", 0);
+        TunaPosition = new Vector3(tunaPosX, tunaPosY, tunaPosZ);
+
+        Debug.Log($"[GameDataManager] Game state loaded. Tuna: {(IsTunaSpawned ? "Spawned" : "Not spawned")}");
     }
 
     public void ResetData()
@@ -96,11 +126,18 @@ public class GameDataManager : MonoBehaviour
         PlayerPrefs.DeleteKey("DefeatedMonsterIDs");
         PlayerPrefs.DeleteKey("CompletedQuestIDs");
         PlayerPrefs.DeleteKey("PlayerSpawnPointID");
+
         PlayerPrefs.DeleteKey("PlayerPosX");
         PlayerPrefs.DeleteKey("PlayerPosY");
         PlayerPrefs.DeleteKey("PlayerPosZ");
+
         PlayerPrefs.DeleteKey("HasSeenDoodlePage");
         PlayerPrefs.DeleteKey("HasCompletedSkillBookTutorial");
+
+        PlayerPrefs.DeleteKey("IsTunaSpawned");
+        PlayerPrefs.DeleteKey("TunaPosX");
+        PlayerPrefs.DeleteKey("TunaPosY");
+        PlayerPrefs.DeleteKey("TunaPosZ");
 
         CurrentStoryID = "library_intro";
         LastSceneName = "Library";
@@ -113,6 +150,9 @@ public class GameDataManager : MonoBehaviour
 
         LastPlayerPosition = Vector3.zero;
         PlayerSpawnPointID = "";
+
+        IsTunaSpawned = false;
+        TunaPosition = Vector3.zero;
 
         PlayerPrefs.Save();
 
@@ -148,8 +188,7 @@ public class GameDataManager : MonoBehaviour
 
     public bool IsQuestCompleted(string questID) => CompletedQuestIDs.Contains(questID);
     public void SetQuestCompleted(string questID) => CompletedQuestIDs.Add(questID);
-    
-    /* 스폰 포인트 관련 함수 */
+
     public void SetNextPlayerSpawnPoint(string spawnPointID)
     {
         PlayerSpawnPointID = spawnPointID;
