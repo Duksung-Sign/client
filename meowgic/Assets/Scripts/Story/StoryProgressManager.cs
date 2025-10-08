@@ -128,11 +128,15 @@ public class StoryProgressManager : MonoBehaviour
 
             if (currentScene == targetScene)
             {
+                GameManager.Instance.ChangeState(GameState.Field);
+                Debug.Log("[StoryProgressManager] 이어하기 후 게임 상태를 Field로 설정합니다.");
                 ExecuteStoryNode(storyIDToContinue);
             }
             else
             {
                 FadeManager.Instance.LoadSceneWithFade(targetScene, () => {
+                    GameManager.Instance.ChangeState(GameState.Field);
+                    Debug.Log("[StoryProgressManager] 이어하기 후 게임 상태를 Field로 설정합니다.");
                     ExecuteStoryNode(storyIDToContinue);
                 });
             }
