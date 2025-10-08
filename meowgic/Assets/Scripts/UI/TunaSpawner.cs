@@ -11,6 +11,9 @@ public class TunaSpawner : MonoBehaviour
     [Header("연출")]
     public AudioClip spawnSound;
 
+    [Header("문 소리 연출")]
+    public AudioClip doorBangSound;
+
     [Header("카메라 줌")]
     public float zoomTargetSize = 2f;
     public float zoomDuration = 0.8f;
@@ -62,6 +65,21 @@ public class TunaSpawner : MonoBehaviour
         {
             SpawnTuna();
         }
+
+        if (lineID == "after_tutorial_004")
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PauseBGM();
+            }
+
+            if (doorBangSound != null)
+            {
+                audioSource.PlayOneShot(doorBangSound, 1.0f);
+            }
+
+            Debug.Log("[TunaSpawner] 브금 일시정지 및 문 소리 재생");
+        }
     }
 
     private void HandleDialogueFinished(string eventType, string dialogueId)
@@ -104,7 +122,7 @@ public class TunaSpawner : MonoBehaviour
 
         if (spawnSound != null)
         {
-            audioSource.PlayOneShot(spawnSound, 0.3f);
+            audioSource.PlayOneShot(spawnSound, 0.15f);
         }
 
         tunaInstance.transform.localScale = Vector3.zero;

@@ -69,6 +69,7 @@ public class SettingsManager : MonoBehaviour
         isOpen = true;
 
         DialogueManager.Instance?.RefreshCanvasMode();
+        SkillBookController.Instance?.RefreshCanvasMode();
     }
 
     public void Close()
@@ -82,6 +83,7 @@ public class SettingsManager : MonoBehaviour
         isOpen = false;
 
         DialogueManager.Instance?.RefreshCanvasMode();
+        SkillBookController.Instance?.RefreshCanvasMode();
     }
 
     // 외부에서 켜고 끄기 쉽게 메서드 제공

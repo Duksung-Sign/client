@@ -10,6 +10,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
     private Vector2 movement;
+    private FootstepSound footstepSound;
 
     void Awake()
     {
@@ -25,6 +26,7 @@ public class PlayerController : MonoBehaviour
 
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
+        footstepSound = GetComponent<FootstepSound>();
 
         if (GameEventManager.Instance != null)
         {
@@ -80,6 +82,18 @@ public class PlayerController : MonoBehaviour
         {
             rb.velocity = Vector2.zero;
             animator.SetBool("isWalk", false);
+
+            if (footstepSound != null)
+            {
+                footstepSound.DisableFootsteps();
+            }
+        }
+        else
+        {
+            if (footstepSound != null)
+            {
+                footstepSound.EnableFootsteps(); 
+            }
         }
     }
 
@@ -92,7 +106,6 @@ public class PlayerController : MonoBehaviour
             movement = Vector2.zero;
             return;
         }
-
         GetInput();
     }
 

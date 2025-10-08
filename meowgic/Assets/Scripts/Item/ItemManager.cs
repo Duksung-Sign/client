@@ -106,7 +106,7 @@ public class ItemManager : MonoBehaviour, IInteractable
         }
         else if (AudioManager.Instance != null && collectSound != null)
         {
-            AudioManager.Instance.PlaySFX(collectSound, 0.3f);
+            AudioManager.Instance.PlaySFX(collectSound, 0.15f);
         }
     }
 
@@ -156,6 +156,8 @@ public class ItemManager : MonoBehaviour, IInteractable
         }
 
         Debug.Log($"[ItemManager] '{itemData.displayName}' 조사를 완료했습니다.");
+
+        Destroy(gameObject);
     }
 
     public string GetInteractionPromptText()
