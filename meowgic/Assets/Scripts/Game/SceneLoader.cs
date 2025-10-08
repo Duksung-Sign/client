@@ -10,6 +10,10 @@ public class SceneLoader : MonoBehaviour
     [SerializeField] private Image companyLogoImage;
     [SerializeField] private Image autosaveIconImage;
 
+    [Header("사운드 설정")]
+    [SerializeField] private AudioClip companyLogoSound;
+    [SerializeField] private AudioSource audioSource;
+
     [Header("애니메이션 시간 설정")]
     [SerializeField] private float fadeInDuration = 1.5f;
     [SerializeField] private float holdDuration = 2.0f;
@@ -18,6 +22,12 @@ public class SceneLoader : MonoBehaviour
     void Awake()
     {
         DontDestroyOnLoad(gameObject);
+
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
         StartCoroutine(SplashScreenSequence());
     }
 
@@ -30,11 +40,15 @@ public class SceneLoader : MonoBehaviour
 
             companyLogoImage.DOFade(1f, fadeInDuration);
             yield return companyLogoImage.transform.DOScale(1f, fadeInDuration)
-                .SetEase(Ease.InOutQuad) 
+                .SetEase(Ease.InOutQuad)
                 .WaitForCompletion();
 
-            yield return new WaitForSeconds(holdDuration);
+            if (companyLogoSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(companyLogoSound, 0.4f);
+            }
 
+            yield return new WaitForSeconds(holdDuration);
             yield return companyLogoImage.DOFade(0f, fadeOutDuration).WaitForCompletion();
         }
 
@@ -47,7 +61,7 @@ public class SceneLoader : MonoBehaviour
 
             autosaveIconImage.DOFade(1f, fadeInDuration);
             yield return autosaveIconImage.transform.DOScale(1f, fadeInDuration)
-                .SetEase(Ease.InOutQuad) 
+                .SetEase(Ease.InOutQuad)
                 .WaitForCompletion();
 
             yield return new WaitForSeconds(holdDuration);
@@ -55,7 +69,6 @@ public class SceneLoader : MonoBehaviour
         }
 
         FadeManager.Instance.LoadSceneWithFade("MainMenu");
-
         yield return new WaitForSeconds(1f);
         Destroy(gameObject);
     }

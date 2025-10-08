@@ -61,7 +61,7 @@ public class DialogueManager : MonoBehaviour
     private CanvasGroup dialogueCanvasGroup;
     public event System.Action<string> OnLineDisplayed;
 
-    [Header("외부 데이터베이스 참조")] 
+    [Header("외부 데이터베이스 참조")]
     [SerializeField] private CharacterDatabase characterDatabase;
 
     [Header("UI 프리팹")]
@@ -76,8 +76,8 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private string dialogueConditionsPath = "DialogueData/DialogueConditions";
 
     [Header("타이핑 효과")]
-    public float baseTypingSpeed = 0.05f; 
-    public float typingSpeedVariance = 0.02f; 
+    public float baseTypingSpeed = 0.05f;
+    public float typingSpeedVariance = 0.02f;
     public float punctuationPause = 0.3f;
     public bool skipTypingOnInput = true;
 
@@ -195,13 +195,12 @@ public class DialogueManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // 씬 카메라 교체에 대비해 1프레임 대기 후 재바인딩
         StartCoroutine(BindCanvasNextFrame());
     }
 
     IEnumerator BindCanvasNextFrame()
     {
-        yield return null; // Camera.main 준비 기다림
+        yield return null;
         EnsureCanvasBound();
     }
 
@@ -209,20 +208,32 @@ public class DialogueManager : MonoBehaviour
     {
         if (!panelCanvas) return;
 
-        if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
-            panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+        bool settingsOpen = SettingsManager.Instance != null &&
+                            SettingsManager.Instance.IsOpen;
 
-        var main = Camera.main;
-        if (!main) return; // 메인 카메라가 아직 없을 수도 있음
-
-        // 같은 카메라면 재할당 생략 (불필요한 작업/로그 방지)
-        if (cachedMainCam != main || panelCanvas.worldCamera != main)
+        if (settingsOpen)
         {
-            panelCanvas.worldCamera = main;
-            panelCanvas.sortingOrder = 900; // 원하는 값
-            cachedMainCam = main;
-            // Debug.Log($"[Dialogue] Canvas bound to {main.name}");
+            if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
+                panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+
+            var main = Camera.main;
+            if (main && (cachedMainCam != main || panelCanvas.worldCamera != main))
+            {
+                panelCanvas.worldCamera = main;
+                panelCanvas.sortingOrder = 10000;
+                cachedMainCam = main;
+            }
         }
+        else
+        {
+            if (panelCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                panelCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        }
+    }
+
+    public void RefreshCanvasMode()
+    {
+        EnsureCanvasBound();
     }
 
     private List<T> LoadData<T>(string path)
@@ -337,7 +348,7 @@ public class DialogueManager : MonoBehaviour
         currentLineID = dialogueSets[dialogueSetID].StartLineID;
 
         GameEventManager.Instance.TriggerDialogueStarted(dialogueSetID);
-    
+
         BeginDialogueSequence();
     }
 
@@ -366,7 +377,7 @@ public class DialogueManager : MonoBehaviour
             .Select(line => line.GroupID)
             .Where(id => !string.IsNullOrEmpty(id))
             .Distinct()
-            .OrderBy(id => id) 
+            .OrderBy(id => id)
             .ToList();
 
         if (availableGroupIDs.Count == 0)
@@ -454,7 +465,7 @@ public class DialogueManager : MonoBehaviour
 
                 leftPortrait.DOKill();
 
-                if (portrait != null) 
+                if (portrait != null)
                 {
                     leftPortrait.sprite = portrait;
 
@@ -465,7 +476,7 @@ public class DialogueManager : MonoBehaviour
                         leftPortrait.DOFade(1f, 0.3f);
                     }
                 }
-                else 
+                else
                 {
                     if (leftPortrait.gameObject.activeSelf)
                     {
@@ -490,7 +501,7 @@ public class DialogueManager : MonoBehaviour
     {
         isInDialogue = false;
         lastSpeakerName = "";
-        
+
         if (continueIndicator != null)
         {
             continueIndicator.Hide();
@@ -502,12 +513,12 @@ public class DialogueManager : MonoBehaviour
             dialoguePanel.SetActive(false);
             if (leftPortrait != null)
             {
-                leftPortrait.sprite = null; 
+                leftPortrait.sprite = null;
             }
         });
 
         GameDataManager.Instance.MarkDialogueAsFinished(currentDialogueSetID);
-        GameDataManager.Instance.SaveState(); 
+        GameDataManager.Instance.SaveState();
         GameEventManager.Instance.TriggerDialogueFinished(currentDialogueSetID);
 
         Debug.Log($"[DialogueManager] 대화 종료: {currentDialogueSetID}");
@@ -541,7 +552,7 @@ public class DialogueManager : MonoBehaviour
         dialogueCanvasGroup.DOFade(1f, 0.3f).SetUpdate(true);
     }
 
-public bool IsInDialogue()
+    public bool IsInDialogue()
     {
         return isInDialogue;
     }
@@ -562,7 +573,7 @@ public bool IsInDialogue()
 
         if (continueIndicator != null)
         {
-            continueIndicator.Hide(); 
+            continueIndicator.Hide();
             StartCoroutine(PositionIndicatorAtEndOfText());
         }
     }
@@ -631,7 +642,7 @@ public bool IsInDialogue()
             {
                 soundTimer += baseTypingSpeed;
 
-                if (AudioManager.Instance != null && !char.IsWhiteSpace(letter) && typingSound!= null && soundTimer >= soundInterval)
+                if (AudioManager.Instance != null && !char.IsWhiteSpace(letter) && typingSound != null && soundTimer >= soundInterval)
                 {
                     soundTimer = 0f;
                     AudioManager.Instance.PlayTypingSound(typingSound);
@@ -641,10 +652,28 @@ public bool IsInDialogue()
                     baseTypingSpeed - typingSpeedVariance,
                     baseTypingSpeed + typingSpeedVariance
                 );
-                yield return new WaitForSeconds(Mathf.Max(currentTypingSpeed, 0.01f)); 
+                yield return new WaitForSeconds(Mathf.Max(currentTypingSpeed, 0.01f));
             }
         }
         CompleteTyping();
+    }
+
+    public void ForceEndDialogue()
+    {
+        if (typingCoroutine != null)
+        {
+            StopCoroutine(typingCoroutine);
+        }
+        isTyping = false;
+        isInDialogue = false;
+        lastSpeakerName = "";
+
+        if (dialoguePanel != null)
+        {
+            dialogueCanvasGroup.DOKill();
+            dialoguePanel.SetActive(false);
+        }
+        Debug.Log("[DialogueManager] 대화 강제 종료됨.");
     }
 
     private void HandleGameStateChange(GameState newState)
@@ -654,13 +683,13 @@ public bool IsInDialogue()
         {
             if (newState == GameState.Loading)
             {
-                dialoguePanel.SetActive(false);
+                ForceEndDialogue();
             }
             else
             {
                 dialoguePanel.SetActive(true);
             }
         }
-        
+
     }
 }

@@ -7,7 +7,6 @@ using System.Linq;
 public class KeyInputListener : MonoBehaviour
 {
     public static KeyInputListener Instance;
-
     private Coroutine listeningCoroutine;
     private bool isListening = false;
 
@@ -15,6 +14,11 @@ public class KeyInputListener : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+    }
+
+    public bool IsListening()
+    {
+        return isListening;
     }
 
     public void StartListeningFor(string keyString, string parameters)

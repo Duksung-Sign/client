@@ -286,7 +286,7 @@ public class StoryProgressManager : MonoBehaviour
                         postSceneLoadActions.Enqueue(actions[j]);
                     }
                     FadeManager.Instance.LoadSceneWithFade(action.Target, OnSceneLoadComplete);
-                    yield break; 
+                    yield break;
                 case "enable_player":
                     GameManager.Instance.ChangeState(GameState.Field);
                     break;
@@ -301,13 +301,20 @@ public class StoryProgressManager : MonoBehaviour
                     break;
                 case "start_battle":
                     GameEventManager.Instance.TriggerBattleStartRequested(Resources.Load<MonsterDataSO>(action.Target), null, action.Parameter);
-                    yield break; 
+                    yield break;
                 case "complete_quest":
                     GameDataManager.Instance.SetQuestCompleted(action.Target);
                     break;
                 case "LISTEN_FOR_KEY_INPUT":
                     yield return new WaitForSeconds(0.2f);
                     KeyInputListener.Instance.StartListeningFor(action.Target, action.Parameter);
+                    break;
+                case "play_cutscene":
+                    if (CutsceneManager.Instance != null)
+                    {
+                        CutsceneManager.Instance.PlayCutscene(action.Target);
+                        yield return new WaitUntil(() => !CutsceneManager.Instance.IsPlayingCutscene());
+                    }
                     break;
             }
         }

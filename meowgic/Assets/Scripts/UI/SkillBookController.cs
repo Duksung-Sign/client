@@ -8,6 +8,7 @@ using UnityEngine.SceneManagement;
 
 public class SkillBookController : MonoBehaviour
 {
+    public static SkillBookController Instance;
     [System.Serializable]
     public class SkillData
     {
@@ -25,31 +26,25 @@ public class SkillBookController : MonoBehaviour
     }
 
     [Header("UI References")]
-    public GameObject skillWindow;
+    [SerializeField] private GameObject skillWindowPrefab;
+    private GameObject skillWindow;
     public CanvasGroup pageGroup;
 
     private Canvas panelCanvas;
     private Camera cachedMainCam;
 
-    [Header("Skill Slots - 왼쪽 페이지")]
-    public SkillSlot leftSlot1;
-    public SkillSlot leftSlot2;
-
-    [Header("Skill Slots - 오른쪽 페이지")]
-    public SkillSlot rightSlot1;
-    public SkillSlot rightSlot2;
-
-    [Header("Navigation")]
-    public Button leftArrowButton;
-    public Button rightArrowButton;
-    public GameObject leftArrowObject;
-    public GameObject rightArrowObject;
+    private SkillSlot leftSlot1;
+    private SkillSlot leftSlot2;
+    private SkillSlot rightSlot1;
+    private SkillSlot rightSlot2;
+    private Button leftArrowButton;
+    private Button rightArrowButton;
+    private GameObject leftArrowObject;
+    private GameObject rightArrowObject;
+    private GameObject doodlePage;
 
     [Header("Skill Data")]
     public SkillData[] allSkills;
-
-    [Header("Special Pages")]
-    public GameObject doodlePage;
     public string doodleDialogueID = "skillbook_doodle_surprise";
     private bool hasSeenDoodlePage = false;
 
@@ -98,6 +93,7 @@ public class SkillBookController : MonoBehaviour
             GameEventManager.Instance.OnDialogueStarted += HandleDialogueStarted;
             GameEventManager.Instance.OnDialogueFinished += HandleDialogueFinished;
             GameEventManager.Instance.OnKeyEvent += HandleKeyEvent;
+            GameEventManager.Instance.OnGameStateChanged += HandleGameStateChange;
         }
 
         if (DialogueManager.Instance != null)
@@ -114,6 +110,7 @@ public class SkillBookController : MonoBehaviour
             GameEventManager.Instance.OnDialogueStarted -= HandleDialogueStarted;
             GameEventManager.Instance.OnDialogueFinished -= HandleDialogueFinished;
             GameEventManager.Instance.OnKeyEvent -= HandleKeyEvent;
+            GameEventManager.Instance.OnGameStateChanged -= HandleGameStateChange;
         }
 
         if (DialogueManager.Instance != null)
@@ -123,17 +120,68 @@ public class SkillBookController : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+
+            if (skillWindowPrefab != null)
+            {
+                skillWindow = Instantiate(skillWindowPrefab);
+                panelCanvas = skillWindow.GetComponent<Canvas>();
+                if (panelCanvas == null)
+                {
+                    panelCanvas = skillWindow.GetComponentInChildren<Canvas>(true);
+                }
+                DontDestroyOnLoad(skillWindow);
+
+                var uiRefs = skillWindow.GetComponentInChildren<SkillBookUIRefs>(true);
+                if (uiRefs != null)
+                {
+                    pageGroup = uiRefs.pageGroup;
+                    leftSlot1 = uiRefs.leftSlot1;
+                    leftSlot2 = uiRefs.leftSlot2;
+                    rightSlot1 = uiRefs.rightSlot1;
+                    rightSlot2 = uiRefs.rightSlot2;
+                    leftArrowButton = uiRefs.leftArrowButton;
+                    rightArrowButton = uiRefs.rightArrowButton;
+                    leftArrowObject = uiRefs.leftArrowObject;
+                    rightArrowObject = uiRefs.rightArrowObject;
+                    doodlePage = uiRefs.doodlePage;
+                }
+                else
+                {
+                    Debug.LogError("[SkillBookController] skillWindowPrefab에 SkillBookUIRefs 컴포넌트가 없습니다!");
+                }
+
+                skillWindow.SetActive(false);
+            }
+            else
+            {
+                Debug.LogError("[SkillBookController] skillWindowPrefab이 할당되지 않았습니다!");
+            }
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        if (skillWindow != null)
+        {
+            allSlots = new SkillSlot[] { leftSlot1, leftSlot2, rightSlot1, rightSlot2 };
+
+            leftArrowButton.onClick.AddListener(PreviousPage);
+            rightArrowButton.onClick.AddListener(NextPage);
+
+            isWindowOpen = false;
+        }
+    }
+
     void Start()
     {
-        allSlots = new SkillSlot[] { leftSlot1, leftSlot2, rightSlot1, rightSlot2 };
-
-        leftArrowButton.onClick.AddListener(PreviousPage);
-        rightArrowButton.onClick.AddListener(NextPage);
-
-        skillWindow.SetActive(false);
-        isWindowOpen = false;
-
-        panelCanvas = skillWindow.GetComponentInChildren<Canvas>(true);
 
         if (doodlePage != null)
         {
@@ -147,12 +195,7 @@ public class SkillBookController : MonoBehaviour
 
             if (GameDataManager.Instance.CurrentStoryID == "wait_for_skill_tutorial")
             {
-                PlayerPrefs.DeleteKey("HasSeenDoodlePage");
-                PlayerPrefs.DeleteKey("HasCompletedSkillBookTutorial");
-                hasSeenDoodlePage = false;
-                hasCompletedTutorial = false;
-                currentPhase = TutorialPhase.NotStarted;
-                canUseNavigation = false;
+                ResetTutorialProgress();
             }
             else if (!hasCompletedTutorial)
             {
@@ -160,7 +203,7 @@ public class SkillBookController : MonoBehaviour
                 currentPhase = TutorialPhase.NotStarted;
                 canUseNavigation = false;
             }
-            else 
+            else
             {
                 currentPhase = TutorialPhase.Completed;
                 canUseNavigation = true;
@@ -169,10 +212,7 @@ public class SkillBookController : MonoBehaviour
 
             if (GameDataManager.Instance.CurrentStoryID == "library_intro")
             {
-                PlayerPrefs.DeleteKey("HasSeenDoodlePage");
-                PlayerPrefs.DeleteKey("HasCompletedSkillBookTutorial");
-                hasSeenDoodlePage = false;
-                hasCompletedTutorial = false;
+                ResetTutorialProgress();
             }
         }
     }
@@ -189,6 +229,11 @@ public class SkillBookController : MonoBehaviour
             {
                 CloseWindowWithoutStateChange();
             }
+            return;
+        }
+
+        if (KeyInputListener.Instance != null && KeyInputListener.Instance.IsListening())
+        {
             return;
         }
 
@@ -224,39 +269,56 @@ public class SkillBookController : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // 씬 카메라 교체에 대비해 1프레임 대기 후 재바인딩
         StartCoroutine(BindCanvasNextFrame());
     }
 
     IEnumerator BindCanvasNextFrame()
     {
-        yield return null; // Camera.main 준비 기다림
+        yield return null;
         EnsureCanvasBound();
     }
+
     void EnsureCanvasBound()
     {
-        if (!panelCanvas) {
-            Debug.Log("캔버스X");
-            return; }
+        if (!panelCanvas) return;
 
-        if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
-            panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+        bool settingsOpen = SettingsManager.Instance != null &&
+                            SettingsManager.Instance.IsOpen;
 
-        var main = Camera.main;
-        if (!main)
+        if (settingsOpen)
         {
-            Debug.Log("카메라X");
-            return;
-        } // 메인 카메라가 아직 없을 수도 있음
+            if (panelCanvas.renderMode != RenderMode.ScreenSpaceCamera)
+                panelCanvas.renderMode = RenderMode.ScreenSpaceCamera;
 
-        // 같은 카메라면 재할당 생략 (불필요한 작업/로그 방지)
-        if (cachedMainCam != main || panelCanvas.worldCamera != main)
-        {
-            panelCanvas.worldCamera = main;
-            panelCanvas.sortingOrder = 500; // 원하는 값
-            cachedMainCam = main;
-            // Debug.Log($"[Dialogue] Canvas bound to {main.name}");
+            var main = Camera.main;
+            if (main && (cachedMainCam != main || panelCanvas.worldCamera != main))
+            {
+                panelCanvas.worldCamera = main;
+                panelCanvas.sortingOrder = 10000;
+                cachedMainCam = main;
+            }
         }
+        else
+        {
+            if (panelCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                panelCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        }
+    }
+
+    public void RefreshCanvasMode()
+    {
+        EnsureCanvasBound();
+    }
+
+    public void ResetTutorialProgress()
+    {
+        PlayerPrefs.DeleteKey("HasSeenDoodlePage");
+        PlayerPrefs.DeleteKey("HasCompletedSkillBookTutorial");
+        hasSeenDoodlePage = false;
+        hasCompletedTutorial = false;
+        currentPhase = TutorialPhase.NotStarted;
+        canUseNavigation = false;
+        Debug.Log("[SkillBookController] 스킬북 튜토리얼 진행 상태가 초기화되었습니다.");
     }
 
     private void HandleKeyEvent(string eventType, string keyString)
@@ -269,6 +331,17 @@ public class SkillBookController : MonoBehaviour
 
     public void StartSkillBookTutorial()
     {
+        if (isInTutorial)
+        {
+            return;
+        }
+
+        if (DialogueManager.Instance != null && DialogueManager.Instance.IsInDialogue())
+        {
+            StartCoroutine(WaitAndStartTutorial());
+            return;
+        }
+
         isInTutorial = true;
         currentPhase = TutorialPhase.Opening;
         canUseNavigation = false;
@@ -280,6 +353,13 @@ public class SkillBookController : MonoBehaviour
         {
             DialogueManager.Instance.StartDialogue(tutorialOpenDialogueID);
         }
+    }
+
+    private IEnumerator WaitAndStartTutorial()
+    {
+        yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+        yield return new WaitForSeconds(0.5f);
+        StartSkillBookTutorial();
     }
 
     private void HandleLineDisplayed(string lineID)
@@ -444,6 +524,7 @@ public class SkillBookController : MonoBehaviour
         }
 
         UpdatePage();
+        RefreshCanvasMode();
     }
 
     void CloseWindow()
@@ -473,6 +554,7 @@ public class SkillBookController : MonoBehaviour
         }
 
         closedByReminder = false;
+        RefreshCanvasMode();
     }
 
     void CloseWindowWithoutStateChange()
@@ -617,7 +699,7 @@ public class SkillBookController : MonoBehaviour
     {
         if (pageFlipSound != null && AudioManager.Instance != null)
         {
-            AudioManager.Instance.PlaySeSound(pageFlipSound);
+            AudioManager.Instance.PlaySeSound(pageFlipSound, 0.3f);
         }
     }
 
@@ -678,5 +760,39 @@ public class SkillBookController : MonoBehaviour
         {
             rightArrowObject.SetActive(currentPageIndex < maxPage);
         }
+    }
+
+    private void HandleGameStateChange(GameState newState)
+    {
+        if (newState == GameState.Loading)
+        {
+            if (isWindowOpen)
+            {
+                CloseWindowWithoutStateChange();
+                Debug.Log("[SkillBookController] 씬 로딩으로 인해 스킬북 창을 닫습니다.");
+            }
+
+            if (isInTutorial)
+            {
+                ResetTutorialState();
+            }
+        }
+    }
+
+    private void ResetTutorialState()
+    {
+        isInTutorial = false;
+        currentPhase = hasCompletedTutorial ? TutorialPhase.Completed : TutorialPhase.NotStarted;
+        canUseNavigation = hasCompletedTutorial;
+        isWaitingForKPresses = false;
+        kPressCount = 0;
+
+        if (tutorialTimeoutCoroutine != null)
+        {
+            StopCoroutine(tutorialTimeoutCoroutine);
+            tutorialTimeoutCoroutine = null;
+        }
+        StopArrowHighlight();
+        Debug.Log("[SkillBookController] 튜토리얼 상태가 초기화되었습니다.");
     }
 }

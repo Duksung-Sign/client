@@ -16,6 +16,7 @@ public class SettingsManager : MonoBehaviour
     private MenuController mainMenuController;
 
     private bool isOpen = false;
+    public bool IsOpen => isOpen;
 
     [Header("Scene rules")]
     [SerializeField] private string titleSceneName = "MainMenu";  // 타이틀 씬 이름
@@ -66,6 +67,9 @@ public class SettingsManager : MonoBehaviour
 
         settingsUIInstance.SetActive(true);
         isOpen = true;
+
+        DialogueManager.Instance?.RefreshCanvasMode();
+        SkillBookController.Instance?.RefreshCanvasMode();
     }
 
     public void Close()
@@ -77,6 +81,9 @@ public class SettingsManager : MonoBehaviour
 
         settingsUIInstance.SetActive(false);
         isOpen = false;
+
+        DialogueManager.Instance?.RefreshCanvasMode();
+        SkillBookController.Instance?.RefreshCanvasMode();
     }
 
     // 외부에서 켜고 끄기 쉽게 메서드 제공
