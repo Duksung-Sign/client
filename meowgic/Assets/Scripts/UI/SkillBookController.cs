@@ -182,7 +182,6 @@ public class SkillBookController : MonoBehaviour
 
     void Start()
     {
-
         if (doodlePage != null)
         {
             doodlePage.SetActive(false);
@@ -193,26 +192,23 @@ public class SkillBookController : MonoBehaviour
             hasSeenDoodlePage = PlayerPrefs.GetInt("HasSeenDoodlePage", 0) == 1;
             hasCompletedTutorial = PlayerPrefs.GetInt("HasCompletedSkillBookTutorial", 0) == 1;
 
-            if (GameDataManager.Instance.CurrentStoryID == "wait_for_skill_tutorial")
+            string currentStoryID = GameDataManager.Instance.CurrentStoryID;
+
+            if (currentStoryID == "library_intro" || currentStoryID == "wait_for_skill_tutorial")
             {
                 ResetTutorialProgress();
             }
-            else if (!hasCompletedTutorial)
-            {
-                PlayerPrefs.DeleteKey("HasSeenDoodlePage");
-                currentPhase = TutorialPhase.NotStarted;
-                canUseNavigation = false;
-            }
-            else
+
+            if (hasCompletedTutorial)
             {
                 currentPhase = TutorialPhase.Completed;
                 canUseNavigation = true;
                 isInTutorial = false;
             }
-
-            if (GameDataManager.Instance.CurrentStoryID == "library_intro")
+            else
             {
-                ResetTutorialProgress();
+                currentPhase = TutorialPhase.NotStarted;
+                canUseNavigation = false;
             }
         }
     }
