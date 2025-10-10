@@ -17,8 +17,33 @@ public class InteractionDetector : MonoBehaviour
         if (GameEventManager.Instance != null)
         {
             GameEventManager.Instance.OnDialogueStarted += (type, id) => canInteract = false;
-            GameEventManager.Instance.OnDialogueFinished += (type, id) => canInteract = true;
+            GameEventManager.Instance.OnDialogueFinished += (type, id) => UpdateCanInteract();
+            GameEventManager.Instance.OnGameStateChanged += OnGameStateChanged;
         }
+    }
+
+    void OnDestroy()
+    {
+        if (GameEventManager.Instance != null)
+        {
+            GameEventManager.Instance.OnGameStateChanged -= OnGameStateChanged;
+        }
+    }
+
+    private void OnGameStateChanged(GameState newState)
+    {
+        UpdateCanInteract();
+    }
+
+    private void UpdateCanInteract()
+    {
+        if (GameManager.Instance == null)
+        {
+            canInteract = true;
+            return;
+        }
+
+        canInteract = GameManager.Instance.CurrentState == GameState.Field;
     }
 
     void Update()
