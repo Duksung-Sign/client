@@ -110,8 +110,8 @@ public class CutsceneManager : MonoBehaviour
 
             Vector3[] waypoints = new Vector3[]
             {
-                new Vector3(-0.14f, -3.94f, 0f),
-                new Vector3(-0.14f, -2.56f, 0f),
+                new Vector3(0.148f, -3.94f, 0f),
+                new Vector3(0.148f, -2.56f, 0f),
                 new Vector3(3.29f, -2.56f, 0f),
                 new Vector3(3.29f, -0.21f, 0f),
                 new Vector3(6.99f, -0.21f, 0f),
