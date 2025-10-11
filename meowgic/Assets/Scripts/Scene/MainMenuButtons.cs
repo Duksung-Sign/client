@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
 
 public class MainMenuButtons : MonoBehaviour
 {
@@ -16,23 +17,31 @@ public class MainMenuButtons : MonoBehaviour
     [SerializeField] private Color normalTextColor = Color.white;
     [SerializeField] private Color disabledTextColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
 
+    [Header("화살표 오브젝트")]
+    [SerializeField] private RectTransform arrowLeft;
+    [SerializeField] private RectTransform arrowRight;
+    [SerializeField] private float arrowOffsetX = 200f;
+
     private void Start()
     {
         if (newGameButton != null)
         {
             newGameButton.onClick.AddListener(OnNewGameClicked);
-            UpdateButtonTextColor(newGameButton, true); 
+            UpdateButtonTextColor(newGameButton, true);
+            AddArrowEvents(newGameButton);
         }
 
         if (continueButton != null)
         {
             continueButton.onClick.AddListener(OnContinueClicked);
+            AddArrowEvents(continueButton);
         }
 
         if (quitGameButton != null)
         {
             quitGameButton.onClick.AddListener(OnQuitGameClicked);
-            UpdateButtonTextColor(quitGameButton, true); 
+            UpdateButtonTextColor(quitGameButton, true);
+            AddArrowEvents(quitGameButton);
         }
 
         CheckForSaveData();
@@ -62,7 +71,36 @@ public class MainMenuButtons : MonoBehaviour
             uiText.color = isEnabled ? normalTextColor : disabledTextColor;
         }
     }
+    private void AddArrowEvents(Button btn)
+    {
+        EventTrigger trigger = btn.gameObject.GetComponent<EventTrigger>();
+        if (trigger == null) trigger = btn.gameObject.AddComponent<EventTrigger>();
 
+        var entryEnter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        entryEnter.callback.AddListener((data) => ShowArrows(btn));
+        trigger.triggers.Add(entryEnter);
+
+        var entryExit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        entryExit.callback.AddListener((data) => HideArrows());
+        trigger.triggers.Add(entryExit);
+    }
+
+    private void ShowArrows(Button btn)
+    {
+        RectTransform btnRect = btn.GetComponent<RectTransform>();
+        Vector2 btnPos = btnRect.anchoredPosition;
+        arrowLeft.anchoredPosition = new Vector2(btnPos.x - arrowOffsetX, btnPos.y);
+        arrowRight.anchoredPosition = new Vector2(btnPos.x + arrowOffsetX, btnPos.y);
+        arrowLeft.gameObject.SetActive(true);
+        arrowRight.gameObject.SetActive(true);
+    }
+
+
+    private void HideArrows()
+    {
+        arrowLeft.gameObject.SetActive(false);
+        arrowRight.gameObject.SetActive(false);
+    }
     public void OnNewGameClicked()
     {
         Debug.Log("[MainMenu] 새 게임 시작을 요청합니다.");
