@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using DG.Tweening;
+using UnityEngine.EventSystems;
 
 public class BattleUIManager : MonoBehaviour
 {
@@ -15,6 +16,7 @@ public class BattleUIManager : MonoBehaviour
     public Button sorrySkillButton;
     public Button thankSkillButton;
     public TextMeshProUGUI statusText;
+    public RectTransform arrowImage;
 
     private Coroutine statusMessageCoroutine;
 
@@ -40,6 +42,12 @@ public class BattleUIManager : MonoBehaviour
     {
         InitializeUIState();
         SetupButtonEvents();
+
+        SetupEventTrigger(attackButton);
+        SetupEventTrigger(escapeButton);
+        SetupEventTrigger(helloSkillButton);
+        SetupEventTrigger(sorrySkillButton);
+        SetupEventTrigger(thankSkillButton);
     }
 
     private void InitializeUIState()
@@ -63,6 +71,7 @@ public class BattleUIManager : MonoBehaviour
         ShowSkillPanel(false);
         ShowStatusMessage(null, 0);
 
+
         switch (newState)
         {
             case BattleState.Initializing:
@@ -74,6 +83,7 @@ public class BattleUIManager : MonoBehaviour
                 break;
 
             case BattleState.PlayerTurn_SelectingSkill:
+                ShowStatusMessage("어떤 공격을 할까?", 0);
                 ShowSkillPanel(true);
                 break;
 
@@ -146,4 +156,37 @@ public class BattleUIManager : MonoBehaviour
             statusText.gameObject.SetActive(false);
         }
     }
+
+    public void ShowArrowAtButton(RectTransform btn)
+    {
+        if (arrowImage == null || btn == null) return;
+
+        arrowImage.SetParent(btn.parent, false);
+
+        float offset = -btn.rect.width * 0.5f - arrowImage.rect.width * 0.5f - 10f;
+        arrowImage.anchoredPosition = btn.anchoredPosition + new Vector2(offset, 0f);
+
+        arrowImage.gameObject.SetActive(true);
+    }
+
+    public void HideArrow()
+    {
+        if (arrowImage != null)
+            arrowImage.gameObject.SetActive(false);
+    }
+
+    void SetupEventTrigger(Button btn)
+    {
+        var trigger = btn.gameObject.GetComponent<EventTrigger>();
+        if (trigger == null) trigger = btn.gameObject.AddComponent<EventTrigger>();
+
+        var entryEnter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        entryEnter.callback.AddListener((data) => ShowArrowAtButton(btn.GetComponent<RectTransform>()));
+        trigger.triggers.Add(entryEnter);
+
+        var entryExit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        entryExit.callback.AddListener((data) => HideArrow());
+        trigger.triggers.Add(entryExit);
+    }
+
 }
