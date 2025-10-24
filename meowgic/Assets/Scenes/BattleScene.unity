@@ -3531,6 +3531,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bda63cfecf47df441a1afc4c6d426a09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gestureTimeoutSeconds: 30
 --- !u!114 &1339156774 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6794429280309537701, guid: 5713b959e3c77a58fb258133fc8e4aef, type: 3}
@@ -6297,9 +6298,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataProcessor: {fileID: 2118140695}
-  serverIP: 3.39.24.148
+  serverIP: 54.180.108.68
   serverPort: 8000
-  serverEndpoint: /predict
+  serverEndpoint: ws
 --- !u!4 &2118140694
 Transform:
   m_ObjectHideFlags: 0
