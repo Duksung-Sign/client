@@ -12,7 +12,12 @@ public class BattleManager : MonoBehaviour
     private string selectedSkill = "";
 
     private HolisticJsonSender holisticExtractor;
-    private bool gestureResponseReceived = false;
+    //private bool gestureResponseReceived = false;
+
+    private bool gestureSuccess = false; // 시간 내 성공 여부 플래그
+
+    [SerializeField]
+    private float gestureTimeoutSeconds = 5f;   
 
     private static class SystemMessages
     {
@@ -41,7 +46,8 @@ public class BattleManager : MonoBehaviour
         }
         if (holisticExtractor != null)
         {
-            holisticExtractor.OnGestureRecognitionComplete -= OnGestureRecognized;
+            //holisticExtractor.OnGestureRecognitionComplete -= OnGestureRecognized;
+            holisticExtractor.OnPredictionReceived -= OnGestureRecognized;
         }
     }
 
@@ -57,7 +63,7 @@ public class BattleManager : MonoBehaviour
         holisticExtractor = FindObjectOfType<HolisticJsonSender>();
         if (holisticExtractor != null)
         {
-            holisticExtractor.OnGestureRecognitionComplete += OnGestureRecognized;
+            holisticExtractor.OnPredictionReceived += OnGestureRecognized;
         }
 
         if (!LoadBattleData())
@@ -142,30 +148,73 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        gestureResponseReceived = false;
-        holisticExtractor.StartGestureCollection();
-        StartCoroutine(WaitForGestureRecognition());
+        //gestureResponseReceived = false;
+        //holisticExtractor.StartGestureCollection();
+        //StartCoroutine(WaitForGestureRecognition());
+
+        gestureSuccess = false;
+        holisticExtractor.StartStreaming();
+        StartCoroutine(WaitForGestureResult());
     }
 
-    private IEnumerator WaitForGestureRecognition()
+    private IEnumerator WaitForGestureResult()
     {
-        float responseWaitTime = 15f;
-        while (responseWaitTime > 0 && !gestureResponseReceived)
+        float timer = gestureTimeoutSeconds;
+        Debug.Log($"{gestureTimeoutSeconds}초 동안 '{selectedSkill}' 제스처 인식을 시작합니다.");
+
+        while (timer > 0 && !gestureSuccess)
         {
-            responseWaitTime -= Time.deltaTime;
-            yield return null;
+            timer -= Time.deltaTime;
+            yield return null; 
         }
-        if (!gestureResponseReceived)
+
+        holisticExtractor.StopStreaming();
+
+        if (gestureSuccess)
         {
-            OnGestureRecognized("timeout");
+            Debug.Log("✅ 제스처 성공!");
+            ProcessGestureResult(selectedSkill); // 성공 시 선택한 스킬 이름으로 처리
+        }
+        else
+        {
+            Debug.Log("❌ 제스처 실패 (타임아웃 또는 불일치).");
+            ProcessGestureResult("no_match"); // 실패 시 "no_match" 같은 특수 문자열 사용 (원래 코드의 "timeout" 대신)
         }
     }
+
+    //private IEnumerator WaitForGestureRecognition()
+    //{
+    //    float responseWaitTime = 15f;
+    //    while (responseWaitTime > 0 && !gestureResponseReceived)
+    //    {
+    //        responseWaitTime -= Time.deltaTime;
+    //        yield return null;
+    //    }
+    //    if (!gestureResponseReceived)
+    //    {
+    //        OnGestureRecognized("timeout");
+    //    }
+    //}
+
+    //public void OnGestureRecognized(string prediction)
+    //{
+    //    if (CurrentBattleState != BattleState.PlayerTurn_Gesture || gestureResponseReceived) return;
+    //    gestureResponseReceived = true;
+    //    ProcessGestureResult(prediction);
+    //}
 
     public void OnGestureRecognized(string prediction)
     {
-        if (CurrentBattleState != BattleState.PlayerTurn_Gesture || gestureResponseReceived) return;
-        gestureResponseReceived = true;
-        ProcessGestureResult(prediction);
+        if (CurrentBattleState != BattleState.PlayerTurn_Gesture) return;
+        if (gestureSuccess) return;
+
+        //Debug.Log($"[BattleManager] 예측 수신: {prediction} (현재 목표: {selectedSkill})");
+
+        if (selectedSkill.Equals(prediction, System.StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.Log($"⭐️ '{selectedSkill}' 제스처 매칭 성공!");
+            gestureSuccess = true; 
+        }
     }
 
     private void ProcessGestureResult(string prediction)
