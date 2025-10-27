@@ -1,18 +1,23 @@
 using UnityEngine;
-using System.Text;
-using System.Net;
-using System.Net.Sockets;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using WebSocketSharp;
 using Mediapipe.Unity;
 using Mediapipe;
 using Mediapipe.Unity.Sample.Holistic;
-using System;
+
 using System.Collections;
-using System.Collections.Generic;
-using UnityEngine.Networking;
-using Newtonsoft.Json;
 
 public class HolisticJsonSender : MonoBehaviour
 {
+    [Serializable]
+    public class FramePayload
+    {
+        public float[] frame;
+    }
+
     [Serializable]
     public class ServerResponse
     {
@@ -20,347 +25,175 @@ public class HolisticJsonSender : MonoBehaviour
         public Dictionary<string, float> probabilities;
     }
 
-    [Serializable]
-    public class FrameData
-    {
-        public List<float[]> sequence = new List<float[]>();
-    }
-
     public HolisticDataProcessor dataProcessor;
-
     private HolisticTrackingSolution holisticSolution;
+    private WebSocket ws;
 
-    public string serverIP = "3.39.24.148";
+    [Header("Server Settings")]
+    public string serverIP = "54.180.108.68";
     public int serverPort = 8000;
-    public string serverEndpoint = "/predict";
+    public string serverEndpoint = "ws"; 
 
-    public event System.Action<string> OnGestureRecognitionComplete;
+    // --- 내부 상태 변수 ---
+    private bool isStreaming = false;
+    private int lastProcessedFrame = -1;
 
-    private bool isCollectingGesture = false;
-    private List<SignLanguageData> collectedFrames = new List<SignLanguageData>();
-    private int targetFrameCount = 30;
-    private float frameCollectionInterval = 0.1f; 
-    private float lastFrameTime = 0f;  
-    private Coroutine gestureCollectionCoroutine;
+    // 백그라운드 스레드(웹소켓)의 결과를 메인 스레드(유니티)에서 안전하게 처리하기 위한 큐
+    private readonly ConcurrentQueue<Action> mainThreadActions = new ConcurrentQueue<Action>();
+
+    public event Action<string> OnPredictionReceived;
 
     void Start()
     {
-        if (dataProcessor == null)
-        {
-            Debug.LogError("HolisticDataProcessor가 할당되지 않았습니다.");
-            this.enabled = false;
-            return;
-        }
-
-        holisticSolution = GetComponent<HolisticTrackingSolution>();
+        holisticSolution = FindObjectOfType<HolisticTrackingSolution>();
         if (holisticSolution == null)
         {
-            holisticSolution = FindObjectOfType<HolisticTrackingSolution>();
+            Debug.LogError("[WS Sender] HolisticTrackingSolution을 찾을 수 없습니다!");
+            enabled = false;
+            return;
         }
 
-        if (holisticSolution != null)
+        holisticSolution.OnHolisticLandmarksOutput.AddListener(OnLandmarks);
+
+        ConnectToServer();
+    }
+
+    void Update()
+    {
+        while (mainThreadActions.TryDequeue(out var action))
         {
-            holisticSolution.OnHolisticLandmarksOutput.RemoveListener(OnHolisticLandmarksOutput);
-            holisticSolution.OnHolisticLandmarksOutput.AddListener(OnHolisticLandmarksOutput);
-            Debug.Log("[HolisticJsonSender] Event listener registered successfully!");
-        }
-        else
-        {
-            Debug.LogError("[HolisticJsonSender] HolisticTrackingSolution not found!");
-            this.enabled = false;
-            return;
+            action.Invoke();
         }
     }
 
-    public void OnHolisticLandmarksOutput(
-        NormalizedLandmarkList poseLandmarks,
-        NormalizedLandmarkList faceLandmarks,
-        NormalizedLandmarkList leftHandLandmarks,
-        NormalizedLandmarkList rightHandLandmarks)
+    private void ConnectToServer()
     {
+        string ep = serverEndpoint.StartsWith("/") ? serverEndpoint : "/" + serverEndpoint;
+        string url = $"ws://{serverIP}:{serverPort}{ep}";
+
+        if (ws != null) { try { ws.Close(); } catch { } ws = null; }
+
+        ws = new WebSocket(url);
+        ws.Log.Level = WebSocketSharp.LogLevel.Warn;
+        ws.OnOpen += (sender, e) => Debug.Log("✅ OnOpen: 서버에 연결됨");
+        ws.OnMessage += (sender, e) => {
+            try
+            {
+                var resp = JsonConvert.DeserializeObject<ServerResponse>(e.Data);
+                mainThreadActions.Enqueue(() => {
+                    float top = 0f;
+                    if (resp?.probabilities != null && resp.probabilities.Count > 0)
+                        top = Mathf.Max(0f, (float)System.Linq.Enumerable.Max(resp.probabilities.Values));
+                    Debug.Log($"🔥 예측: {resp?.prediction} (≈{top:0.00})");
+                    OnPredictionReceived?.Invoke(resp?.prediction ?? "none");
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"JSON 파싱 실패: {ex.Message}\n{e.Data}");
+            }
+        };
+        ws.OnError += (sender, e) => Debug.LogError($"❌ OnError: {e.Message}");
+        ws.OnClose += (sender, e) => Debug.LogWarning($"🔌 OnClose: {e.Code} / {e.Reason}");
+
+        Debug.Log($"[WS] Connecting to {url}");
         try
         {
-            if (dataProcessor == null || !isCollectingGesture) return;
-
-            if (Time.time - lastFrameTime < frameCollectionInterval)
-                return;
-
-            SignLanguageData processedData = dataProcessor.ProcessHolisticData(
-                poseLandmarks, faceLandmarks, leftHandLandmarks, rightHandLandmarks
-            );
-
-            if (collectedFrames.Count < targetFrameCount)
-            {
-                collectedFrames.Add(processedData);
-                lastFrameTime = Time.time;  
-                Debug.Log($"Frame collected: {collectedFrames.Count}/{targetFrameCount}");
-            }
+            ws.Connect();
+            Debug.Log($"[WS] ReadyState={ws.ReadyState}, IsAlive={ws.IsAlive}");
+            bool pong = ws.Ping();
+            Debug.Log($"[WS] Ping => {pong}");
         }
-        catch (System.Exception e)
+        catch (Exception ex)
         {
-            Debug.LogError($"[HolisticJsonSender] Error in OnHolisticLandmarksOutput: {e.Message}");
+            Debug.LogError($"[WS] Connect() EX: {ex.GetType().Name}: {ex.Message}");
         }
+    }
+
+
+    private void OnLandmarks(
+        NormalizedLandmarkList pose,
+        NormalizedLandmarkList face,
+        NormalizedLandmarkList leftHand,
+        NormalizedLandmarkList rightHand)
+    {
+        if (!isStreaming || ws == null || !ws.IsAlive)
+        {
+            return;
+        }
+
+        if (Time.frameCount == lastProcessedFrame) return;
+        lastProcessedFrame = Time.frameCount;
+
+        float[] vector = dataProcessor.ProcessAndConvertToVector(pose, face, leftHand, rightHand);
+        if (vector == null) return;
+
+        var payload = new FramePayload { frame = vector };
+        string jsonPayload = JsonConvert.SerializeObject(payload);
+        ws.Send(jsonPayload);
+    }
+
+    public void StartStreaming()
+    {
+        Debug.Log($"🚀 스트리밍 시작 요청. ws null? {ws == null}, alive? {ws?.IsAlive}");
+        if (ws == null || !ws.IsAlive)
+        {
+            StartCoroutine(WaitAndStartStreaming()); // 연결될 때까지 최대 5초 대기
+            return;
+        }
+        isStreaming = true;
+    }
+
+    private IEnumerator WaitAndStartStreaming()
+    {
+        float timeout = 5f;
+        while (timeout > 0f && (ws == null || !ws.IsAlive))
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+        if (ws != null && ws.IsAlive)
+        {
+            Debug.Log("✅ 연결 확인됨. 스트리밍 시작");
+            isStreaming = true;
+        }
+        else
+        {
+            Debug.LogError("❌ WebSocket 연결 실패(타임아웃) — 서버/포트/SG 확인 필요");
+        }
+    }
+
+    public void StopStreaming()
+    {
+        Debug.Log("데이터 스트리밍을 중단합니다.");
+        isStreaming = false;
     }
 
     public bool IsMediaPipeReady()
     {
-        if (holisticSolution == null)
-        {
-            holisticSolution = FindObjectOfType<HolisticTrackingSolution>();
-            if (holisticSolution == null) return false;
-        }
+        if (holisticSolution == null) return false;
 
-        bool hasLeftHand = holisticSolution.CurrentLeftHandLandmarks?.Landmark != null
-                        && holisticSolution.CurrentLeftHandLandmarks.Landmark.Count > 0;
-        bool hasRightHand = holisticSolution.CurrentRightHandLandmarks?.Landmark != null
-                         && holisticSolution.CurrentRightHandLandmarks.Landmark.Count > 0;
+        bool isConnected = ws != null && ws.IsAlive;
+        bool hasHand = holisticSolution.CurrentLeftHandLandmarks?.Landmark.Count > 0 ||
+                       holisticSolution.CurrentRightHandLandmarks?.Landmark.Count > 0;
 
-        return hasLeftHand || hasRightHand;
+        return isConnected && hasHand;
     }
 
-    public void StartGestureCollection()
+    public bool IsCollectingGesture()
     {
-        Debug.Log("Starting gesture collection...");
-
-        if (gestureCollectionCoroutine != null)
-        {
-            StopCoroutine(gestureCollectionCoroutine);
-        }
-
-        collectedFrames.Clear();
-        lastFrameTime = 0f; 
-        gestureCollectionCoroutine = StartCoroutine(CollectGestureWithDelay());
-    }
-
-    private IEnumerator CollectGestureWithDelay()
-    {
-        Debug.Log("손을 카메라 앞에 위치시키세요...");
-
-        float waitTimeout = 10f;
-        while (!IsMediaPipeReady() && waitTimeout > 0)
-        {
-            waitTimeout -= Time.deltaTime;
-            yield return null;
-        }
-
-        if (waitTimeout <= 0)
-        {
-            Debug.LogWarning("손 감지 실패. 제스처 수집 취소.");
-            OnGestureRecognitionComplete?.Invoke("none");
-            yield break;
-        }
-
-        Debug.Log("손 감지됨! 준비하세요...");
-        yield return new WaitForSeconds(1f);
-
-        Debug.Log("3...");
-        yield return new WaitForSeconds(1f);
-
-        Debug.Log("2...");
-        yield return new WaitForSeconds(1f);
-
-        Debug.Log("1...");
-        yield return new WaitForSeconds(1f);
-
-        Debug.Log("제스처 시작!");
-        isCollectingGesture = true;
-        lastFrameTime = Time.time; 
-
-        yield return StartCoroutine(CollectGestureAndRecognize());
-    }
-
-    private IEnumerator CollectGestureAndRecognize()
-    {
-        Debug.Log($"Collecting {targetFrameCount} frames...");
-
-        float timeoutTimer = (frameCollectionInterval * targetFrameCount) + 5f;
-
-        while (collectedFrames.Count < targetFrameCount && timeoutTimer > 0)
-        {
-            timeoutTimer -= Time.deltaTime;
-            yield return null;
-        }
-
-        isCollectingGesture = false;
-
-        if (collectedFrames.Count >= targetFrameCount)
-        {
-            Debug.Log($"Collected {collectedFrames.Count} frames. Sending to server...");
-            yield return StartCoroutine(SendToServerAndGetPrediction());
-        }
-        else
-        {
-            Debug.LogWarning($"Timeout! Only collected {collectedFrames.Count} frames.");
-            OnGestureRecognitionComplete?.Invoke("none");
-        }
-    }
-
-    private IEnumerator SendToServerAndGetPrediction()
-    {
-        var frameData = new FrameData();
-
-        foreach (var frame in collectedFrames)
-        {
-            float[] vector = ConvertToVector(frame);
-            frameData.sequence.Add(vector);
-        }
-
-        string json = JsonConvert.SerializeObject(frameData, Formatting.Indented);
-
-        string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        string fileName = $"gesture_data_{timestamp}.json";
-        string filePath = System.IO.Path.Combine(Application.persistentDataPath, fileName);
-
-        try
-        {
-            System.IO.File.WriteAllText(filePath, json);
-            Debug.Log($"JSON 저장 완료: {filePath}");
-            Debug.Log($"프레임 수: {frameData.sequence.Count}, 차원: {frameData.sequence[0].Length}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"JSON 저장 실패: {e.Message}");
-        }
-
-        string url = $"http://{serverIP}:{serverPort}{serverEndpoint}";
-
-        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
-        {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                try
-                {
-                    var response = JsonConvert.DeserializeObject<ServerResponse>(request.downloadHandler.text);
-                    Debug.Log($"Server prediction: {response.prediction}");
-
-                    OnGestureRecognitionComplete?.Invoke(response.prediction);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError($"Response parsing error: {e.Message}");
-                    OnGestureRecognitionComplete?.Invoke("none");
-                }
-            }
-            else
-            {
-                Debug.LogError($"Server request failed: {request.error}");
-                OnGestureRecognitionComplete?.Invoke("none");
-            }
-        }
-    }
-
-    private float[] ConvertToVector(SignLanguageData data)
-    {
-        List<float> vector = new List<float>();
-
-        for (int i = 0; i < 21; i++)
-        {
-            vector.Add(GetFieldValue(data, $"left_hand_{i}_x"));
-            vector.Add(GetFieldValue(data, $"left_hand_{i}_y"));
-            vector.Add(GetFieldValue(data, $"left_hand_{i}_z"));
-        }
-
-        for (int i = 0; i < 21; i++)
-        {
-            vector.Add(GetFieldValue(data, $"right_hand_{i}_x"));
-            vector.Add(GetFieldValue(data, $"right_hand_{i}_y"));
-            vector.Add(GetFieldValue(data, $"right_hand_{i}_z"));
-        }
-
-        string[] poseJoints = { "l_shoulder", "r_shoulder", "l_elbow", "r_elbow",
-                               "l_wrist", "r_wrist", "l_hip", "r_hip", "hip_center" };
-        foreach (var joint in poseJoints)
-        {
-            vector.Add(GetFieldValue(data, $"{joint}_x"));
-            vector.Add(GetFieldValue(data, $"{joint}_y"));
-            vector.Add(GetFieldValue(data, $"{joint}_z"));
-        }
-
-        for (int i = 0; i < 21; i++)
-        {
-            vector.Add(GetFieldValue(data, $"face_{i}_x"));
-            vector.Add(GetFieldValue(data, $"face_{i}_y"));
-            vector.Add(GetFieldValue(data, $"face_{i}_z"));
-        }
-
-        vector.Add(data.l_elbow_cos);
-        vector.Add(data.l_elbow_sin);
-        vector.Add(data.l_shoulder_cos);
-        vector.Add(data.l_shoulder_sin);
-        vector.Add(data.r_elbow_cos);
-        vector.Add(data.r_elbow_sin);
-        vector.Add(data.r_shoulder_cos);
-        vector.Add(data.r_shoulder_sin);
-
-        vector.Add(data.left_index_state);
-        vector.Add(data.left_middle_state);
-        vector.Add(data.left_ring_state);
-        vector.Add(data.left_pinky_state);
-        vector.Add(data.right_index_state);
-        vector.Add(data.right_middle_state);
-        vector.Add(data.right_ring_state);
-        vector.Add(data.right_pinky_state);
-
-        vector.Add(data.left_palm_nx);
-        vector.Add(data.left_palm_ny);
-        vector.Add(data.left_palm_nz);
-        vector.Add(data.right_palm_nx);
-        vector.Add(data.right_palm_ny);
-        vector.Add(data.right_palm_nz);
-
-        vector.Add(data.speed_your);
-        vector.Add(data.speed_friend);
-
-        vector.Add(data.lh_flag);
-        vector.Add(data.rh_flag);
-        vector.Add(data.pose_flag);
-        vector.Add(data.face_flag);
-
-        if (vector.Count != 244)
-        {
-            Debug.LogWarning($"Vector dimension mismatch! Expected: 244, Actual: {vector.Count}");
-            while (vector.Count < 244) vector.Add(0f);
-        }
-
-        return vector.ToArray();
-    }
-
-    private float GetFieldValue(SignLanguageData data, string fieldName)
-    {
-        var field = typeof(SignLanguageData).GetField(fieldName);
-        if (field != null)
-        {
-            object value = field.GetValue(data);
-            if (value is float)
-                return (float)value;
-            else if (value is int)
-                return (float)(int)value;
-        }
-        return 0f;
+        return isStreaming;
     }
 
     void OnDestroy()
     {
         if (holisticSolution != null)
         {
-            holisticSolution.OnHolisticLandmarksOutput.RemoveListener(OnHolisticLandmarksOutput);
+            holisticSolution.OnHolisticLandmarksOutput.RemoveListener(OnLandmarks);
         }
-
-        if (gestureCollectionCoroutine != null)
+        if (ws != null && ws.IsAlive)
         {
-            StopCoroutine(gestureCollectionCoroutine);
+            ws.Close();
         }
-    }
-
-    public bool IsCollectingGesture()
-    {
-        return isCollectingGesture;
     }
 }
