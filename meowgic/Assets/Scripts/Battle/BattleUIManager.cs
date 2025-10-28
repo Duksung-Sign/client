@@ -11,12 +11,21 @@ public class BattleUIManager : MonoBehaviour
     public Button attackButton;
     public Button escapeButton;
     public GameObject skillSelectionPanel;
-    public Button helloSkillButton;
-    public Button sorrySkillButton;
-    public Button thankSkillButton;
+    public Button[] attackSkillButtons; 
+    public Button cancelSkillButton; 
+    public Button prevButton;
+    public Button nextButton;
     public TextMeshProUGUI statusText;
 
     private Coroutine statusMessageCoroutine;
+
+    string[] skillNames = {
+        "안녕하세요", "반갑습니다", "감사합니다", "괜찮아요",
+        "사랑한다", "연락해주세요", "도착하다", "당신",
+        "나", "싫다", "좋다", "죄송합니다"
+    };
+
+    int currentPage = 0;
 
     void Awake()
     {
@@ -25,6 +34,7 @@ public class BattleUIManager : MonoBehaviour
             BattleEventManager.Instance.OnBattleStateChanged += HandleBattleStateChange;
             BattleEventManager.Instance.OnRequestUpdateStatus += ShowStatusMessage;
         }
+
     }
 
     void OnDestroy()
@@ -52,9 +62,22 @@ public class BattleUIManager : MonoBehaviour
     {
         attackButton?.onClick.AddListener(() => BattleEventManager.Instance?.PlayerRequestsAttack());
         escapeButton?.onClick.AddListener(() => BattleEventManager.Instance?.AttemptEscape());
-        helloSkillButton?.onClick.AddListener(() => BattleEventManager.Instance?.SelectPlayerSkill("hello"));
-        sorrySkillButton?.onClick.AddListener(() => BattleEventManager.Instance?.SelectPlayerSkill("sorry"));
-        thankSkillButton?.onClick.AddListener(() => BattleEventManager.Instance?.SelectPlayerSkill("thank"));
+
+        prevButton?.onClick.AddListener(() =>
+        {
+            if (currentPage > 0) { currentPage--; UpdateSkillPage(); }
+        });
+        nextButton?.onClick.AddListener(() =>
+        {
+            if (currentPage < 3) { currentPage++; UpdateSkillPage(); }
+        });
+
+        cancelSkillButton?.onClick.AddListener(() =>
+        {
+            Debug.Log("Cancel button clicked");
+            skillSelectionPanel.SetActive(false);  
+            ShowMainUI(true);                     
+        });
     }
 
     private void HandleBattleStateChange(BattleState newState)
@@ -62,7 +85,7 @@ public class BattleUIManager : MonoBehaviour
         ShowMainUI(false);
         ShowSkillPanel(false);
         ShowStatusMessage(null, 0);
-
+        Debug.Log("HandleBattleStateChange: " + newState);
         switch (newState)
         {
             case BattleState.Initializing:
@@ -101,6 +124,7 @@ public class BattleUIManager : MonoBehaviour
 
     private void ShowMainUI(bool show)
     {
+        Debug.Log("ShowMainUI called with: " + show); 
         attackButton?.gameObject.SetActive(show);
         escapeButton?.gameObject.SetActive(show);
     }
@@ -108,6 +132,11 @@ public class BattleUIManager : MonoBehaviour
     private void ShowSkillPanel(bool show)
     {
         skillSelectionPanel?.SetActive(show);
+        if (show)
+        {
+            currentPage = 0;
+            UpdateSkillPage();
+        }
     }
 
     private void ShowStatusMessage(string message, float duration = 2.5f)
@@ -145,5 +174,40 @@ public class BattleUIManager : MonoBehaviour
 
             statusText.gameObject.SetActive(false);
         }
+    }
+
+    void UpdateSkillPage()
+    {
+        int startSkillIdx = currentPage * 3;
+        for (int i = 0; i < attackSkillButtons.Length; i++)
+        {
+            int skillIdx = startSkillIdx + i;
+            if (skillIdx < skillNames.Length)
+            {
+                attackSkillButtons[i].gameObject.SetActive(true);
+                attackSkillButtons[i].GetComponentInChildren<TextMeshProUGUI>().text = skillNames[skillIdx];
+                attackSkillButtons[i].onClick.RemoveAllListeners();
+                int capturedIdx = skillIdx;
+                attackSkillButtons[i].onClick.AddListener(() => SelectSkill(capturedIdx));
+            }
+            else
+            {
+                attackSkillButtons[i].gameObject.SetActive(false);
+            }
+        }
+        prevButton.interactable = (currentPage > 0);
+        nextButton.interactable = (currentPage < (skillNames.Length / 3 - 1));
+
+        Debug.Log("Updating skill page: " + currentPage);
+        for (int i = 0; i < attackSkillButtons.Length; i++)
+        {
+            Debug.Log($"Button {i} text component: {attackSkillButtons[i].GetComponentInChildren<TextMeshProUGUI>()}");
+        }
+    }
+
+    void SelectSkill(int idx)
+    {
+        skillSelectionPanel.SetActive(false);
+        BattleEventManager.Instance.SelectPlayerSkill(skillNames[idx]);
     }
 }
