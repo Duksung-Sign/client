@@ -251,7 +251,7 @@ public class HolisticDataProcessor : MonoBehaviour
 
     public Vector2 CalculateJointAngle(Vector3 p1, Vector3 p2, Vector3 p3)
     {
-        Vector3 v1 = (p1 - p2).normalized;
+        Vector3 v1 = (p2 - p1).normalized;
         Vector3 v2 = (p3 - p2).normalized;
 
         float cosAngle = Vector3.Dot(v1, v2);
