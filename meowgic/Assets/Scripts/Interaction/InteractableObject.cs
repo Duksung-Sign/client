@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class InteractableObject : MonoBehaviour
 {
@@ -6,11 +7,19 @@ public class InteractableObject : MonoBehaviour
     public string interactionID;
 
     private Collider2D objectCollider;
+    private bool isInitialized = false;
 
     void Awake()
     {
         objectCollider = GetComponent<Collider2D>();
+    }
+
+    IEnumerator Start()
+    {
+        yield return new WaitForSeconds(0.1f);
+
         DisableInteraction();
+        isInitialized = true;
     }
 
     void OnEnable()
@@ -31,12 +40,26 @@ public class InteractableObject : MonoBehaviour
 
     public void EnableInteraction()
     {
-        if (objectCollider != null) objectCollider.enabled = true;
-        Debug.Log($"[{interactionID}] 상호작용이 활성화되었습니다.");
+        if (!isInitialized)
+        {
+            Debug.LogWarning($"[{interactionID}] 아직 초기화되지 않았습니다.");
+            return;
+        }
+
+        if (objectCollider != null)
+        {
+            objectCollider.enabled = true;
+            Debug.Log($"[{interactionID}] 상호작용이 활성화되었습니다.");
+        }
     }
 
     public void DisableInteraction()
     {
         if (objectCollider != null) objectCollider.enabled = false;
+    }
+
+    public bool IsInteractable()
+    {
+        return isInitialized && objectCollider != null && objectCollider.enabled;
     }
 }

@@ -485,7 +485,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!61 &80844858
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -27318,6 +27318,7 @@ MonoBehaviour:
   blockedStoryIDs:
   - library_again
   - library_cheddar_meets
+  - goto_library_door
   blockedDialogueID: door_blocked
   debugMode: 0
   targetSpawnPointID: spawn_from_basement
@@ -29323,7 +29324,7 @@ Transform:
   m_GameObject: {fileID: 2059375991}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1233.068, y: -321.304, z: 4.8934984}
+  m_LocalPosition: {x: -1233.068, y: -321.283, z: 4.8934984}
   m_LocalScale: {x: 0.62042654, y: 0.62042654, z: 0.62042654}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -29518,13 +29519,17 @@ MonoBehaviour:
   sceneTransitionDelay: 1
   checkStoryRestriction: 1
   blockedStoryIDs:
+  - library_intro
+  - library_exploration
+  - library_get_key
+  - enable_basement_door
   - library_again
   - library_cheddar_meets
   - library_intro
   - library_exploration
   - library_get_the_key
   - unlock_basement
-  blockedDialogueID: door_blocked
+  blockedDialogueID: exitdoor_blocked
   debugMode: 0
   targetSpawnPointID: spawn_from_library
 --- !u!1 &2139061802

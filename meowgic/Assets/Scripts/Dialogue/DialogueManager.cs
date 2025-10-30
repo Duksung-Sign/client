@@ -102,6 +102,9 @@ public class DialogueManager : MonoBehaviour
     private AudioClip currentTypingSound;
     private float soundTimer;
 
+    // DOTween Sequence 관리용 변수 추가
+    private Sequence portraitSequence;
+
     void Update()
     {
         if (isPaused || !isInDialogue) return;
@@ -171,7 +174,6 @@ public class DialogueManager : MonoBehaviour
             LoadDialogueData();
             InitializeConditionCheckers();
             GameEventManager.Instance.OnGameStateChanged += HandleGameStateChange;
-
         }
     }
 
@@ -191,6 +193,23 @@ public class DialogueManager : MonoBehaviour
             GameEventManager.Instance.OnLockedDoorInteracted -= HandleLockedDoorInteraction;
         }
         SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnDestroy()
+    {
+        // 모든 DOTween 애니메이션 정리
+        if (leftPortrait != null)
+        {
+            leftPortrait.DOKill();
+        }
+        if (dialogueCanvasGroup != null)
+        {
+            dialogueCanvasGroup.DOKill();
+        }
+        if (portraitSequence != null && portraitSequence.IsActive())
+        {
+            portraitSequence.Kill();
+        }
     }
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -451,10 +470,14 @@ public class DialogueManager : MonoBehaviour
 
         OnLineDisplayed?.Invoke(currentLineID);
 
-        StartTyping(fullText, currentTypingSound);
-
         string speakerName = string.IsNullOrEmpty(line.CustomSpeaker) ? line.SpeakerName : line.CustomSpeaker;
         speakerNameText.text = speakerName;
+
+        // 이전 애니메이션 정리
+        if (portraitSequence != null && portraitSequence.IsActive())
+        {
+            portraitSequence.Kill(complete: true);
+        }
 
         if (!string.Equals(speakerName, lastSpeakerName))
         {
@@ -463,7 +486,8 @@ public class DialogueManager : MonoBehaviour
                 currentTypingSound = characterDatabase.GetTypingSound(speakerName);
                 Sprite portrait = characterDatabase.GetPortrait(speakerName);
 
-                leftPortrait.DOKill();
+                // 기존 애니메이션 완전히 정리
+                leftPortrait.DOKill(complete: true);
 
                 if (portrait != null)
                 {
@@ -472,21 +496,49 @@ public class DialogueManager : MonoBehaviour
                     if (!leftPortrait.gameObject.activeSelf)
                     {
                         leftPortrait.gameObject.SetActive(true);
-                        Color c = leftPortrait.color; c.a = 0; leftPortrait.color = c;
-                        leftPortrait.DOFade(1f, 0.3f);
                     }
+
+                    // 알파값을 명시적으로 1로 설정
+                    Color c = leftPortrait.color;
+                    c.a = 1f;
+                    leftPortrait.color = c;
+
+                    // 선택적 페이드인 효과 (필요한 경우)
+                    portraitSequence = DOTween.Sequence().SetUpdate(true);
+                    portraitSequence.Append(leftPortrait.DOFade(0f, 0f).From());
+                    portraitSequence.Append(leftPortrait.DOFade(1f, 0.3f));
                 }
                 else
                 {
                     if (leftPortrait.gameObject.activeSelf)
                     {
-                        leftPortrait.DOFade(0f, 0.3f).OnComplete(() => {
+                        leftPortrait.DOFade(0f, 0.3f).SetUpdate(true).OnComplete(() => {
                             leftPortrait.gameObject.SetActive(false);
+                            // 비활성화 후 알파값 리셋
+                            Color c = leftPortrait.color;
+                            c.a = 1f;
+                            leftPortrait.color = c;
                         });
                     }
                 }
             }
         }
+        else
+        {
+            // 같은 화자일 때도 알파값 확인
+            if (leftPortrait != null && leftPortrait.gameObject.activeSelf)
+            {
+                Color c = leftPortrait.color;
+                if (c.a < 1f)
+                {
+                    // 투명 상태면 즉시 불투명하게
+                    leftPortrait.DOKill(complete: true);
+                    c.a = 1f;
+                    leftPortrait.color = c;
+                }
+            }
+        }
+
         lastSpeakerName = speakerName;
         StartTyping(fullText, currentTypingSound);
     }
@@ -507,13 +559,25 @@ public class DialogueManager : MonoBehaviour
             continueIndicator.Hide();
         }
 
+        // 모든 portrait 애니메이션 즉시 완료
+        if (portraitSequence != null && portraitSequence.IsActive())
+        {
+            portraitSequence.Kill(complete: true);
+        }
+        leftPortrait.DOKill(complete: true);
+
         dialogueCanvasGroup.DOKill();
-        dialogueCanvasGroup.DOFade(0f, 0.3f).OnComplete(() =>
+        dialogueCanvasGroup.DOFade(0f, 0.3f).SetUpdate(true).OnComplete(() =>
         {
             dialoguePanel.SetActive(false);
             if (leftPortrait != null)
             {
                 leftPortrait.sprite = null;
+                // 알파값 리셋
+                Color c = leftPortrait.color;
+                c.a = 1f;
+                leftPortrait.color = c;
+                leftPortrait.gameObject.SetActive(false);
             }
         });
 
@@ -546,6 +610,10 @@ public class DialogueManager : MonoBehaviour
         if (leftPortrait != null)
         {
             leftPortrait.gameObject.SetActive(false);
+            // 시작 시 알파값 리셋
+            Color c = leftPortrait.color;
+            c.a = 1f;
+            leftPortrait.color = c;
         }
 
         dialogueCanvasGroup.alpha = 0f;
@@ -669,14 +737,31 @@ public class DialogueManager : MonoBehaviour
         {
             StopCoroutine(typingCoroutine);
         }
+
+        // 모든 애니메이션 정리
+        if (portraitSequence != null && portraitSequence.IsActive())
+        {
+            portraitSequence.Kill(complete: true);
+        }
+        leftPortrait.DOKill(complete: true);
+        dialogueCanvasGroup.DOKill(complete: true);
+
         isTyping = false;
         isInDialogue = false;
         lastSpeakerName = "";
 
         if (dialoguePanel != null)
         {
-            dialogueCanvasGroup.DOKill();
             dialoguePanel.SetActive(false);
+            // 강제 종료 시 알파값 리셋
+            if (leftPortrait != null)
+            {
+                Color c = leftPortrait.color;
+                c.a = 1f;
+                leftPortrait.color = c;
+                leftPortrait.sprite = null;
+                leftPortrait.gameObject.SetActive(false);
+            }
         }
         Debug.Log("[DialogueManager] 대화 강제 종료됨.");
     }
@@ -695,7 +780,6 @@ public class DialogueManager : MonoBehaviour
                 dialoguePanel.SetActive(true);
             }
         }
-
     }
 
     public void StartDialogueFromLine(string dialogueSetID, string startLineID)

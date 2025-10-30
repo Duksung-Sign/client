@@ -18,6 +18,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
     public GameState CurrentState { get; private set; }
+    public bool IsFullyInitialized { get; private set; } = false;
     private GameState stateBeforeDialogue = GameState.Field;
 
     void Awake()
@@ -26,11 +27,24 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            StartCoroutine(InitializeGameManager());
         }
         else
         {
             Destroy(gameObject);
         }
+    }
+
+    IEnumerator InitializeGameManager()
+    {
+        yield return new WaitUntil(() =>
+            GameDataManager.Instance != null &&
+            GameEventManager.Instance != null);
+
+        yield return new WaitForSeconds(0.5f);
+
+        IsFullyInitialized = true;
+        Debug.Log("[GameManager] 모든 시스템 초기화 완료");
     }
 
     void OnEnable()
