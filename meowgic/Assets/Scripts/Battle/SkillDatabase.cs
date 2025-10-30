@@ -24,7 +24,7 @@ public class SkillDatabase : MonoBehaviour
         new SkillMapping { skillName = "당신", gestureType = "you" },
         new SkillMapping { skillName = "나", gestureType = "me" },
         new SkillMapping { skillName = "싫다", gestureType = "no" },
-        new SkillMapping { skillName = "좋다", gestureType = "yes" },
+        new SkillMapping { skillName = "좋다", gestureType = "goodnice" },
         new SkillMapping { skillName = "죄송합니다", gestureType = "sorry" }
     };
 
