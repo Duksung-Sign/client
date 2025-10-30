@@ -305,8 +305,8 @@
             }
             // 먼저 모드 설정 → 그 다음 해상도 적용 (플랫폼별 안전 순서)
     #if UNITY_STANDALONE_OSX
-    var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed; //
-    macOS 안전
+    var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed; 
+    //macOS 안전
     #else
             var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
     #endif
