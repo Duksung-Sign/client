@@ -38,14 +38,9 @@ public class CreditController : MonoBehaviour
 
     void SetupAudio()
     {
-        // AudioSource 생성 및 설정
-        audioSource = gameObject.AddComponent<AudioSource>();
-        if (creditBGM != null)
+        if (AudioManager.Instance != null && creditBGM != null)
         {
-            audioSource.clip = creditBGM;
-            audioSource.volume = bgmVolume;
-            audioSource.loop = true;
-            audioSource.Play();
+            AudioManager.Instance.CrossfadeBGM(creditBGM); 
         }
     }
 
@@ -58,6 +53,8 @@ public class CreditController : MonoBehaviour
         {
             canvasGroup = canvas.gameObject.AddComponent<CanvasGroup>();
         }
+
+        canvasGroup.alpha = 0;
 
         scrollView = new GameObject("ScrollView");
         scrollView.transform.SetParent(canvas.transform);
@@ -283,12 +280,20 @@ public class CreditController : MonoBehaviour
 
     void StartCredits()
     {
+        StartCoroutine(StartCreditsCoroutine());
+    }
+
+    IEnumerator StartCreditsCoroutine()
+    {
+        yield return new WaitForEndOfFrame();
+
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(content);
 
+        yield return new WaitForEndOfFrame();
+
         content.anchoredPosition = new Vector2(0, -Screen.height);
 
-        canvasGroup.alpha = 0;
         canvasGroup.DOFade(1f, 2f).OnComplete(() =>
         {
             ScrollToEnding();
@@ -297,36 +302,39 @@ public class CreditController : MonoBehaviour
 
     void ScrollToEnding()
     {
-        // 엔딩 텍스트가 화면 중앙에 오는 위치 계산
-        float endingTextY = endingTextObject.transform.localPosition.y;
-        float targetPosition = -endingTextY + Screen.height / 2;
+        StartCoroutine(WaitForLayoutAndScroll());
+    }
 
-        // 해당 위치까지 스크롤
+    IEnumerator WaitForLayoutAndScroll()
+    {
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForEndOfFrame();
+
+        RectTransform endingRect = endingTextObject.GetComponent<RectTransform>();
+        float endingTextY = Mathf.Abs(endingRect.anchoredPosition.y);
+        float targetPosition = endingTextY - (Screen.height / 2f);
+
         scrollTween = content
             .DOAnchorPosY(targetPosition, scrollDuration)
             .SetEase(Ease.Linear)
             .OnComplete(() =>
             {
-                // 화면 중앙에서 3초 대기 후 페이드아웃
                 StartCoroutine(EndingSequence());
             });
     }
 
     IEnumerator EndingSequence()
     {
-        // 3초 동안 엔딩 텍스트를 화면에 유지
         yield return new WaitForSeconds(3f);
 
-        // BGM 페이드아웃
-        if (audioSource != null && audioSource.isPlaying)
+        if (AudioManager.Instance != null)
         {
-            audioSource.DOFade(0f, 2f);
+            AudioManager.Instance.FadeOutBGM(2f);
         }
 
-        // 화면 페이드아웃
         canvasGroup.DOFade(0f, 2f).OnComplete(() =>
         {
-            SceneManager.LoadScene("Initialize");
+            SceneManager.LoadScene("Initializer");
         });
     }
 
@@ -347,23 +355,18 @@ public class CreditController : MonoBehaviour
             scrollTween.Kill();
         }
 
-        if (audioSource != null)
+        if (AudioManager.Instance != null)
         {
-            audioSource.DOKill();
-            audioSource.DOFade(0f, 0.3f);
+            AudioManager.Instance.FadeOutBGM(0.3f);
         }
 
         canvasGroup.DOKill();
         canvasGroup.DOFade(0f, 0.5f)
-            .OnComplete(() => SceneManager.LoadScene("Initialize"));
+            .OnComplete(() => SceneManager.LoadScene("Initializer"));
     }
 
     void OnDestroy()
     {
         scrollTween?.Kill();
-        if (audioSource != null)
-        {
-            audioSource.DOKill();
-        }
     }
 }

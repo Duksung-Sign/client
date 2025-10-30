@@ -26,7 +26,6 @@ public class KeyInputListener : MonoBehaviour
         if (isListening) return;
 
         var paramDict = ParseParameters(parameters);
-
         paramDict.TryGetValue("wrongKeyDialogue", out string wrongKeyDialogueID);
         paramDict.TryGetValue("timeoutDialogue", out string timeoutDialogueID);
         float.TryParse(paramDict.GetValueOrDefault("timeout", "10"), out float timeoutDuration);
@@ -46,7 +45,6 @@ public class KeyInputListener : MonoBehaviour
     {
         isListening = true;
         Debug.Log($"[KeyInputListener] '{key}' 키 입력 감시 시작. (제한 시간: {timeout}초)");
-
         float timer = 0f;
 
         while (true)
@@ -60,8 +58,15 @@ public class KeyInputListener : MonoBehaviour
             if (Input.GetKeyDown(key))
             {
                 Debug.Log($"[KeyInputListener] '{key}' 키 입력 감지! (성공)");
-                GameEventManager.Instance?.TriggerKeyEvent("KEY_PRESSED", key.ToString());
-                break; 
+
+                // ⭐ K키면 스킬북 튜토리얼 시작
+                if (key == KeyCode.K && SkillBookController.Instance != null)
+                {
+                    SkillBookController.Instance.StartSkillBookTutorial();
+                    Debug.Log("[KeyInputListener] 스킬북 튜토리얼 시작!");
+                }
+
+                break;
             }
 
             if (Input.anyKeyDown && !string.IsNullOrEmpty(wrongKeyDialogue))
@@ -69,7 +74,7 @@ public class KeyInputListener : MonoBehaviour
                 Debug.Log("[KeyInputListener] 잘못된 키 입력 감지.");
                 DialogueManager.Instance.StartRandomDialogueFromSet("wrong_key_feedback");
                 yield return new WaitUntil(() => DialogueManager.Instance == null || !DialogueManager.Instance.IsInDialogue());
-                timer = 0f; 
+                timer = 0f;
             }
 
             timer += Time.deltaTime;
@@ -78,7 +83,7 @@ public class KeyInputListener : MonoBehaviour
                 Debug.Log("[KeyInputListener] 시간 초과 감지.");
                 DialogueManager.Instance.StartRandomDialogueFromSet("mio_timeout_feedback");
                 yield return new WaitUntil(() => DialogueManager.Instance == null || !DialogueManager.Instance.IsInDialogue());
-                timer = 0f; 
+                timer = 0f;
             }
 
             yield return null;

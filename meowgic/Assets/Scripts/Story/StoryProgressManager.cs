@@ -93,6 +93,7 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnBattleOver += HandleGameEvent;
             GameEventManager.Instance.OnMapEntered += HandleGameEvent;
             GameEventManager.Instance.OnSkillBookClosed += HandleGameEvent;
+            GameEventManager.Instance.OnKeyEvent += HandleGameEvent;
         }
     }
 
@@ -106,6 +107,7 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnBattleOver -= HandleGameEvent;
             GameEventManager.Instance.OnMapEntered -= HandleGameEvent;
             GameEventManager.Instance.OnSkillBookClosed -= HandleGameEvent;
+            GameEventManager.Instance.OnKeyEvent -= HandleGameEvent;
         }
     }
 

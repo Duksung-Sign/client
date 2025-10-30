@@ -6658,7 +6658,7 @@ MonoBehaviour:
   dataProcessor: {fileID: 2118140695}
   serverIP: 54.180.108.68
   serverPort: 8000
-  serverEndpoint: ws
+  serverEndpoint: ws/244
 --- !u!4 &2118140694
 Transform:
   m_ObjectHideFlags: 0

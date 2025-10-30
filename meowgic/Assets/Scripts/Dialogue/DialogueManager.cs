@@ -479,8 +479,28 @@ public class DialogueManager : MonoBehaviour
             portraitSequence.Kill(complete: true);
         }
 
-        if (!string.Equals(speakerName, lastSpeakerName))
+        // ⭐ 배틀 씬에서 튜나 초상화는 표시하지 않음
+        bool isBattleScene = SceneManager.GetActiveScene().name == "BattleScene";
+        bool isTuna = speakerName == "튜나";
+
+        if (isBattleScene && isTuna)
         {
+            // 배틀 씬에서 튜나일 때는 초상화 숨기기
+            leftPortrait.DOKill(complete: true);
+            if (leftPortrait.gameObject.activeSelf)
+            {
+                leftPortrait.gameObject.SetActive(false);
+            }
+
+            // 타이핑 사운드는 가져오기
+            if (characterDatabase != null)
+            {
+                currentTypingSound = characterDatabase.GetTypingSound(speakerName);
+            }
+        }
+        else if (!string.Equals(speakerName, lastSpeakerName))
+        {
+            // ⭐ 기존 초상화 표시 로직 (배틀 씬의 튜나가 아닐 때)
             if (characterDatabase != null)
             {
                 currentTypingSound = characterDatabase.GetTypingSound(speakerName);

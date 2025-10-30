@@ -917,7 +917,6 @@ public class CutsceneManager : MonoBehaviour
     {
         Debug.Log("[CutsceneManager] 전투 후 컷씬 시작");
 
-        // 씬 오브젝트 초기화 대기
         yield return new WaitForSeconds(0.5f);
 
         GameObject player = GameObject.FindGameObjectWithTag("Player");
@@ -929,74 +928,97 @@ public class CutsceneManager : MonoBehaviour
         if (cheddar == null)
         {
             Debug.Log("[CutsceneManager] Cheddar를 찾을 수 없어 생성합니다.");
-            
+
             GameObject cheddarPrefab = Resources.Load<GameObject>("Prefabs/Cheddar");
             if (cheddarPrefab != null)
             {
                 cheddar = Instantiate(cheddarPrefab, cheddarFallenPosition, Quaternion.identity);
                 cheddar.name = "Cheddar";
-                
+
+                yield return null;  // 한 프레임 대기
+
                 Animator cheddarAnimator = cheddar.GetComponent<Animator>();
                 if (cheddarAnimator != null)
                 {
-                    cheddarAnimator.enabled = false;
+                    cheddarAnimator.SetBool("isHurt", true);
                 }
-                
-                cheddar.transform.rotation = Quaternion.Euler(0, 0, -90);
             }
             else
             {
                 Debug.LogError("[CutsceneManager] Cheddar 프리팹을 찾을 수 없습니다!");
+                // ⭐ 여기서 yield break 하지 말고 계속 진행
             }
         }
 
-        if (player == null || cheddar == null)
+        // ⭐ player가 없어도 경고만 하고 계속 진행
+        if (player == null)
         {
-            Debug.LogWarning("[CutsceneManager] Player 또는 Cheddar를 여전히 찾을 수 없습니다!");
-            yield break;
+            Debug.LogWarning("[CutsceneManager] Player를 찾을 수 없습니다!");
+            player = GameObject.FindGameObjectWithTag("Player");
         }
 
-        // 플레이어를 체다 옆으로 이동
-        Vector3 targetPos = cheddar.transform.position + new Vector3(-1.5f, 0f, 0f);
-
-        Animator playerAnimator = player.GetComponent<Animator>();
-        if (playerAnimator != null)
+        // ⭐ cheddar가 없어도 경고만 하고 계속 진행
+        if (cheddar == null)
         {
-            playerAnimator.SetBool("isWalk", true);
+            Debug.LogWarning("[CutsceneManager] Cheddar를 여전히 찾을 수 없습니다!");
+            // yield break 제거!
         }
 
-        Debug.Log("[CutsceneManager] 플레이어가 체다에게 이동");
-        yield return player.transform.DOMove(targetPos, 1.5f).SetEase(Ease.Linear).WaitForCompletion();
-
-        if (playerAnimator != null)
+        // ⭐ 둘 다 있을 때만 이동 시퀀스 실행
+        if (player != null && cheddar != null)
         {
-            playerAnimator.SetBool("isWalk", false);
-        }
+            // 플레이어를 체다 앞으로 이동
+            Vector3 targetPos = new Vector3(
+                player.transform.position.x,
+                24.3f,
+                0f
+            );
 
-        yield return new WaitForSeconds(0.5f);
+            Animator playerAnimator = player.GetComponent<Animator>();
+            if (playerAnimator != null)
+            {
+                playerAnimator.SetBool("isWalk", true);
+                playerAnimator.SetFloat("xDir", 0f);
+                playerAnimator.SetFloat("yDir", -1f);
+            }
 
-        Animator cheddarAnimator2 = cheddar.GetComponent<Animator>();
-        if (cheddarAnimator2 != null)
-        {
-            cheddarAnimator2.enabled = true;
-            
-            Debug.Log("[CutsceneManager] 체다 일어서기 애니메이션");
-            cheddarAnimator2.SetTrigger("StandUp");
-            yield return new WaitForSeconds(1f);
-        }
-        else
-        {
-            // 애니메이터가 없으면 회전으로 일어나기
-            cheddar.transform.DORotate(Vector3.zero, 0.5f);
+            Debug.Log("[CutsceneManager] 플레이어가 체다에게 이동");
+            yield return player.transform.DOMove(targetPos, 1.5f).SetEase(Ease.Linear).WaitForCompletion();
+
+            if (playerAnimator != null)
+            {
+                playerAnimator.SetBool("isWalk", false);
+            }
+
             yield return new WaitForSeconds(0.5f);
+
+            // 체다 일어서기
+            Animator cheddarAnimator2 = cheddar.GetComponent<Animator>();
+            if (cheddarAnimator2 != null)
+            {
+                Debug.Log("[CutsceneManager] 체다 일어서기 애니메이션");
+                cheddarAnimator2.SetTrigger("StandUp");
+
+                yield return new WaitForSeconds(1.5f);
+
+                // 왼쪽 idle 상태로 전환
+                cheddarAnimator2.SetFloat("xDir", -1f);
+                cheddarAnimator2.SetFloat("yDir", 0f);
+                cheddarAnimator2.SetBool("isWalk", false);
+
+                Debug.Log("[CutsceneManager] 체다 왼쪽 idle 상태로 전환");
+
+                yield return new WaitForSeconds(0.5f);
+            }
         }
 
-        // 전투 후 대화 시작
         if (DialogueManager.Instance != null)
         {
             Debug.Log("[CutsceneManager] 전투 후 대화 시작");
             DialogueManager.Instance.StartDialogue("after_battle_dialogue");
+
             yield return new WaitUntil(() => !DialogueManager.Instance.IsInDialogue());
+            yield return new WaitForSeconds(0.5f);  // ⭐ 추가 대기
         }
 
         Debug.Log("[CutsceneManager] 전투 후 컷씬 종료");
