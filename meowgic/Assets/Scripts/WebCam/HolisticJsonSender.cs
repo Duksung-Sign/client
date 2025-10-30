@@ -7,7 +7,6 @@ using WebSocketSharp;
 using Mediapipe.Unity;
 using Mediapipe;
 using Mediapipe.Unity.Sample.Holistic;
-
 using System.Collections;
 
 public class HolisticJsonSender : MonoBehaviour
@@ -32,14 +31,13 @@ public class HolisticJsonSender : MonoBehaviour
     [Header("Server Settings")]
     public string serverIP = "54.180.108.68";
     public int serverPort = 8000;
-    public string serverEndpoint = "ws"; 
+    public string serverEndpoint = "ws";
 
-    // --- 내부 상태 변수 ---
     private bool isStreaming = false;
     private int lastProcessedFrame = -1;
-
-    // 백그라운드 스레드(웹소켓)의 결과를 메인 스레드(유니티)에서 안전하게 처리하기 위한 큐
     private readonly ConcurrentQueue<Action> mainThreadActions = new ConcurrentQueue<Action>();
+    private readonly object predictionLock = new object();
+    private string latestPrediction = null;
 
     public event Action<string> OnPredictionReceived;
 
@@ -48,13 +46,12 @@ public class HolisticJsonSender : MonoBehaviour
         holisticSolution = FindObjectOfType<HolisticTrackingSolution>();
         if (holisticSolution == null)
         {
-            Debug.LogError("[WS Sender] HolisticTrackingSolution을 찾을 수 없습니다!");
+            Debug.LogError("[HolisticJsonSender] HolisticTrackingSolution을 찾을 수 없습니다!");
             enabled = false;
             return;
         }
 
         holisticSolution.OnHolisticLandmarksOutput.AddListener(OnLandmarks);
-
         ConnectToServer();
     }
 
@@ -71,45 +68,53 @@ public class HolisticJsonSender : MonoBehaviour
         string ep = serverEndpoint.StartsWith("/") ? serverEndpoint : "/" + serverEndpoint;
         string url = $"ws://{serverIP}:{serverPort}{ep}";
 
-        if (ws != null) { try { ws.Close(); } catch { } ws = null; }
+        if (ws != null)
+        {
+            try { ws.Close(); }
+            catch { }
+            ws = null;
+        }
 
         ws = new WebSocket(url);
         ws.Log.Level = WebSocketSharp.LogLevel.Warn;
-        ws.OnOpen += (sender, e) => Debug.Log("✅ OnOpen: 서버에 연결됨");
-        ws.OnMessage += (sender, e) => {
+
+        ws.OnOpen += (sender, e) =>
+        {
+            Debug.Log("✅ 서버 연결 성공");
+        };
+
+        ws.OnMessage += (sender, e) =>
+        {
             try
             {
                 var resp = JsonConvert.DeserializeObject<ServerResponse>(e.Data);
-                mainThreadActions.Enqueue(() => {
-                    float top = 0f;
-                    if (resp?.probabilities != null && resp.probabilities.Count > 0)
-                        top = Mathf.Max(0f, (float)System.Linq.Enumerable.Max(resp.probabilities.Values));
-                    Debug.Log($"🔥 예측: {resp?.prediction} (≈{top:0.00})");
+                mainThreadActions.Enqueue(() =>
+                {
+                    lock (predictionLock)
+                    {
+                        latestPrediction = resp?.prediction ?? "none";
+                    }
                     OnPredictionReceived?.Invoke(resp?.prediction ?? "none");
                 });
             }
             catch (Exception ex)
             {
-                Debug.LogError($"JSON 파싱 실패: {ex.Message}\n{e.Data}");
+                Debug.LogError($"JSON 파싱 실패: {ex.Message}");
             }
         };
-        ws.OnError += (sender, e) => Debug.LogError($"❌ OnError: {e.Message}");
-        ws.OnClose += (sender, e) => Debug.LogWarning($"🔌 OnClose: {e.Code} / {e.Reason}");
 
-        Debug.Log($"[WS] Connecting to {url}");
+        ws.OnError += (sender, e) => Debug.LogError($"WebSocket 에러: {e.Message}");
+        ws.OnClose += (sender, e) => Debug.LogWarning($"WebSocket 연결 종료: {e.Code}");
+
         try
         {
             ws.Connect();
-            Debug.Log($"[WS] ReadyState={ws.ReadyState}, IsAlive={ws.IsAlive}");
-            bool pong = ws.Ping();
-            Debug.Log($"[WS] Ping => {pong}");
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[WS] Connect() EX: {ex.GetType().Name}: {ex.Message}");
+            Debug.LogError($"WebSocket 연결 실패: {ex.Message}");
         }
     }
-
 
     private void OnLandmarks(
         NormalizedLandmarkList pose,
@@ -118,29 +123,39 @@ public class HolisticJsonSender : MonoBehaviour
         NormalizedLandmarkList rightHand)
     {
         if (!isStreaming || ws == null || !ws.IsAlive)
-        {
             return;
-        }
 
-        if (Time.frameCount == lastProcessedFrame) return;
+        if (Time.frameCount == lastProcessedFrame)
+            return;
+
         lastProcessedFrame = Time.frameCount;
 
         float[] vector = dataProcessor.ProcessAndConvertToVector(pose, face, leftHand, rightHand);
-        if (vector == null) return;
+        if (vector == null)
+            return;
 
         var payload = new FramePayload { frame = vector };
         string jsonPayload = JsonConvert.SerializeObject(payload);
         ws.Send(jsonPayload);
     }
 
+    public void ClearPredictions()
+    {
+        lock (predictionLock)
+        {
+            latestPrediction = null;
+        }
+    }
+
     public void StartStreaming()
     {
-        Debug.Log($"🚀 스트리밍 시작 요청. ws null? {ws == null}, alive? {ws?.IsAlive}");
         if (ws == null || !ws.IsAlive)
         {
-            StartCoroutine(WaitAndStartStreaming()); // 연결될 때까지 최대 5초 대기
+            StartCoroutine(WaitAndStartStreaming());
             return;
         }
+
+        ClearPredictions();
         isStreaming = true;
     }
 
@@ -152,26 +167,27 @@ public class HolisticJsonSender : MonoBehaviour
             timeout -= Time.deltaTime;
             yield return null;
         }
+
         if (ws != null && ws.IsAlive)
         {
-            Debug.Log("✅ 연결 확인됨. 스트리밍 시작");
+            ClearPredictions();
             isStreaming = true;
         }
         else
         {
-            Debug.LogError("❌ WebSocket 연결 실패(타임아웃) — 서버/포트/SG 확인 필요");
+            Debug.LogError("WebSocket 연결 실패 - 서버 상태를 확인하세요");
         }
     }
 
     public void StopStreaming()
     {
-        Debug.Log("데이터 스트리밍을 중단합니다.");
         isStreaming = false;
     }
 
     public bool IsMediaPipeReady()
     {
-        if (holisticSolution == null) return false;
+        if (holisticSolution == null)
+            return false;
 
         bool isConnected = ws != null && ws.IsAlive;
         bool hasHand = holisticSolution.CurrentLeftHandLandmarks?.Landmark.Count > 0 ||

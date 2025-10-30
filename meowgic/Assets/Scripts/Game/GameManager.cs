@@ -53,11 +53,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void HandleBattleStartRequested(MonsterDataSO monsterData, string uniqueMonsterID, string battleDialogueID)
+    private void HandleBattleStartRequested(MonsterDataSO monsterData, string uniqueMonsterID, string battleDialogueID, bool canEscape)
     {
         if (CurrentState == GameState.Battle) return;
-        Debug.Log($"[GameManager] 전투 시작 요청 수신: {monsterData.displayName}");
-        GameDataManager.Instance.SetCurrentBattleMonster(monsterData, uniqueMonsterID, battleDialogueID);
+        Debug.Log($"[GameManager] 전투 시작 요청 수신: {monsterData.displayName}, 도망가기: {canEscape}");
+        GameDataManager.Instance.SetCurrentBattleMonster(monsterData, uniqueMonsterID, battleDialogueID, canEscape);
         GameDataManager.Instance.SetPreviousScene(SceneManager.GetActiveScene().name);
         ChangeState(GameState.Battle);
         ChangeScene("BattleScene");

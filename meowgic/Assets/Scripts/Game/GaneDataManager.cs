@@ -23,6 +23,11 @@ public class GameDataManager : MonoBehaviour
 
     public bool IsTunaSpawned { get; private set; }
     public Vector3 TunaPosition { get; private set; }
+    private bool canEscapeCurrentBattle = true;
+
+    // ✅ 튜토리얼 플래그 추가
+    [System.NonSerialized]
+    public bool IsNextBattleTutorial = false;
 
     void Awake()
     {
@@ -49,6 +54,8 @@ public class GameDataManager : MonoBehaviour
 
     public bool IsMonsterDefeated(string monsterID) => DefeatedMonsterIDs.Contains(monsterID);
     public void AddDefeatedMonster(string monsterID) => DefeatedMonsterIDs.Add(monsterID);
+
+    public bool CanEscapeCurrentBattle => canEscapeCurrentBattle;
 
     public void SetTunaSpawned(bool spawned, Vector3 position = default)
     {
@@ -179,6 +186,15 @@ public class GameDataManager : MonoBehaviour
         CurrentBattleMonster = data;
         CurrentBattleMonsterID = id;
         CurrentBattleDialogueID = dialogueId;
+        canEscapeCurrentBattle = true;
+    }
+
+    public void SetCurrentBattleMonster(MonsterDataSO monster, string uniqueID, string dialogueID, bool canEscape)
+    {
+        CurrentBattleMonster = monster;
+        CurrentBattleMonsterID = uniqueID;
+        CurrentBattleDialogueID = dialogueID;
+        canEscapeCurrentBattle = canEscape;
     }
 
     public void SetPreviousScene(string sceneName)

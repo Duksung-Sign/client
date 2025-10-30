@@ -21,7 +21,7 @@ public class GameEventManager : MonoBehaviour
     public event Action<GameState> OnGameStateChanged;
     public event Action<string> OnStoryAdvanced;
     public event Action<string> OnLockedDoorInteracted;
-    public event Action<MonsterDataSO, string, string> OnBattleStartRequested;
+    public event Action<MonsterDataSO, string, string, bool> OnBattleStartRequested;
     public event Action<string, string> OnItemCollected;
     public event Action<string, string> OnItemInspected;
     public event Action<string, string> OnDialogueStarted;
@@ -42,7 +42,10 @@ public class GameEventManager : MonoBehaviour
         => OnLockedDoorInteracted?.Invoke(doorID);
 
     public void TriggerBattleStartRequested(MonsterDataSO monsterData, string uniqueMonsterID, string battleDialogueID = null)
-        => OnBattleStartRequested?.Invoke(monsterData, uniqueMonsterID, battleDialogueID);
+        => OnBattleStartRequested?.Invoke(monsterData, uniqueMonsterID, battleDialogueID, true);
+
+    public void TriggerBattleStartRequested(MonsterDataSO monsterData, string uniqueMonsterID, string battleDialogueID, bool canEscape)
+        => OnBattleStartRequested?.Invoke(monsterData, uniqueMonsterID, battleDialogueID, canEscape);
 
     public void TriggerItemCollected(string itemID)
         => OnItemCollected?.Invoke("ITEM_COLLECTED", itemID);

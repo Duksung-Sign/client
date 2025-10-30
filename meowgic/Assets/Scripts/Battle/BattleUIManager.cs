@@ -12,11 +12,18 @@ public class BattleUIManager : MonoBehaviour
     public Button attackButton;
     public Button escapeButton;
     public GameObject skillSelectionPanel;
-    public Button[] attackSkillButtons;
+    public TextMeshProUGUI statusText;
+    public RectTransform arrowImage; 
+
+    [Header("⭐ 스킬 버튼 (페이지 시스템)")]
+    public Button[] attackSkillButtons; 
     public Button cancelSkillButton;
     public Button prevButton;
     public Button nextButton;
-    public TextMeshProUGUI statusText;
+
+    [Header("HP 바 (Fill Amount 방식)")]
+    public Image playerHPBarFill;
+    public Image monsterHPBarFill;
 
     string[] skillNames = {
         "안녕하세요", "반갑습니다", "감사합니다", "괜찮아요",
@@ -25,17 +32,32 @@ public class BattleUIManager : MonoBehaviour
     };
 
     int currentPage = 0;
-
-
     private Coroutine statusMessageCoroutine;
 
     void Awake()
     {
+        Debug.Log("[BattleUIManager] ━━━ Awake 호출 ━━━");
+
         if (BattleEventManager.Instance != null)
         {
+            Debug.Log("[BattleUIManager] ✅ BattleEventManager 찾음, 이벤트 구독 시작");
+
             BattleEventManager.Instance.OnBattleStateChanged += HandleBattleStateChange;
             BattleEventManager.Instance.OnRequestUpdateStatus += ShowStatusMessage;
+            BattleEventManager.Instance.OnPlayerHPChanged += UpdatePlayerHPBar;
+            BattleEventManager.Instance.OnMonsterHPChanged += UpdateMonsterHPBar;
+
+            Debug.Log("[BattleUIManager] ✅ 모든 이벤트 구독 완료!");
         }
+        else
+        {
+            Debug.LogError("[BattleUIManager] ❌ BattleEventManager.Instance가 NULL!");
+        }
+
+        // ⭐ UI 요소 null 체크
+        Debug.Log($"[BattleUIManager] playerHPBarFill: {(playerHPBarFill != null ? "OK" : "NULL")}");
+        Debug.Log($"[BattleUIManager] monsterHPBarFill: {(monsterHPBarFill != null ? "OK" : "NULL")}");
+        Debug.Log("[BattleUIManager] ━━━━━━━━━━━━━━━━━━━");
     }
 
     void OnDestroy()
@@ -44,6 +66,8 @@ public class BattleUIManager : MonoBehaviour
         {
             BattleEventManager.Instance.OnBattleStateChanged -= HandleBattleStateChange;
             BattleEventManager.Instance.OnRequestUpdateStatus -= ShowStatusMessage;
+            BattleEventManager.Instance.OnPlayerHPChanged -= UpdatePlayerHPBar;
+            BattleEventManager.Instance.OnMonsterHPChanged -= UpdateMonsterHPBar;
         }
     }
 
@@ -51,23 +75,60 @@ public class BattleUIManager : MonoBehaviour
     {
         InitializeUIState();
         SetupButtonEvents();
+
+        SetupEventTrigger(attackButton);
+        SetupEventTrigger(escapeButton);
+
+        foreach (var btn in attackSkillButtons)
+        {
+            SetupEventTrigger(btn);
+        }
+
+        SetupEventTrigger(cancelSkillButton);
+        SetupEventTrigger(prevButton);
+        SetupEventTrigger(nextButton);
+    }
+
+    private void UpdatePlayerHPBar(int current, int max)
+    {
+        if (playerHPBarFill == null) return;
+        float fillAmount = max > 0 ? (float)current / max : 0f;
+        playerHPBarFill.DOFillAmount(fillAmount, 0.5f).SetEase(Ease.OutQuad);
+    }
+
+    private void UpdateMonsterHPBar(int current, int max)
+    {
+        if (monsterHPBarFill == null) return;
+        float fillAmount = max > 0 ? (float)current / max : 0f;
+        monsterHPBarFill.DOFillAmount(fillAmount, 0.5f).SetEase(Ease.OutQuad);
     }
 
     private void InitializeUIState()
     {
         statusText?.gameObject.SetActive(false);
         skillSelectionPanel?.SetActive(false);
+
+        if (arrowImage != null)
+            arrowImage.gameObject.SetActive(false);
     }
 
     private void SetupButtonEvents()
     {
-        attackButton?.onClick.AddListener(() => BattleEventManager.Instance?.PlayerRequestsAttack());
-        escapeButton?.onClick.AddListener(() => BattleEventManager.Instance?.AttemptEscape());
+        attackButton?.onClick.AddListener(() => {
+            Debug.Log("[BattleUIManager] 공격하기 클릭");
+            BattleEventManager.Instance?.PlayerRequestsAttack();
+        });
+
+        escapeButton?.onClick.AddListener(() => {
+            Debug.Log("[BattleUIManager] 도망가기 클릭");
+            BattleEventManager.Instance?.AttemptEscape();
+        });
 
         prevButton?.onClick.AddListener(() =>
         {
             if (currentPage > 0) { currentPage--; UpdateSkillPage(); }
         });
+
         nextButton?.onClick.AddListener(() =>
         {
             if (currentPage < 3) { currentPage++; UpdateSkillPage(); }
@@ -75,10 +136,50 @@ public class BattleUIManager : MonoBehaviour
 
         cancelSkillButton?.onClick.AddListener(() =>
         {
-            Debug.Log("Cancel button clicked");
+            Debug.Log("[BattleUIManager] 스킬 선택 취소");
             skillSelectionPanel.SetActive(false);
             ShowMainUI(true);
         });
+    }
+
+    void UpdateSkillPage()
+    {
+        int startSkillIdx = currentPage * 3;
+
+        for (int i = 0; i < attackSkillButtons.Length; i++)
+        {
+            int skillIdx = startSkillIdx + i;
+
+            if (skillIdx < skillNames.Length)
+            {
+                attackSkillButtons[i].gameObject.SetActive(true);
+                attackSkillButtons[i].GetComponentInChildren<TextMeshProUGUI>().text = skillNames[skillIdx];
+
+                attackSkillButtons[i].onClick.RemoveAllListeners();
+                int capturedIdx = skillIdx;
+                attackSkillButtons[i].onClick.AddListener(() => SelectSkill(capturedIdx));
+
+                SetupEventTrigger(attackSkillButtons[i]);
+            }
+            else
+            {
+                attackSkillButtons[i].gameObject.SetActive(false);
+            }
+        }
+
+        prevButton.interactable = (currentPage > 0);
+        nextButton.interactable = (currentPage < (skillNames.Length / 3 - 1));
+
+        Debug.Log($"[BattleUIManager] 페이지 {currentPage + 1}/4");
+    }
+
+    void SelectSkill(int idx)
+    {
+        string selectedSkillName = skillNames[idx];
+        Debug.Log($"[BattleUIManager] 스킬 선택: {selectedSkillName}");
+
+        skillSelectionPanel.SetActive(false);
+        BattleEventManager.Instance?.SelectPlayerSkill(selectedSkillName);
     }
 
     private void HandleBattleStateChange(BattleState newState)
@@ -87,15 +188,15 @@ public class BattleUIManager : MonoBehaviour
         ShowSkillPanel(false);
         ShowStatusMessage(null, 0);
 
-
         switch (newState)
         {
             case BattleState.Initializing:
-                ShowStatusMessage("미오, 어떤 걸 할까?", 0); 
+                ShowStatusMessage("전투 준비 중!", 2f);
                 break;
 
             case BattleState.PlayerTurn_AwaitingInput:
                 ShowMainUI(true);
+                ShowStatusMessage("미오, 무엇을 할까?", 2f);
                 break;
 
             case BattleState.PlayerTurn_SelectingSkill:
@@ -104,23 +205,26 @@ public class BattleUIManager : MonoBehaviour
                 break;
 
             case BattleState.PlayerTurn_Gesture:
-                ShowStatusMessage("미오! 묘어를 분석 중이야!", 0);
+                ShowStatusMessage("묘어를 보여줘!", 0);
                 break;
 
             case BattleState.ActionInProgress:
+                break;
+
             case BattleState.MonsterTurn:
+                ShowStatusMessage("몬스터의 차례!", 1f);
                 break;
 
             case BattleState.BattleOver_Victory:
-                ShowStatusMessage("냐학! 승리했어!", 0);
+                ShowStatusMessage("이겼어, 미오!", 3f);
                 break;
 
             case BattleState.BattleOver_Defeat:
-                ShowStatusMessage("이런, 패배했어.", 0);
+                ShowStatusMessage("패배했다참치...", 3f);
                 break;
 
             case BattleState.Escaped:
-                ShowStatusMessage("냐냐냥! 도망치자!", 0);
+                ShowStatusMessage("도망쳤다!", 2f);
                 break;
         }
     }
@@ -134,6 +238,7 @@ public class BattleUIManager : MonoBehaviour
     private void ShowSkillPanel(bool show)
     {
         skillSelectionPanel?.SetActive(show);
+
         if (show)
         {
             currentPage = 0;
@@ -171,46 +276,45 @@ public class BattleUIManager : MonoBehaviour
         if (duration > 0)
         {
             yield return new WaitForSeconds(duration);
-
             yield return statusText.DOFade(0f, 0.2f).WaitForCompletion();
-
             statusText.gameObject.SetActive(false);
         }
     }
 
-    void UpdateSkillPage()
+    public void ShowArrowAtButton(RectTransform btn)
     {
-        int startSkillIdx = currentPage * 3;
-        for (int i = 0; i < attackSkillButtons.Length; i++)
-        {
-            int skillIdx = startSkillIdx + i;
-            if (skillIdx < skillNames.Length)
-            {
-                attackSkillButtons[i].gameObject.SetActive(true);
-                attackSkillButtons[i].GetComponentInChildren<TextMeshProUGUI>().text = skillNames[skillIdx];
-                attackSkillButtons[i].onClick.RemoveAllListeners();
-                int capturedIdx = skillIdx;
-                attackSkillButtons[i].onClick.AddListener(() => SelectSkill(capturedIdx));
-            }
-            else
-            {
-                attackSkillButtons[i].gameObject.SetActive(false);
-            }
-        }
-        prevButton.interactable = (currentPage > 0);
-        nextButton.interactable = (currentPage < (skillNames.Length / 3 - 1));
+        if (arrowImage == null || btn == null) return;
 
-        Debug.Log("Updating skill page: " + currentPage);
-        for (int i = 0; i < attackSkillButtons.Length; i++)
-        {
-            Debug.Log($"Button {i} text component: {attackSkillButtons[i].GetComponentInChildren<TextMeshProUGUI>()}");
-        }
+        arrowImage.SetParent(btn.parent, false);
+        float offset = -btn.rect.width * 0.5f - arrowImage.rect.width * 0.5f - 10f;
+        arrowImage.anchoredPosition = btn.anchoredPosition + new Vector2(offset, 0f);
+        arrowImage.gameObject.SetActive(true);
     }
 
-    void SelectSkill(int idx)
+    public void HideArrow()
     {
-        skillSelectionPanel.SetActive(false);
-        BattleEventManager.Instance.SelectPlayerSkill(skillNames[idx]);
+        if (arrowImage != null)
+            arrowImage.gameObject.SetActive(false);
     }
 
+    void SetupEventTrigger(Button btn)
+    {
+        if (btn == null) return;
+
+        var trigger = btn.gameObject.GetComponent<EventTrigger>();
+        if (trigger == null) trigger = btn.gameObject.AddComponent<EventTrigger>();
+
+        // 기존 이벤트 제거
+        trigger.triggers.Clear();
+
+        // 마우스 진입 시 화살표 표시
+        var entryEnter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        entryEnter.callback.AddListener((data) => ShowArrowAtButton(btn.GetComponent<RectTransform>()));
+        trigger.triggers.Add(entryEnter);
+
+        // 마우스 나가면 화살표 숨김
+        var entryExit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        entryExit.callback.AddListener((data) => HideArrow());
+        trigger.triggers.Add(entryExit);
+    }
 }
