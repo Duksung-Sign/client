@@ -517,11 +517,16 @@ public class DialogueManager : MonoBehaviour
             }
         });
 
+        // 현재 대화 라인 ID를 저장 (튜토리얼 추적용)
+        string endedLineID = currentLineID;
+
         GameDataManager.Instance.MarkDialogueAsFinished(currentDialogueSetID);
         GameDataManager.Instance.SaveState();
+
+        // 실제 종료된 라인 ID도 함께 전달 (또는 별도 이벤트)
         GameEventManager.Instance.TriggerDialogueFinished(currentDialogueSetID);
 
-        Debug.Log($"[DialogueManager] 대화 종료: {currentDialogueSetID}");
+        Debug.Log($"[DialogueManager] 대화 종료: {currentDialogueSetID} (마지막 라인: {endedLineID})");
     }
 
     private void BeginDialogueSequence()
@@ -691,5 +696,36 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
+    }
+
+    public void StartDialogueFromLine(string dialogueSetID, string startLineID)
+    {
+        if (!dialogueSets.ContainsKey(dialogueSetID))
+        {
+            Debug.LogError($"[DialogueManager] 존재하지 않는 대화 세트: {dialogueSetID}");
+            return;
+        }
+
+        if (!dialogueLines.ContainsKey(startLineID))
+        {
+            Debug.LogError($"[DialogueManager] 존재하지 않는 대화 라인: {startLineID}");
+            return;
+        }
+
+        // 대화 라인이 해당 세트에 속하는지 확인
+        if (dialogueLines[startLineID].DialogueSetID != dialogueSetID)
+        {
+            Debug.LogError($"[DialogueManager] 라인 '{startLineID}'는 세트 '{dialogueSetID}'에 속하지 않습니다.");
+            return;
+        }
+
+        lastSpeakerName = "";
+        isInDialogue = true;
+        currentDialogueSetID = dialogueSetID;
+        currentLineID = startLineID; // 지정된 라인부터 시작
+
+        // 중요: 여기서 실제 LineID를 이벤트로 전달
+        GameEventManager.Instance.TriggerDialogueStarted(startLineID);  // dialogueSetID 대신 startLineID 전달
+        BeginDialogueSequence();
     }
 }

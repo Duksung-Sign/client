@@ -16,6 +16,7 @@ public class MonsterController : MonoBehaviour, IInteractable
     private const float PATROL_TIME = 3f;
 
     private Rigidbody2D rb;
+    private Animator animator; 
     private bool isInitialized = false;
 
     public float PatrolRange => monsterData.patrolRange;
@@ -27,6 +28,7 @@ public class MonsterController : MonoBehaviour, IInteractable
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>(); 
     }
 
     void Start()
@@ -119,15 +121,45 @@ public class MonsterController : MonoBehaviour, IInteractable
     private void ChangeState(MonsterState newState)
     {
         currentState = newState;
+
         switch (newState)
         {
             case MonsterState.Idle:
                 stateTimer = IDLE_TIME;
                 rb.velocity = Vector2.zero;
+
+                // Idle 애니메이션
+                if (animator != null)
+                {
+                    animator.SetBool("isWalk", false);
+                }
                 break;
+
             case MonsterState.Patrol:
                 stateTimer = PATROL_TIME;
                 patrolTarget = initialPosition + (Vector3)(Random.insideUnitCircle * PatrolRange);
+
+                // Walk 애니메이션 시작
+                if (animator != null)
+                {
+                    animator.SetBool("isWalk", true);
+                }
+                break;
+
+            case MonsterState.Chase:
+                // Chase 애니메이션 (Walk 사용)
+                if (animator != null)
+                {
+                    animator.SetBool("isWalk", true);
+                }
+                break;
+
+            case MonsterState.Return:
+                // Return 애니메이션 (Walk 사용)
+                if (animator != null)
+                {
+                    animator.SetBool("isWalk", true);
+                }
                 break;
         }
     }
@@ -136,11 +168,22 @@ public class MonsterController : MonoBehaviour, IInteractable
     {
         Vector3 direction = (target - transform.position).normalized;
         rb.velocity = direction * MoveSpeed;
-        if (direction.x != 0)
+
+        // 애니메이션 방향 설정
+        if (animator != null && direction != Vector3.zero)
         {
-            float newXScale = Mathf.Abs(transform.localScale.x);
-            newXScale *= Mathf.Sign(direction.x);
-            transform.localScale = new Vector3(newXScale, transform.localScale.y, transform.localScale.z);
+            // 가로 방향이 더 크면 좌우 애니메이션
+            if (Mathf.Abs(direction.x) > Mathf.Abs(direction.y))
+            {
+                animator.SetFloat("xDir", Mathf.Sign(direction.x));
+                animator.SetFloat("yDir", 0f);
+            }
+            // 세로 방향이 더 크면 상하 애니메이션
+            else
+            {
+                animator.SetFloat("xDir", 0f);
+                animator.SetFloat("yDir", Mathf.Sign(direction.y));
+            }
         }
     }
 

@@ -48,6 +48,13 @@ public class DoorController : MonoBehaviour, IInteractable
             return;
         }
 
+        if (string.IsNullOrEmpty(requiredItemID))
+        {
+            if (debugMode) Debug.Log($"[DoorController] 아이템 체크 없음. 문 열기 시작.");
+            OpenDoor();
+            return;
+        }
+
         bool hasKey = GameDataManager.Instance.HasItem(requiredItemID);
 
         if (hasKey)

@@ -106,7 +106,6 @@ public class StoryProgressManager : MonoBehaviour
             GameEventManager.Instance.OnBattleOver -= HandleGameEvent;
             GameEventManager.Instance.OnMapEntered -= HandleGameEvent;
             GameEventManager.Instance.OnSkillBookClosed -= HandleGameEvent;
-
         }
     }
 
@@ -228,6 +227,7 @@ public class StoryProgressManager : MonoBehaviour
     {
         conditionCheckers = new Dictionary<string, Func<string, string, bool>>
         {
+            ["none"] = (target, value) => true,
             ["item_obtained"] = (target, value) => GameDataManager.Instance.HasItem(target) == (value != "0"),
             ["item_inspected"] = (target, value) => GameDataManager.Instance.HasInspectedItem(target) == (value != "0"),
             ["dialogue_finished"] = (target, value) => GameDataManager.Instance.HasFinishedDialogue(target) == (value != "0"),
@@ -266,12 +266,15 @@ public class StoryProgressManager : MonoBehaviour
         }
         else
         {
+            Debug.Log($"[StoryProgressManager] {storyID}에 대한 액션이 없습니다. OnAllActionsCompleted 호출.");
             OnAllActionsCompleted();
         }
     }
 
     private IEnumerator ExecuteActionsCoroutine(List<StoryAction> actions)
     {
+        Debug.Log($"[StoryProgressManager] {actions.Count}개의 액션 실행 시작");
+
         for (int i = 0; i < actions.Count; i++)
         {
             var action = actions[i];
@@ -303,9 +306,6 @@ public class StoryProgressManager : MonoBehaviour
                         InteractionManager.Instance.EnableObject(action.Target);
                     }
                     break;
-                case "start_battle":
-                    GameEventManager.Instance.TriggerBattleStartRequested(Resources.Load<MonsterDataSO>(action.Target), null, action.Parameter);
-                    yield break;
                 case "complete_quest":
                     GameDataManager.Instance.SetQuestCompleted(action.Target);
                     break;
@@ -320,8 +320,64 @@ public class StoryProgressManager : MonoBehaviour
                         yield return new WaitUntil(() => !CutsceneManager.Instance.IsPlayingCutscene());
                     }
                     break;
+                case "start_battle":
+                    bool canEscape = false;
+                    string battleDialogueID = "";
+
+                    bool isTutorial = (GameDataManager.Instance.CurrentStoryID == "cheddar_attacked");
+
+                    if (!string.IsNullOrEmpty(action.Parameter))
+                    {
+                        string[] parameters = action.Parameter.Split(';');
+                        foreach (string param in parameters)
+                        {
+                            string[] keyValue = param.Split('=');
+                            if (keyValue.Length == 2)
+                            {
+                                string key = keyValue[0].Trim();
+                                string value = keyValue[1].Trim();
+
+                                if (key == "canEscape")
+                                {
+                                    bool.TryParse(value, out canEscape);
+                                }
+                                else if (key == "dialogueID")
+                                {
+                                    battleDialogueID = value;
+                                }
+                            }
+                        }
+                    }
+
+                    MonsterDataSO monster = Resources.Load<MonsterDataSO>("Monsters/" + action.Target);
+                    if (monster == null)
+                    {
+                        monster = Resources.Load<MonsterDataSO>(action.Target);
+                    }
+
+                    if (monster != null)
+                    {
+                        Debug.Log($"[StoryProgressManager] 전투 시작: {monster.displayName}, 튜토리얼: {isTutorial}");
+
+                        GameDataManager.Instance.IsNextBattleTutorial = isTutorial;
+
+                        GameEventManager.Instance.TriggerBattleStartRequested(
+                            monster,
+                            action.Target,
+                            battleDialogueID,
+                            canEscape
+                        );
+                        yield break;
+                    }
+                    else
+                    {
+                        Debug.LogError($"[StoryProgressManager] 몬스터 데이터를 찾을 수 없습니다: {action.Target}");
+                    }
+                    break;
             }
         }
+
+        Debug.Log("[StoryProgressManager] 모든 액션 실행 완료. OnAllActionsCompleted 호출");
         OnAllActionsCompleted();
     }
 
@@ -338,19 +394,37 @@ public class StoryProgressManager : MonoBehaviour
 
     private void OnAllActionsCompleted()
     {
-        var currentNode = storyNodes[GameDataManager.Instance.CurrentStoryID];
+        var currentStoryID = GameDataManager.Instance.CurrentStoryID;
+        Debug.Log($"[StoryProgressManager] OnAllActionsCompleted 호출됨. CurrentStoryID: {currentStoryID}");
+
+        if (!storyNodes.ContainsKey(currentStoryID))
+        {
+            Debug.LogError($"[StoryProgressManager] storyNodes에 {currentStoryID}가 없습니다!");
+            return;
+        }
+
+        var currentNode = storyNodes[currentStoryID];
+        Debug.Log($"[StoryProgressManager] AutoAdvance: {currentNode.AutoAdvance}, NextStoryID: {currentNode.NextStoryID}");
+
         if (currentNode.AutoAdvance)
         {
+            Debug.Log($"[StoryProgressManager] AutoAdvance 활성화. TryAdvanceToNextStory 호출");
             TryAdvanceToNextStory();
+        }
+        else
+        {
+            Debug.Log($"[StoryProgressManager] AutoAdvance 비활성화. 자동 진행 없음");
         }
     }
 
     private void TryAdvanceToNextStory()
     {
         var currentStoryID = GameDataManager.Instance.CurrentStoryID;
+        Debug.Log($"[StoryProgressManager] TryAdvanceToNextStory 시작. CurrentStoryID: {currentStoryID}");
 
         if (!storyNodes.ContainsKey(currentStoryID))
         {
+            Debug.LogError($"[StoryProgressManager] storyNodes에 {currentStoryID}가 없습니다!");
             return;
         }
 
@@ -358,11 +432,16 @@ public class StoryProgressManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(nextStoryID))
         {
+            Debug.Log($"[StoryProgressManager] NextStoryID가 비어있습니다. 자동 진행 중단");
             return;
         }
 
+        Debug.Log($"[StoryProgressManager] NextStoryID: {nextStoryID}. 조건 확인 중...");
+
         if (CanAdvanceStory(nextStoryID))
         {
+            Debug.Log($"[StoryProgressManager] ✅ 조건 충족! {currentStoryID} → {nextStoryID} 진행");
+
             if (PlayerController.Instance != null)
             {
                 GameDataManager.Instance.SetLastPlayerPosition(PlayerController.Instance.transform.position);
@@ -375,27 +454,42 @@ public class StoryProgressManager : MonoBehaviour
         }
         else
         {
+            Debug.LogWarning($"[StoryProgressManager] ❌ 조건 미충족. {nextStoryID}로 진행할 수 없습니다");
             GameDataManager.Instance.SaveState();
         }
     }
 
     private bool CanAdvanceStory(string targetStoryID)
     {
-        if (!storyConditions.ContainsKey(targetStoryID)) return true;
+        if (!storyConditions.ContainsKey(targetStoryID))
+        {
+            Debug.Log($"[StoryProgressManager] {targetStoryID}에 조건 없음 → 진행 가능");
+            return true;
+        }
+
+        Debug.Log($"[StoryProgressManager] {targetStoryID}의 조건 확인 중... ({storyConditions[targetStoryID].Count}개)");
+
         foreach (var condition in storyConditions[targetStoryID])
         {
-            if (!conditionCheckers.ContainsKey(condition.ConditionType) ||
-                !conditionCheckers[condition.ConditionType](condition.Target, condition.Value))
+            if (!conditionCheckers.ContainsKey(condition.ConditionType))
             {
+                Debug.LogWarning($"[StoryProgressManager] 알 수 없는 조건 타입: {condition.ConditionType}");
+                return false;
+            }
+
+            bool result = conditionCheckers[condition.ConditionType](condition.Target, condition.Value);
+            Debug.Log($"[StoryProgressManager] 조건 체크: {condition.ConditionType}({condition.Target}) = {result}");
+
+            if (!result)
+            {
+                Debug.LogWarning($"[StoryProgressManager] 조건 실패: {condition.Description}");
                 return false;
             }
         }
+
+        Debug.Log($"[StoryProgressManager] 모든 조건 충족!");
         return true;
     }
-
-    /*
-     * 이벤트를 진행시키기 위한 조건을 탐색한다.
-     */
 
     private void HandleGameEvent(string eventType, string eventTargetID)
     {

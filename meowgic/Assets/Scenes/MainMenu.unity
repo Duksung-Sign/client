@@ -2478,7 +2478,7 @@ MonoBehaviour:
   newGameButton: {fileID: 1531325292}
   continueButton: {fileID: 156420031}
   quitGameButton: {fileID: 251444046}
-  startingStoryID: library_intro
+  startingStoryID: library_cutscene
   normalTextColor: {r: 1, g: 1, b: 1, a: 0.7529412}
   disabledTextColor: {r: 1, g: 1, b: 1, a: 0.05490196}
   arrowLeft: {fileID: 1676937349}
