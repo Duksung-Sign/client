@@ -31,7 +31,7 @@ public class HolisticJsonSender : MonoBehaviour
     [Header("Server Settings")]
     public string serverIP = "54.180.108.68";
     public int serverPort = 8000;
-    public string serverEndpoint = "ws/244";
+    public string serverEndpoint = "ws/276";
 
     private bool isStreaming = false;
     private int lastProcessedFrame = -1;
