@@ -193,14 +193,14 @@ public class BattleManager : MonoBehaviour
     {
         if (holisticExtractor == null) yield break;
 
-        BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeStabilizing, 0);
+        //BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeStabilizing, 0);
         float waitTime = 0f;
         while (waitTime < 10f && !holisticExtractor.IsMediaPipeReady())
         {
             waitTime += Time.deltaTime;
             yield return null;
         }
-        BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeReady, 1.5f);
+        //BattleEventManager.Instance?.RequestUpdateStatus(SystemMessages.MediaPipeReady, 1.5f);
         yield return new WaitForSeconds(1.5f);
     }
 

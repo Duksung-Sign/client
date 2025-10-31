@@ -184,4 +184,19 @@ public class AudioManager : MonoBehaviour
         return (bgmSaved, sfxSaved);
     }
 
+    /// <summary>
+    /// BGM을 페이드아웃하고 정지
+    /// </summary>
+    public void FadeOutBGM(float duration = 2f)
+    {
+        if (_activeBgmSource != null && _activeBgmSource.isPlaying)
+        {
+            _activeBgmSource.DOFade(0f, duration)
+                .SetEase(Ease.InOutSine)
+                .OnComplete(() => {
+                    _activeBgmSource.Stop();
+                    Debug.Log("[AudioManager] BGM 페이드아웃 완료 및 정지");
+                });
+        }
+    }
 }

@@ -37,13 +37,22 @@ public class ItemManager : MonoBehaviour, IInteractable
         }
     }
 
-    void Start()
+    IEnumerator Start()
     {
+        while (GameDataManager.Instance == null ||
+               DialogueManager.Instance == null ||
+               GameEventManager.Instance == null)
+        {
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(0.1f);
+
         if (itemData == null)
         {
             Debug.LogError($"ItemData가 설정되지 않았습니다: {gameObject.name}");
             Destroy(gameObject);
-            return;
+            yield break;
         }
 
         if (itemData.itemType == ItemDataSO.ItemType.Collectible)

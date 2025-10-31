@@ -186,45 +186,45 @@ public class BattleUIManager : MonoBehaviour
     {
         ShowMainUI(false);
         ShowSkillPanel(false);
-        ShowStatusMessage(null, 0);
+        //ShowStatusMessage(null, 0);
 
         switch (newState)
         {
             case BattleState.Initializing:
-                ShowStatusMessage("전투 준비 중!", 2f);
+                //ShowStatusMessage("전투 준비 중!", 2f);
                 break;
 
             case BattleState.PlayerTurn_AwaitingInput:
                 ShowMainUI(true);
-                ShowStatusMessage("미오, 무엇을 할까?", 2f);
+                //ShowStatusMessage("미오, 무엇을 할까?", 2f);
                 break;
 
             case BattleState.PlayerTurn_SelectingSkill:
-                ShowStatusMessage("어떤 공격을 할까?", 0);
+                //ShowStatusMessage("어떤 공격을 할까?", 0);
                 ShowSkillPanel(true);
                 break;
 
             case BattleState.PlayerTurn_Gesture:
-                ShowStatusMessage("묘어를 보여줘!", 0);
+                //ShowStatusMessage("묘어를 보여줘!", 0);
                 break;
 
             case BattleState.ActionInProgress:
                 break;
 
             case BattleState.MonsterTurn:
-                ShowStatusMessage("몬스터의 차례!", 1f);
+                //ShowStatusMessage("몬스터의 차례!", 1f);
                 break;
 
             case BattleState.BattleOver_Victory:
-                ShowStatusMessage("이겼어, 미오!", 3f);
+                //ShowStatusMessage("이겼어, 미오!", 3f);
                 break;
 
             case BattleState.BattleOver_Defeat:
-                ShowStatusMessage("패배했다참치...", 3f);
+                //ShowStatusMessage("패배했다참치...", 3f);
                 break;
 
             case BattleState.Escaped:
-                ShowStatusMessage("도망쳤다!", 2f);
+                //ShowStatusMessage("도망쳤다!", 2f);
                 break;
         }
     }
