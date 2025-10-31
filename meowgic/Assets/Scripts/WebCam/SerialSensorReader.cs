@@ -7,8 +7,8 @@ using System.Linq;
 public class SerialSensorReader : MonoBehaviour
 {
     [Header("Ports")]
-    public string portRight = "COM4";  // 오른손
-    public string portLeft = "COM3";   // 왼손
+    public string portRight = "COM6";  // 오른손
+    public string portLeft = "COM5";   // 왼손
     public int baudRate = 9600;
 
     [Header("Filter (EWMA)")]

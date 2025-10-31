@@ -6658,7 +6658,7 @@ MonoBehaviour:
   dataProcessor: {fileID: 2118140695}
   serverIP: 54.180.108.68
   serverPort: 8000
-  serverEndpoint: ws/276
+  serverEndpoint: ws/244
 --- !u!4 &2118140694
 Transform:
   m_ObjectHideFlags: 0
@@ -6688,7 +6688,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   scale: {x: 1, y: 1, z: 1}
   offset: {x: 0, y: 0, z: 0}
-  sensorReader: {fileID: 0}
 --- !u!114 &2118140696
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6701,8 +6700,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a9368f76f71f78b43aefb96a4dc7ec2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portRight: COM4
-  portLeft: COM3
+  portRight: COM6
+  portLeft: COM5
   baudRate: 9600
   alpha: 0.3
   accNormMin: 0.8

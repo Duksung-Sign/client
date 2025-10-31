@@ -23,18 +23,11 @@ public class HolisticDataProcessor : MonoBehaviour
 };
     private float[] prevFullFeature = null;
 
-    // 아두이노 관련 변수 추가
-    [Header("Optional: Arduino IMU")]
-    public SerialSensorReader sensorReader;  // 인스펙터에서 할당
-    private const int EXTRA_IMU_DIM = 32;
-    private const int FEATURE_DIM_244 = 244;
-    private const int FEATURE_DIM_FINAL = 276;
-
-    public float[] ProcessAndConvertToVector(   
+    public float[] ProcessAndConvertToVector(
         NormalizedLandmarkList pose,
         NormalizedLandmarkList face,
         NormalizedLandmarkList leftHand,
-        NormalizedLandmarkList rightHand)     
+        NormalizedLandmarkList rightHand)
     {
         SignLanguageData processedData = ProcessHolisticData(pose, face, leftHand, rightHand);
         if (processedData == null)
@@ -42,31 +35,10 @@ public class HolisticDataProcessor : MonoBehaviour
             return null; // 데이터 가공에 실패하면 null을 반환합니다.
         }
 
-        // 1. MediaPipe 244개 특징 벡터 생성
-        float[] vector244 = ConvertToVector(processedData);
+        float[] vector = ConvertToVector(processedData);
 
-        float[] imu32;
-        if (sensorReader != null && sensorReader.GetLatest32(out imu32))
-        {
-            // GetLatest32가 true를 반환하면 (데이터 준비 완료) imu32 사용
-        }
-        else
-        {
-            // 센서 리더가 없거나 아직 데이터가 준비되지 않으면 0으로 채움
-            imu32 = new float[EXTRA_IMU_DIM];
-        }
-
-        // 3. 244개(MediaPipe) + 32개(IMU) 합치기
-        float[] finalVector276 = new float[FEATURE_DIM_FINAL]; // 276
-
-        // 244개 복사
-        Buffer.BlockCopy(vector244, 0, finalVector276, 0, FEATURE_DIM_244 * sizeof(float));
-        Buffer.BlockCopy(imu32, 0, finalVector276, FEATURE_DIM_244 * sizeof(float), EXTRA_IMU_DIM * sizeof(float));
-
-        return finalVector276; // 276개짜리 최종 벡터 반환
+        return vector;
     }
-
-
 
     public SignLanguageData ProcessHolisticData(
         NormalizedLandmarkList poseLandmarks,
