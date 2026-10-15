@@ -60,14 +60,7 @@ MediaPipe Holistic을 활용한 실시간 수어 인식 시스템과 전통적�
 
 ## 시스템 구성도
 
-```
-┌──────────────── Client ────────────────┐         ┌──────────── AI Server (AWS EC2) ────────────┐
-│  Unity (C#)  ·  Arduino  ·  MediaPipe  │ ──────► │  FastAPI  ·  Keras / TensorFlow             │
-│  - 게임 로직 / UI                       │ json /  │  - 수어 동작 분류 모델 추론                   │
-│  - 웹캠 입력 & 랜드마크 추출             │ REST API│                                             │
-│                                        │ ◄────── │                                             │
-└────────────────────────────────────────┘         └─────────────────────────────────────────────┘
-```
+[![시스템 구성도](https://media.discordapp.net/attachments/1358614497753043097/1560228610617376810/image.png?ex=6ad1f3a0&is=6ad0a220&hm=58c75b80ca14080c24bcfae07460845c928ef5fd4c7dea23c4b6b3b326d54bbc&=&format=webp&quality=lossless)]
 
 1. 클라이언트가 웹캠 영상에서 **MediaPipe Holistic**으로 랜드마크를 추출
 2. 추출한 좌표 데이터를 JSON 형태로 AI 서버에 전송
