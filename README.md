@@ -2,7 +2,7 @@
 
 # 🐱 Meowgic (묘우직)
 
-**수어와 AI의 만남 — 수어 인식 기반 턴제 RPG 게임**
+**수어와 AI의 만남 - 수어 인식 기반 턴제 RPG 게임**
 
 ![Unity](https://img.shields.io/badge/Unity-2022.3_LTS-000000?logo=unity&logoColor=white)
 ![C#](https://img.shields.io/badge/C%23-239120?logo=csharp&logoColor=white)
